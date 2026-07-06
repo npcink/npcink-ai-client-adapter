@@ -34,6 +34,9 @@ workflow runtime, or client-side credential storage.
 See [OpenClaw Adapter Consumer Readiness](docs/openclaw-adapter-consumer-readiness.md)
 for the dependency snapshot, verified routes, closed loop, and next-stage
 execution allowlist rules.
+See [Adapter Onboarding Reference Notes - 2026-07](docs/adapter-onboarding-reference-notes-2026-07.md)
+before turning webhook or automation plugin inspiration into Adapter
+connection, payload, or failure-feedback changes.
 
 Batch plan execution is intentionally narrow. Adapter can execute
 `input.write_actions[]` only after Core approval and commit-preflight, and only
