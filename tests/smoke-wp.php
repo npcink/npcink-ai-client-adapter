@@ -184,7 +184,7 @@ function maa_adapter_smoke_rest_result( string $method, string $route, array $pa
 function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $label ): void {
 	$expected = array(
 		'schema_version'                       => 'npcink_openclaw_adapter_contract.v1',
-		'adapter_contract_version'             => '2',
+		'adapter_contract_version'             => '3',
 		'client_policy_version'                => '1',
 		'execution_profile_registry_version'   => '1',
 		'supported_plan_abilities_version'     => '1',
@@ -222,6 +222,7 @@ function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $lab
 				'execution_handoff.core_proxy_execute=false',
 				'execution_handoff.commit_execution=false',
 				'execution_handoff.correlation_id',
+				'implementation_posture.checked_or_not_declared',
 			),
 			'operator_block_guidance'  => 'surface_operator_feedback_and_create_revised_proposal',
 		),
@@ -1348,7 +1349,7 @@ maa_adapter_smoke_assert( array_key_exists( 'core_app_token_configured', $health
 maa_adapter_smoke_assert( 'npcink_openclaw_adapter_client_policy.v1' === (string) ( $health['client_policy']['schema_version'] ?? '' ), 'adapter health exposes machine-readable client policy' );
 maa_adapter_smoke_assert( '1' === (string) ( $health['client_policy']['policy_version'] ?? '' ), 'adapter health exposes client policy version' );
 maa_adapter_smoke_assert( 'npcink_openclaw_adapter_contract.v1' === (string) ( $health['contract']['schema_version'] ?? '' ), 'adapter health exposes contract metadata' );
-maa_adapter_smoke_assert( '2' === (string) ( $health['contract']['adapter_contract_version'] ?? '' ), 'adapter health exposes adapter contract version' );
+maa_adapter_smoke_assert( '3' === (string) ( $health['contract']['adapter_contract_version'] ?? '' ), 'adapter health exposes adapter contract version' );
 maa_adapter_smoke_assert( 0 === strpos( (string) ( $health['contract']['execution_profile_registry_hash'] ?? '' ), 'sha256:' ), 'adapter health exposes execution profile registry hash' );
 maa_adapter_smoke_assert( 0 === strpos( (string) ( $health['contract']['supported_plan_ability_ids_hash'] ?? '' ), 'sha256:' ), 'adapter health exposes supported plan ability hash' );
 maa_adapter_smoke_assert_contract_snapshot( $health, 'adapter health' );
@@ -1358,6 +1359,9 @@ maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['np
 maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['npcink-governance-core']['commit_execution'] ?? true ), 'adapter health detects Core commit execution disabled' );
 maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['npcink-governance-core']['provider_secret_storage'] ?? true ), 'adapter health detects Core provider secret storage disabled' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['core_boundary_supported'] ?? false ), 'adapter health detects supported Core execution boundary' );
+maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['implementation_posture_supported'] ?? false ), 'adapter health detects supported Core implementation posture metadata' );
+maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['implementation_posture_metadata_only'] ?? false ), 'adapter health detects metadata-only Core implementation posture' );
+maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['npcink-governance-core']['implementation_posture_core_records_truth'] ?? true ), 'adapter health keeps Core posture out of record truth ownership' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['site_binding'] ?? false ), 'adapter health detects Core site context binding' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['signed_client_fingerprint_binding'] ?? false ), 'adapter health detects Core signed client fingerprint binding' );
 maa_adapter_smoke_assert( 'npcink_abilities_toolkit_contract.v1' === (string) ( $health['dependency_contracts']['npcink-abilities-toolkit']['schema_version'] ?? '' ), 'adapter health detects Toolkit contract schema' );
@@ -2479,7 +2483,12 @@ maa_adapter_smoke_assert( '' !== $pattern_page_proposal_id, 'adapter pattern pag
 $pattern_page_execute = maa_adapter_smoke_rest( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $pattern_page_proposal_id ) . '/approve-and-execute' );
 maa_adapter_smoke_assert( true === (bool) ( $pattern_page_execute['success'] ?? false ), 'adapter pattern page approve-and-execute succeeds' );
 maa_adapter_smoke_assert( 2 === (int) ( $pattern_page_execute['executed_count'] ?? 0 ), 'adapter pattern page batch executes create and update actions' );
+$pattern_page_posture_evidence = is_array( $pattern_page_execute['implementation_posture_evidence'] ?? null ) ? $pattern_page_execute['implementation_posture_evidence'] : array();
+maa_adapter_smoke_assert( 'npcink_openclaw_adapter_implementation_posture_evidence.v1' === (string) ( $pattern_page_posture_evidence['schema_version'] ?? '' ), 'adapter pattern page execution exposes implementation posture evidence' );
+maa_adapter_smoke_assert( in_array( (string) ( $pattern_page_posture_evidence['status'] ?? '' ), array( 'checked', 'not_declared' ), true ), 'adapter pattern page implementation posture evidence has bounded status' );
 $pattern_page_execution_record = is_array( $pattern_page_execute['execution_record'] ?? null ) ? $pattern_page_execute['execution_record'] : array();
+$pattern_page_record_posture_evidence = is_array( $pattern_page_execution_record['implementation_posture_evidence'] ?? null ) ? $pattern_page_execution_record['implementation_posture_evidence'] : array();
+maa_adapter_smoke_assert( (string) ( $pattern_page_posture_evidence['schema_version'] ?? '' ) === (string) ( $pattern_page_record_posture_evidence['schema_version'] ?? '' ), 'adapter pattern page execution record persists implementation posture evidence' );
 $pattern_page_execution_verification = is_array( $pattern_page_execution_record['verification'] ?? null ) ? $pattern_page_execution_record['verification'] : array();
 maa_adapter_smoke_assert( 'recorded' === (string) ( $pattern_page_execution_verification['status'] ?? '' ), 'adapter pattern page execution record persists verification summary' );
 maa_adapter_smoke_assert( 1 <= (int) ( $pattern_page_execution_verification['aggregates']['block_readback_verified_count'] ?? 0 ), 'adapter pattern page execution verifies post-block readback' );
@@ -3540,6 +3549,7 @@ maa_adapter_smoke_assert( 0 === (int) ( $failed_execution['data']['data']['execu
 maa_adapter_smoke_assert( 1 === (int) ( $failed_execution['data']['data']['execution_record']['failed_count'] ?? 0 ), 'adapter failed execution record carries failed count' );
 maa_adapter_smoke_assert( 'npcink_abilities_toolkit_post_not_found' === (string) ( $failed_execution['data']['data']['execution_record']['error_code'] ?? '' ), 'adapter failed execution record carries ability error code' );
 maa_adapter_smoke_assert( false === (bool) ( $failed_execution['data']['data']['execution_record']['commit_execution'] ?? true ), 'adapter failed execution record keeps commit_execution=false' );
+maa_adapter_smoke_assert( 'npcink_openclaw_adapter_implementation_posture_evidence.v1' === (string) ( $failed_execution['data']['data']['execution_record']['implementation_posture_evidence']['schema_version'] ?? '' ), 'adapter failed execution record carries implementation posture evidence' );
 
 $approve_execute_post_id = maa_adapter_smoke_create_trash_post_fixture();
 $maa_adapter_smoke_cleanup_post_ids[] = $approve_execute_post_id;

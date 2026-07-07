@@ -27,7 +27,7 @@ action.
 ## Machine-Readable Contract Metadata
 
 `GET /health`, `GET /help`, and `GET /connection/manifest` expose a shared
-`contract` object. Adapter contract version `2` includes:
+`contract` object. Adapter contract version `3` includes:
 
 - Adapter/client policy/registry versions and stable hashes for execution
   profiles, supported execute ability ids, and supported plan ability ids;
@@ -52,11 +52,12 @@ same three Adapter surfaces also expose `dependency_contracts` and
 `npcink_abilities_toolkit_contract.v1` against the declared floors, and returns
 only a bounded compatibility summary. The Core summary includes boundary fields
 such as `core_proxy_execute=false`, `commit_execution=false`,
-`provider_secret_storage=false`, the declared final-write authority, and whether
-Core's contract advertises fail-closed site and signed-client fingerprint
-bindings for `approval_context`, `execution_handoff`, and
-`read_authorization_context`. Adapter treats those Core binding fields as part
-of dependency readiness, not as a new source of approval truth. The Toolkit
+`provider_secret_storage=false`, the declared final-write authority, Core's
+implementation posture metadata contract, and whether Core's contract advertises
+fail-closed site and signed-client fingerprint bindings for `approval_context`,
+`execution_handoff`, and `read_authorization_context`. Adapter treats those Core
+binding and posture fields as part of dependency readiness, not as a new source
+of approval truth. The Toolkit
 summary includes ability/hash fingerprints and write controls such as
 `host_governed_writes=true`, `dry_run_default=true`, and `commit_default=false`.
 
@@ -631,6 +632,17 @@ present and still valid. When Core includes `signed_client_fingerprint` or
 client key. Mismatches fail closed; Adapter must not repair, re-approve, or
 execute the proposal.
 
+When Core capability discovery declares an ability `implementation_posture`,
+Adapter must also validate that posture before final execution. Accepted posture
+is metadata-only, dry-run-first, host-governed, and must declare Core as
+approval/audit/final authorization owner while keeping `commit_default=false`
+and `direct_wordpress_write_default=false`. If the declared posture enables
+runtime, scheduler, model routing, provider credential, approval storage, or
+audit storage ownership inside the provider, Adapter fails closed before calling
+WordPress Abilities REST. If no per-ability posture is declared, Adapter records
+`implementation_posture_evidence.status=not_declared` instead of inventing a
+local truth source.
+
 Adapter discovery, commit-preflight, final execution, and stored execution
 records expose `execution_handoff_posture` with schema
 `npcink_openclaw_adapter_execution_handoff_posture.v1`. This is a visibility
@@ -639,7 +651,9 @@ remains the approval, commit-preflight, and execution-record truth owner, and th
 final local write surface is WordPress Abilities REST. The posture must keep
 `core_proxy_execute=false`, `commit_execution=false`,
 `generic_write_executor=false`, `workflow_runtime=false`, and
-`queue_or_scheduler=false`.
+`queue_or_scheduler=false`. Final execute responses and stored execution records
+also expose bounded `implementation_posture_evidence` so clients can see whether
+provider posture was checked or absent for the executed ability ids.
 
 ## Unified Approve And Execute Contract
 
@@ -1239,7 +1253,11 @@ OpenClaw must treat Core as the only proposal and approval truth:
    as an advanced diagnostic step. For dry-run-only verification, stop at
    commit-preflight and do not call execute. If execution is intended, Adapter
    execute normalizes ability input to `dry_run=false` and `commit=true`.
-7. Adapter stops unless the ability is
+7. Adapter validates any Core capability `implementation_posture` for the
+   target ability before dispatching WordPress Abilities REST. Invalid or
+   boundary-expanding posture blocks execution; absent posture is recorded as
+   `not_declared`.
+8. Adapter stops unless the ability is
    supported for Adapter execution, currently `npcink-abilities-toolkit/trash-post`,
    `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`,
    `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/set-post-slug`,
