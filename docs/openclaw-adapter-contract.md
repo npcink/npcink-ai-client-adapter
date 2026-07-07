@@ -631,6 +631,16 @@ present and still valid. When Core includes `signed_client_fingerprint` or
 client key. Mismatches fail closed; Adapter must not repair, re-approve, or
 execute the proposal.
 
+Adapter discovery, commit-preflight, final execution, and stored execution
+records expose `execution_handoff_posture` with schema
+`npcink_openclaw_adapter_execution_handoff_posture.v1`. This is a visibility
+contract for clients: Adapter is the channel and post-Core execution owner, Core
+remains the approval, commit-preflight, and execution-record truth owner, and the
+final local write surface is WordPress Abilities REST. The posture must keep
+`core_proxy_execute=false`, `commit_execution=false`,
+`generic_write_executor=false`, `workflow_runtime=false`, and
+`queue_or_scheduler=false`.
+
 ## Unified Approve And Execute Contract
 
 Adapter exposes one user-facing action for the minimal destructive execution

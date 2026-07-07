@@ -198,6 +198,33 @@ function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $lab
 		'max_execution_actions'                => 200,
 		'core_proxy_execute'                   => false,
 		'commit_execution'                     => false,
+		'execution_handoff_posture'            => array(
+			'schema_version'           => 'npcink_openclaw_adapter_execution_handoff_posture.v1',
+			'channel_owner'            => 'npcink-ai-client-adapter',
+			'governance_truth_owner'   => 'npcink-governance-core',
+			'ability_definition_owner' => 'npcink-abilities-toolkit',
+			'approval_truth'           => 'npcink_governance_core',
+			'commit_preflight_truth'   => 'npcink_governance_core',
+			'execution_owner'          => 'adapter_after_core_preflight',
+			'execution_surface'        => 'wp_abilities_rest',
+			'record_execution_route'   => '/npcink-governance-core/v1/proposals/{proposal_id}/record-execution',
+			'core_proxy_execute'       => false,
+			'commit_execution'         => false,
+			'generic_write_executor'   => false,
+			'workflow_runtime'         => false,
+			'queue_or_scheduler'       => false,
+			'required_evidence'        => array(
+				'approval_context.approval_commit_authorized',
+				'approval_context.approved_input_hash',
+				'approval_context.policy_version=core-preflight-v1',
+				'execution_handoff.executor=adapter_after_core_preflight',
+				'execution_handoff.execution_surface=wp_abilities_rest',
+				'execution_handoff.core_proxy_execute=false',
+				'execution_handoff.commit_execution=false',
+				'execution_handoff.correlation_id',
+			),
+			'operator_block_guidance'  => 'surface_operator_feedback_and_create_revised_proposal',
+		),
 	);
 	$contract = is_array( $payload['contract'] ?? null ) ? $payload['contract'] : array();
 

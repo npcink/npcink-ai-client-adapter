@@ -135,6 +135,42 @@ final class Controller {
 			'max_execution_actions'                => self::MAX_EXECUTION_ACTIONS,
 			'core_proxy_execute'                   => false,
 			'commit_execution'                     => false,
+			'execution_handoff_posture'            => $this->execution_handoff_posture(),
+		);
+	}
+
+	/**
+	 * Returns the stable Adapter/Core final-write handoff posture.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function execution_handoff_posture(): array {
+		return array(
+			'schema_version'          => 'npcink_openclaw_adapter_execution_handoff_posture.v1',
+			'channel_owner'           => 'npcink-ai-client-adapter',
+			'governance_truth_owner'  => 'npcink-governance-core',
+			'ability_definition_owner' => 'npcink-abilities-toolkit',
+			'approval_truth'          => 'npcink_governance_core',
+			'commit_preflight_truth'  => 'npcink_governance_core',
+			'execution_owner'         => 'adapter_after_core_preflight',
+			'execution_surface'       => 'wp_abilities_rest',
+			'record_execution_route'  => '/npcink-governance-core/v1/proposals/{proposal_id}/record-execution',
+			'core_proxy_execute'      => false,
+			'commit_execution'        => false,
+			'generic_write_executor'  => false,
+			'workflow_runtime'        => false,
+			'queue_or_scheduler'      => false,
+			'required_evidence'       => array(
+				'approval_context.approval_commit_authorized',
+				'approval_context.approved_input_hash',
+				'approval_context.policy_version=core-preflight-v1',
+				'execution_handoff.executor=adapter_after_core_preflight',
+				'execution_handoff.execution_surface=wp_abilities_rest',
+				'execution_handoff.core_proxy_execute=false',
+				'execution_handoff.commit_execution=false',
+				'execution_handoff.correlation_id',
+			),
+			'operator_block_guidance' => 'surface_operator_feedback_and_create_revised_proposal',
 		);
 	}
 
@@ -1421,11 +1457,12 @@ final class Controller {
 				'input_change_behavior' => 'create_new_read_request',
 			),
 			'write_flow' => array(
-				'required' => true,
-				'proposal_required' => true,
-				'approval_surface' => 'npcink_governance_core_admin_or_adapter_unified_user_action',
-				'commit_intent_required' => true,
-				'final_write_routes' => array(
+				'required'                  => true,
+				'proposal_required'         => true,
+				'approval_surface'          => 'npcink_governance_core_admin_or_adapter_unified_user_action',
+				'commit_intent_required'    => true,
+				'execution_handoff_posture' => $this->execution_handoff_posture(),
+				'final_write_routes'        => array(
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
 					'POST /proposals/{proposal_id}/approve-and-execute',
@@ -1895,8 +1932,9 @@ final class Controller {
 					'approval_surface'       => 'npcink_governance_core_admin',
 						'core_app_token_configured' => 'none' !== $this->core_app_token_source(),
 						'core_app_token_source' => $this->core_app_token_source(),
-				'contract'              => $this->adapter_contract_metadata(),
-				'client_policy'         => $this->client_policy(),
+					'contract'                   => $this->adapter_contract_metadata(),
+					'execution_handoff_posture'  => $this->execution_handoff_posture(),
+					'client_policy'              => $this->client_policy(),
 				'ai_request_log_context_fields' => array(
 					'proposal_id',
 					'correlation_id',
@@ -2089,8 +2127,9 @@ final class Controller {
 					'approval_surface' => 'npcink_governance_core_admin',
 				'core_app_token_configured' => 'none' !== $this->core_app_token_source(),
 				'core_app_token_source' => $this->core_app_token_source(),
-				'contract' => $this->adapter_contract_metadata(),
-				'dependency_contracts' => $this->dependency_contracts(),
+					'contract'                  => $this->adapter_contract_metadata(),
+					'execution_handoff_posture' => $this->execution_handoff_posture(),
+					'dependency_contracts'      => $this->dependency_contracts(),
 				'client_policy' => $this->client_policy(),
 				'distribution_mode' => 'adapter_entry_with_separate_governance_and_ability_plugins',
 				'dependencies' => $this->dependency_status()['items'],
@@ -3269,7 +3308,8 @@ final class Controller {
 				$handoff = $this->store_preflight_handoff( $proposal_id, $proposal, $data );
 				$data['adapter_preflight_handoff_cached'] = is_array( $handoff );
 				$data['adapter_execution_route']          = '/wp-json/' . self::NAMESPACE . '/proposals/' . rawurlencode( $proposal_id ) . '/execute';
-				$batch_review_feedback = $this->batch_review_feedback_from_preflight( $data, $proposal );
+				$data['execution_handoff_posture']        = $this->execution_handoff_posture();
+				$batch_review_feedback                    = $this->batch_review_feedback_from_preflight( $data, $proposal );
 				if ( ! empty( $batch_review_feedback ) ) {
 					$data['batch_review_feedback'] = $batch_review_feedback;
 				}
@@ -3547,6 +3587,7 @@ final class Controller {
 				'commit_execution'         => false,
 				'core_commit_execution'    => false,
 				'execution_surface'        => 'wp_abilities_rest',
+				'execution_handoff_posture' => $this->execution_handoff_posture(),
 				'selected_count'           => absint( $execution['selected_count'] ?? 0 ),
 				'submitted_count'          => absint( $execution['submitted_count'] ?? 0 ),
 				'executed_count'           => absint( $execution['executed_count'] ?? 0 ),
@@ -6048,6 +6089,7 @@ final class Controller {
 			'adapter_request_id'  => sanitize_text_field( (string) ( $execution['adapter_request_id'] ?? '' ) ),
 			'execution_mode'      => sanitize_key( (string) ( $execution['execution_mode'] ?? '' ) ),
 			'execution_surface'   => 'wp_abilities_rest',
+			'execution_handoff_posture' => $this->execution_handoff_posture(),
 			'commit_execution'    => false,
 			'post_id'             => absint( $execution['post_id'] ?? 0 ),
 			'post_ids'            => array_values( array_map( 'absint', is_array( $execution['post_ids'] ?? null ) ? $execution['post_ids'] : array() ) ),
@@ -6104,6 +6146,7 @@ final class Controller {
 			'adapter_request_id'  => sanitize_text_field( $adapter_request_id ),
 			'execution_mode'      => sanitize_key( $execution_mode ),
 			'execution_surface'   => 'wp_abilities_rest',
+			'execution_handoff_posture' => $this->execution_handoff_posture(),
 			'commit_execution'    => false,
 			'post_id'             => absint( $failed_action['post_id'] ?? 0 ),
 			'post_ids'            => array_values( array_map( 'absint', array_column( $results, 'post_id' ) ) ),
@@ -6254,6 +6297,7 @@ final class Controller {
 			'adapter_request_id'  => (string) ( $record['adapter_request_id'] ?? '' ),
 			'execution_mode'      => (string) ( $record['execution_mode'] ?? '' ),
 			'execution_surface'   => (string) ( $record['execution_surface'] ?? '' ),
+			'execution_handoff_posture' => is_array( $record['execution_handoff_posture'] ?? null ) ? $record['execution_handoff_posture'] : $this->execution_handoff_posture(),
 			'commit_execution'    => (bool) ( $record['commit_execution'] ?? false ),
 			'post_id'             => absint( $record['post_id'] ?? 0 ),
 			'post_ids'            => array_values( array_map( 'absint', is_array( $record['post_ids'] ?? null ) ? $record['post_ids'] : array() ) ),
