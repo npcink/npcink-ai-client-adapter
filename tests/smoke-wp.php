@@ -2485,10 +2485,12 @@ maa_adapter_smoke_assert( true === (bool) ( $pattern_page_execute['success'] ?? 
 maa_adapter_smoke_assert( 2 === (int) ( $pattern_page_execute['executed_count'] ?? 0 ), 'adapter pattern page batch executes create and update actions' );
 $pattern_page_posture_evidence = is_array( $pattern_page_execute['implementation_posture_evidence'] ?? null ) ? $pattern_page_execute['implementation_posture_evidence'] : array();
 maa_adapter_smoke_assert( 'npcink_openclaw_adapter_implementation_posture_evidence.v1' === (string) ( $pattern_page_posture_evidence['schema_version'] ?? '' ), 'adapter pattern page execution exposes implementation posture evidence' );
-maa_adapter_smoke_assert( in_array( (string) ( $pattern_page_posture_evidence['status'] ?? '' ), array( 'checked', 'not_declared' ), true ), 'adapter pattern page implementation posture evidence has bounded status' );
+maa_adapter_smoke_assert( 'checked' === (string) ( $pattern_page_posture_evidence['status'] ?? '' ), 'adapter pattern page implementation posture evidence is checked' );
+maa_adapter_smoke_assert( 1 <= (int) ( $pattern_page_posture_evidence['checked_count'] ?? 0 ), 'adapter pattern page implementation posture checks at least one ability' );
 $pattern_page_execution_record = is_array( $pattern_page_execute['execution_record'] ?? null ) ? $pattern_page_execute['execution_record'] : array();
 $pattern_page_record_posture_evidence = is_array( $pattern_page_execution_record['implementation_posture_evidence'] ?? null ) ? $pattern_page_execution_record['implementation_posture_evidence'] : array();
 maa_adapter_smoke_assert( (string) ( $pattern_page_posture_evidence['schema_version'] ?? '' ) === (string) ( $pattern_page_record_posture_evidence['schema_version'] ?? '' ), 'adapter pattern page execution record persists implementation posture evidence' );
+maa_adapter_smoke_assert( 'checked' === (string) ( $pattern_page_record_posture_evidence['status'] ?? '' ), 'adapter pattern page execution record persists checked implementation posture evidence' );
 $pattern_page_execution_verification = is_array( $pattern_page_execution_record['verification'] ?? null ) ? $pattern_page_execution_record['verification'] : array();
 maa_adapter_smoke_assert( 'recorded' === (string) ( $pattern_page_execution_verification['status'] ?? '' ), 'adapter pattern page execution record persists verification summary' );
 maa_adapter_smoke_assert( 1 <= (int) ( $pattern_page_execution_verification['aggregates']['block_readback_verified_count'] ?? 0 ), 'adapter pattern page execution verifies post-block readback' );
@@ -3550,6 +3552,7 @@ maa_adapter_smoke_assert( 1 === (int) ( $failed_execution['data']['data']['execu
 maa_adapter_smoke_assert( 'npcink_abilities_toolkit_post_not_found' === (string) ( $failed_execution['data']['data']['execution_record']['error_code'] ?? '' ), 'adapter failed execution record carries ability error code' );
 maa_adapter_smoke_assert( false === (bool) ( $failed_execution['data']['data']['execution_record']['commit_execution'] ?? true ), 'adapter failed execution record keeps commit_execution=false' );
 maa_adapter_smoke_assert( 'npcink_openclaw_adapter_implementation_posture_evidence.v1' === (string) ( $failed_execution['data']['data']['execution_record']['implementation_posture_evidence']['schema_version'] ?? '' ), 'adapter failed execution record carries implementation posture evidence' );
+maa_adapter_smoke_assert( 'checked' === (string) ( $failed_execution['data']['data']['execution_record']['implementation_posture_evidence']['status'] ?? '' ), 'adapter failed execution record carries checked implementation posture evidence' );
 
 $approve_execute_post_id = maa_adapter_smoke_create_trash_post_fixture();
 $maa_adapter_smoke_cleanup_post_ids[] = $approve_execute_post_id;
