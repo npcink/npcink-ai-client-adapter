@@ -31,6 +31,9 @@ AI Client Adapter consumer readiness is complete as of Adapter governance commit
 WordPress/Core governance and WordPress Abilities API channel operations.
 Adapter is not the entry point for Cloud runtime transport, provider execution,
 workflow runtime, or client-side credential storage.
+Cross-project platform coordination starts from
+`/Users/muze/gitee/npcink-workflow-toolbox/docs/platform/README.md`; this
+repository remains authoritative only for Adapter-owned channel contracts.
 See [OpenClaw Adapter Consumer Readiness](docs/openclaw-adapter-consumer-readiness.md)
 for the dependency snapshot, verified routes, closed loop, and next-stage
 execution allowlist rules.
