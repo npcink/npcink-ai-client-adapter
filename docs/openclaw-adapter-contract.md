@@ -57,9 +57,19 @@ implementation posture metadata contract, and whether Core's contract advertises
 fail-closed site and signed-client fingerprint bindings for `approval_context`,
 `execution_handoff`, and `read_authorization_context`. Adapter treats those Core
 binding and posture fields as part of dependency readiness, not as a new source
-of approval truth. The Toolkit
-summary includes ability/hash fingerprints and write controls such as
-`host_governed_writes=true`, `dry_run_default=true`, and `commit_default=false`.
+of approval truth. The Toolkit summary includes ability/hash fingerprints and
+write controls such as `host_governed_writes=true`, `dry_run_default=true`, and
+`commit_default=false`. It also treats Toolkit's official WordPress Abilities
+API alignment fields as dependency readiness signals:
+`ability_catalog_source=wordpress_abilities_api`,
+`input_schema_source=wordpress_abilities_api`,
+`output_schema_source=wordpress_abilities_api`,
+`callback_free_hashes=true`, `stable_contract_hashes=true`,
+`read_execution_surface=wordpress_abilities_api`, and
+`write_execution_surface=host_runtime_after_governance`. Adapter only carries
+those bounded booleans, strings, and hashes. It must not copy raw ability definitions into Adapter, nor copy callbacks, permission callables, approval records,
+audit records, provider secrets, prompt material, model routing, runtime state,
+or Cloud execution truth from Toolkit.
 
 `dependency_contracts` is a runtime proof complement to the version floors, not
 a new source of truth. It must not include Core proposal bodies, approval

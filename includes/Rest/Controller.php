@@ -269,6 +269,11 @@ final class Controller {
 				&& ! empty( $boundary_summary['site_binding'] )
 				&& ! empty( $boundary_summary['signed_client_fingerprint_binding'] )
 				&& ! empty( $boundary_summary['implementation_posture_supported'] );
+		} elseif ( 'npcink-abilities-toolkit' === $dependency ) {
+			$semantics_supported = ! empty( $boundary_summary['toolkit_boundary_supported'] )
+				&& ! empty( $boundary_summary['schema_controls_supported'] )
+				&& ! empty( $boundary_summary['write_controls_supported'] )
+				&& ! empty( $boundary_summary['forbidden_payloads_omitted'] );
 		}
 
 		$summary = array(
@@ -363,17 +368,81 @@ final class Controller {
 		}
 
 		if ( 'npcink-abilities-toolkit' === $dependency ) {
-			$write_controls = is_array( $contract['write_controls'] ?? null ) ? $contract['write_controls'] : array();
+			$compatibility      = is_array( $contract['compatibility'] ?? null ) ? $contract['compatibility'] : array();
+			$catalog            = is_array( $contract['catalog'] ?? null ) ? $contract['catalog'] : array();
+			$schema_controls    = is_array( $contract['schema_controls'] ?? null ) ? $contract['schema_controls'] : array();
+			$write_controls     = is_array( $contract['write_controls'] ?? null ) ? $contract['write_controls'] : array();
+			$execution_controls = is_array( $contract['execution_controls'] ?? null ) ? $contract['execution_controls'] : array();
+			$forbidden_payloads = is_array( $contract['forbidden_payloads'] ?? null ) ? $contract['forbidden_payloads'] : array();
+			$forbidden_payload_keys = array(
+				'callback_internals',
+				'permission_callable_refs',
+				'approval_records',
+				'audit_records',
+				'app_secret_material',
+				'provider_secret_material',
+				'runtime_state',
+				'model_routing',
+				'prompt_material',
+				'cloud_execution_truth',
+			);
+			$forbidden_payloads_omitted = true;
+			foreach ( $forbidden_payload_keys as $payload_key ) {
+				if ( true === (bool) ( $forbidden_payloads[ $payload_key ] ?? true ) ) {
+					$forbidden_payloads_omitted = false;
+					break;
+				}
+			}
+			$toolkit_boundary_supported = 'npcink-abilities-toolkit' === (string) ( $catalog['ability_definitions_owner'] ?? '' )
+				&& 'wordpress_abilities_api' === (string) ( $catalog['ability_catalog_source'] ?? '' )
+				&& '/wp-json/wp-abilities/v1/abilities' === (string) ( $catalog['ability_catalog_route'] ?? '' )
+				&& 'namespace/name' === (string) ( $catalog['ability_id_format'] ?? '' )
+				&& true === (bool) ( $compatibility['metadata_only'] ?? false )
+				&& true === (bool) ( $compatibility['wordpress_abilities_api_required'] ?? false );
+			$schema_controls_supported = 'wordpress_abilities_api' === (string) ( $schema_controls['input_schema_source'] ?? '' )
+				&& 'wordpress_abilities_api' === (string) ( $schema_controls['output_schema_source'] ?? '' )
+				&& 'npcink-abilities-toolkit' === (string) ( $schema_controls['normalization_owner'] ?? '' )
+				&& true === (bool) ( $schema_controls['callback_free_hashes'] ?? false )
+				&& true === (bool) ( $schema_controls['stable_contract_hashes'] ?? false );
+			$write_controls_supported = true === (bool) ( $write_controls['dry_run_default'] ?? false )
+				&& false === (bool) ( $write_controls['commit_default'] ?? true )
+				&& true === (bool) ( $write_controls['host_governed_writes'] ?? false )
+				&& 'host_runtime_after_governance' === (string) ( $write_controls['final_commit_owner'] ?? '' )
+				&& 'wordpress_abilities_api' === (string) ( $execution_controls['read_execution_surface'] ?? '' )
+				&& 'host_runtime_after_governance' === (string) ( $execution_controls['write_execution_surface'] ?? '' )
+				&& true === (bool) ( $execution_controls['approval_context_required'] ?? false )
+				&& false === (bool) ( $execution_controls['approval_storage'] ?? true )
+				&& false === (bool) ( $execution_controls['audit_truth'] ?? true )
+				&& false === (bool) ( $execution_controls['final_write_authorization'] ?? true );
 
 			return array(
 				'ability_count'          => absint( $contract['ability_count'] ?? 0 ),
 				'ability_ids_hash'       => (string) ( $contract['ability_ids_hash'] ?? '' ),
 				'ability_contracts_hash' => (string) ( $contract['ability_contracts_hash'] ?? '' ),
 				'workflow_recipes_hash'  => (string) ( $contract['workflow_recipes_hash'] ?? '' ),
+				'ability_definitions_owner' => (string) ( $catalog['ability_definitions_owner'] ?? '' ),
+				'ability_catalog_source' => (string) ( $catalog['ability_catalog_source'] ?? '' ),
+				'ability_catalog_route'  => (string) ( $catalog['ability_catalog_route'] ?? '' ),
+				'ability_id_format'      => (string) ( $catalog['ability_id_format'] ?? '' ),
+				'input_schema_source'    => (string) ( $schema_controls['input_schema_source'] ?? '' ),
+				'output_schema_source'   => (string) ( $schema_controls['output_schema_source'] ?? '' ),
+				'normalization_owner'    => (string) ( $schema_controls['normalization_owner'] ?? '' ),
+				'callback_free_hashes'   => true === (bool) ( $schema_controls['callback_free_hashes'] ?? false ),
+				'stable_contract_hashes' => true === (bool) ( $schema_controls['stable_contract_hashes'] ?? false ),
 				'dry_run_default'        => (bool) ( $write_controls['dry_run_default'] ?? false ),
 				'commit_default'         => (bool) ( $write_controls['commit_default'] ?? true ),
 				'host_governed_writes'   => (bool) ( $write_controls['host_governed_writes'] ?? false ),
 				'final_commit_owner'     => (string) ( $write_controls['final_commit_owner'] ?? '' ),
+				'read_execution_surface' => (string) ( $execution_controls['read_execution_surface'] ?? '' ),
+				'write_execution_surface' => (string) ( $execution_controls['write_execution_surface'] ?? '' ),
+				'approval_context_required' => true === (bool) ( $execution_controls['approval_context_required'] ?? false ),
+				'approval_storage'       => true === (bool) ( $execution_controls['approval_storage'] ?? true ),
+				'audit_truth'            => true === (bool) ( $execution_controls['audit_truth'] ?? true ),
+				'final_write_authorization' => true === (bool) ( $execution_controls['final_write_authorization'] ?? true ),
+				'toolkit_boundary_supported' => $toolkit_boundary_supported,
+				'schema_controls_supported' => $schema_controls_supported,
+				'write_controls_supported' => $write_controls_supported,
+				'forbidden_payloads_omitted' => $forbidden_payloads_omitted,
 			);
 		}
 

@@ -72,6 +72,11 @@ from:
 These dependency summaries are compatibility proofs, not authority transfer.
 They must not copy Core proposal bodies, approval records, audit timelines,
 ability callback internals, provider credentials, or raw secrets.
+For Toolkit specifically, Adapter checks bounded official Abilities API
+alignment evidence such as catalog source, schema source, callback-free stable
+hashes, host-governed write controls, and forbidden payload omission. Adapter
+does not copy Toolkit ability definitions, annotations, callbacks, permission
+callables, dry-run previews, or raw schemas into its own registry.
 
 Client-key fingerprint binding is intentionally cross-plugin. Adapter forwards
 the authenticated local client key fingerprint to trusted Core app-token
