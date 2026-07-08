@@ -55,6 +55,9 @@ write executor:
   proposal item.
 - Require explicit commit intent; dry-run or preview-only inputs must not
   execute.
+- Validate provider-declared `implementation_posture` when Core capability
+  discovery exposes it; only host-governed, dry-run-first, metadata-only posture
+  may reach final execution.
 - Declare `supported_input_fields` and reject undeclared write fields.
 - Validate required WordPress object ids, text fields, enum fields, array
   shapes, and size limits in Adapter before forwarding execution.

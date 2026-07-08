@@ -34,6 +34,9 @@ workflow runtime, or client-side credential storage.
 See [OpenClaw Adapter Consumer Readiness](docs/openclaw-adapter-consumer-readiness.md)
 for the dependency snapshot, verified routes, closed loop, and next-stage
 execution allowlist rules.
+See [Adapter Contract Reuse Readiness - 2026-07-08](docs/adapter-contract-reuse-readiness-2026-07-08.md)
+before adding new Adapter routes, execution profiles, or channel-owned runtime
+behavior for the Core/Toolkit/Product reuse chain.
 See [Adapter Onboarding Reference Notes - 2026-07](docs/adapter-onboarding-reference-notes-2026-07.md)
 before turning webhook or automation plugin inspiration into Adapter
 connection, payload, or failure-feedback changes.

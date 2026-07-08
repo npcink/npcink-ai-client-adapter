@@ -51,7 +51,7 @@ final class Controller {
 	const MAX_TERM_ITEMS              = 100;
 	const MAX_PROPOSAL_LIST_LIMIT     = 100;
 	const MAX_LIGHT_POST_BODY_BYTES   = 4096;
-	const ADAPTER_CONTRACT_VERSION    = '2';
+	const ADAPTER_CONTRACT_VERSION    = '3';
 	const CLIENT_POLICY_VERSION       = '1';
 	const EXECUTION_PROFILE_REGISTRY_VERSION = '1';
 	const SUPPORTED_PLAN_ABILITIES_VERSION   = '1';
@@ -135,6 +135,43 @@ final class Controller {
 			'max_execution_actions'                => self::MAX_EXECUTION_ACTIONS,
 			'core_proxy_execute'                   => false,
 			'commit_execution'                     => false,
+			'execution_handoff_posture'            => $this->execution_handoff_posture(),
+		);
+	}
+
+	/**
+	 * Returns the stable Adapter/Core final-write handoff posture.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function execution_handoff_posture(): array {
+		return array(
+			'schema_version'          => 'npcink_openclaw_adapter_execution_handoff_posture.v1',
+			'channel_owner'           => 'npcink-ai-client-adapter',
+			'governance_truth_owner'  => 'npcink-governance-core',
+			'ability_definition_owner' => 'npcink-abilities-toolkit',
+			'approval_truth'          => 'npcink_governance_core',
+			'commit_preflight_truth'  => 'npcink_governance_core',
+			'execution_owner'         => 'adapter_after_core_preflight',
+			'execution_surface'       => 'wp_abilities_rest',
+			'record_execution_route'  => '/npcink-governance-core/v1/proposals/{proposal_id}/record-execution',
+			'core_proxy_execute'      => false,
+			'commit_execution'        => false,
+			'generic_write_executor'  => false,
+			'workflow_runtime'        => false,
+			'queue_or_scheduler'      => false,
+			'required_evidence'       => array(
+				'approval_context.approval_commit_authorized',
+				'approval_context.approved_input_hash',
+				'approval_context.policy_version=core-preflight-v1',
+				'execution_handoff.executor=adapter_after_core_preflight',
+				'execution_handoff.execution_surface=wp_abilities_rest',
+				'execution_handoff.core_proxy_execute=false',
+				'execution_handoff.commit_execution=false',
+				'execution_handoff.correlation_id',
+				'implementation_posture.checked_or_not_declared',
+			),
+			'operator_block_guidance' => 'surface_operator_feedback_and_create_revised_proposal',
 		);
 	}
 
@@ -230,7 +267,13 @@ final class Controller {
 		if ( 'npcink-governance-core' === $dependency ) {
 			$semantics_supported = ! empty( $boundary_summary['core_boundary_supported'] )
 				&& ! empty( $boundary_summary['site_binding'] )
-				&& ! empty( $boundary_summary['signed_client_fingerprint_binding'] );
+				&& ! empty( $boundary_summary['signed_client_fingerprint_binding'] )
+				&& ! empty( $boundary_summary['implementation_posture_supported'] );
+		} elseif ( 'npcink-abilities-toolkit' === $dependency ) {
+			$semantics_supported = ! empty( $boundary_summary['toolkit_boundary_supported'] )
+				&& ! empty( $boundary_summary['schema_controls_supported'] )
+				&& ! empty( $boundary_summary['write_controls_supported'] )
+				&& ! empty( $boundary_summary['forbidden_payloads_omitted'] );
 		}
 
 		$summary = array(
@@ -270,6 +313,8 @@ final class Controller {
 			$site_emitted_in         = is_array( $site_binding['emitted_in'] ?? null ) ? $site_binding['emitted_in'] : array();
 			$client_aliases          = is_array( $client_binding['aliases'] ?? null ) ? $client_binding['aliases'] : array();
 			$client_emitted_in       = is_array( $client_binding['emitted_in'] ?? null ) ? $client_binding['emitted_in'] : array();
+			$implementation_posture  = is_array( $contract['implementation_posture'] ?? null ) ? $contract['implementation_posture'] : array();
+			$posture_flags           = $this->sanitize_string_list( is_array( $implementation_posture['forbidden_core_ownership_flags'] ?? null ) ? $implementation_posture['forbidden_core_ownership_flags'] : array() );
 			$core_proxy_execute      = (bool) ( $runtime_controls['core_proxy_execute'] ?? true );
 			$commit_execution        = (bool) ( $runtime_controls['commit_execution'] ?? true );
 			$provider_secret_storage = (bool) ( $runtime_controls['provider_secret_storage'] ?? true );
@@ -289,6 +334,18 @@ final class Controller {
 				&& in_array( 'read_authorization_context', $client_emitted_in, true )
 				&& 'supported_when_forwarded_by_trusted_adapter' === (string) ( $client_binding['status'] ?? '' )
 				&& true === (bool) ( $client_binding['fail_closed'] ?? false );
+			$implementation_posture_supported = 'implementation_posture' === (string) ( $implementation_posture['provider_metadata_field'] ?? '' )
+				&& '/wp-json/npcink-governance-core/v1/capabilities' === (string) ( $implementation_posture['capabilities_surface'] ?? '' )
+				&& true === (bool) ( $implementation_posture['proposal_review_visibility'] ?? false )
+				&& true === (bool) ( $implementation_posture['commit_preflight_contract_validation'] ?? false )
+				&& true === (bool) ( $implementation_posture['metadata_only'] ?? false )
+				&& false === (bool) ( $implementation_posture['core_records_truth'] ?? true )
+				&& in_array( 'workflow_runtime', $posture_flags, true )
+				&& in_array( 'queue_or_scheduler', $posture_flags, true )
+				&& in_array( 'model_' . 'routing', $posture_flags, true )
+				&& in_array( 'provider_' . 'credentials', $posture_flags, true )
+				&& in_array( 'approval_storage', $posture_flags, true )
+				&& in_array( 'audit_storage', $posture_flags, true );
 
 			return array(
 				'core_proxy_execute'                 => $core_proxy_execute,
@@ -301,21 +358,91 @@ final class Controller {
 					&& 'adapter_or_host_after_core_preflight' === $final_write_authority,
 				'site_binding'                       => $site_binding_supported,
 				'signed_client_fingerprint_binding' => $signed_client_fingerprint_binding,
+				'implementation_posture_supported'   => $implementation_posture_supported,
+				'implementation_posture_metadata_only' => true === (bool) ( $implementation_posture['metadata_only'] ?? false ),
+				'implementation_posture_core_records_truth' => true === (bool) ( $implementation_posture['core_records_truth'] ?? true ),
+				'implementation_posture_capabilities_surface' => (string) ( $implementation_posture['capabilities_surface'] ?? '' ),
+				'implementation_posture_preflight_validation' => true === (bool) ( $implementation_posture['commit_preflight_contract_validation'] ?? false ),
+				'implementation_posture_forbidden_flags' => $posture_flags,
 			);
 		}
 
 		if ( 'npcink-abilities-toolkit' === $dependency ) {
-			$write_controls = is_array( $contract['write_controls'] ?? null ) ? $contract['write_controls'] : array();
+			$compatibility      = is_array( $contract['compatibility'] ?? null ) ? $contract['compatibility'] : array();
+			$catalog            = is_array( $contract['catalog'] ?? null ) ? $contract['catalog'] : array();
+			$schema_controls    = is_array( $contract['schema_controls'] ?? null ) ? $contract['schema_controls'] : array();
+			$write_controls     = is_array( $contract['write_controls'] ?? null ) ? $contract['write_controls'] : array();
+			$execution_controls = is_array( $contract['execution_controls'] ?? null ) ? $contract['execution_controls'] : array();
+			$forbidden_payloads = is_array( $contract['forbidden_payloads'] ?? null ) ? $contract['forbidden_payloads'] : array();
+			$forbidden_payload_keys = array(
+				'callback_internals',
+				'permission_callable_refs',
+				'approval_records',
+				'audit_records',
+				'app_secret_material',
+				'provider_secret_material',
+				'runtime_state',
+				'model_routing',
+				'prompt_material',
+				'cloud_execution_truth',
+			);
+			$forbidden_payloads_omitted = true;
+			foreach ( $forbidden_payload_keys as $payload_key ) {
+				if ( true === (bool) ( $forbidden_payloads[ $payload_key ] ?? true ) ) {
+					$forbidden_payloads_omitted = false;
+					break;
+				}
+			}
+			$toolkit_boundary_supported = 'npcink-abilities-toolkit' === (string) ( $catalog['ability_definitions_owner'] ?? '' )
+				&& 'wordpress_abilities_api' === (string) ( $catalog['ability_catalog_source'] ?? '' )
+				&& '/wp-json/wp-abilities/v1/abilities' === (string) ( $catalog['ability_catalog_route'] ?? '' )
+				&& 'namespace/name' === (string) ( $catalog['ability_id_format'] ?? '' )
+				&& true === (bool) ( $compatibility['metadata_only'] ?? false )
+				&& true === (bool) ( $compatibility['wordpress_abilities_api_required'] ?? false );
+			$schema_controls_supported = 'wordpress_abilities_api' === (string) ( $schema_controls['input_schema_source'] ?? '' )
+				&& 'wordpress_abilities_api' === (string) ( $schema_controls['output_schema_source'] ?? '' )
+				&& 'npcink-abilities-toolkit' === (string) ( $schema_controls['normalization_owner'] ?? '' )
+				&& true === (bool) ( $schema_controls['callback_free_hashes'] ?? false )
+				&& true === (bool) ( $schema_controls['stable_contract_hashes'] ?? false );
+			$write_controls_supported = true === (bool) ( $write_controls['dry_run_default'] ?? false )
+				&& false === (bool) ( $write_controls['commit_default'] ?? true )
+				&& true === (bool) ( $write_controls['host_governed_writes'] ?? false )
+				&& 'host_runtime_after_governance' === (string) ( $write_controls['final_commit_owner'] ?? '' )
+				&& 'wordpress_abilities_api' === (string) ( $execution_controls['read_execution_surface'] ?? '' )
+				&& 'host_runtime_after_governance' === (string) ( $execution_controls['write_execution_surface'] ?? '' )
+				&& true === (bool) ( $execution_controls['approval_context_required'] ?? false )
+				&& false === (bool) ( $execution_controls['approval_storage'] ?? true )
+				&& false === (bool) ( $execution_controls['audit_truth'] ?? true )
+				&& false === (bool) ( $execution_controls['final_write_authorization'] ?? true );
 
 			return array(
 				'ability_count'          => absint( $contract['ability_count'] ?? 0 ),
 				'ability_ids_hash'       => (string) ( $contract['ability_ids_hash'] ?? '' ),
 				'ability_contracts_hash' => (string) ( $contract['ability_contracts_hash'] ?? '' ),
 				'workflow_recipes_hash'  => (string) ( $contract['workflow_recipes_hash'] ?? '' ),
+				'ability_definitions_owner' => (string) ( $catalog['ability_definitions_owner'] ?? '' ),
+				'ability_catalog_source' => (string) ( $catalog['ability_catalog_source'] ?? '' ),
+				'ability_catalog_route'  => (string) ( $catalog['ability_catalog_route'] ?? '' ),
+				'ability_id_format'      => (string) ( $catalog['ability_id_format'] ?? '' ),
+				'input_schema_source'    => (string) ( $schema_controls['input_schema_source'] ?? '' ),
+				'output_schema_source'   => (string) ( $schema_controls['output_schema_source'] ?? '' ),
+				'normalization_owner'    => (string) ( $schema_controls['normalization_owner'] ?? '' ),
+				'callback_free_hashes'   => true === (bool) ( $schema_controls['callback_free_hashes'] ?? false ),
+				'stable_contract_hashes' => true === (bool) ( $schema_controls['stable_contract_hashes'] ?? false ),
 				'dry_run_default'        => (bool) ( $write_controls['dry_run_default'] ?? false ),
 				'commit_default'         => (bool) ( $write_controls['commit_default'] ?? true ),
 				'host_governed_writes'   => (bool) ( $write_controls['host_governed_writes'] ?? false ),
 				'final_commit_owner'     => (string) ( $write_controls['final_commit_owner'] ?? '' ),
+				'read_execution_surface' => (string) ( $execution_controls['read_execution_surface'] ?? '' ),
+				'write_execution_surface' => (string) ( $execution_controls['write_execution_surface'] ?? '' ),
+				'approval_context_required' => true === (bool) ( $execution_controls['approval_context_required'] ?? false ),
+				'approval_storage'       => true === (bool) ( $execution_controls['approval_storage'] ?? true ),
+				'audit_truth'            => true === (bool) ( $execution_controls['audit_truth'] ?? true ),
+				'final_write_authorization' => true === (bool) ( $execution_controls['final_write_authorization'] ?? true ),
+				'toolkit_boundary_supported' => $toolkit_boundary_supported,
+				'schema_controls_supported' => $schema_controls_supported,
+				'write_controls_supported' => $write_controls_supported,
+				'forbidden_payloads_omitted' => $forbidden_payloads_omitted,
 			);
 		}
 
@@ -1421,11 +1548,12 @@ final class Controller {
 				'input_change_behavior' => 'create_new_read_request',
 			),
 			'write_flow' => array(
-				'required' => true,
-				'proposal_required' => true,
-				'approval_surface' => 'npcink_governance_core_admin_or_adapter_unified_user_action',
-				'commit_intent_required' => true,
-				'final_write_routes' => array(
+				'required'                  => true,
+				'proposal_required'         => true,
+				'approval_surface'          => 'npcink_governance_core_admin_or_adapter_unified_user_action',
+				'commit_intent_required'    => true,
+				'execution_handoff_posture' => $this->execution_handoff_posture(),
+				'final_write_routes'        => array(
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
 					'POST /proposals/{proposal_id}/approve-and-execute',
@@ -1895,8 +2023,9 @@ final class Controller {
 					'approval_surface'       => 'npcink_governance_core_admin',
 						'core_app_token_configured' => 'none' !== $this->core_app_token_source(),
 						'core_app_token_source' => $this->core_app_token_source(),
-				'contract'              => $this->adapter_contract_metadata(),
-				'client_policy'         => $this->client_policy(),
+					'contract'                   => $this->adapter_contract_metadata(),
+					'execution_handoff_posture'  => $this->execution_handoff_posture(),
+					'client_policy'              => $this->client_policy(),
 				'ai_request_log_context_fields' => array(
 					'proposal_id',
 					'correlation_id',
@@ -2089,8 +2218,9 @@ final class Controller {
 					'approval_surface' => 'npcink_governance_core_admin',
 				'core_app_token_configured' => 'none' !== $this->core_app_token_source(),
 				'core_app_token_source' => $this->core_app_token_source(),
-				'contract' => $this->adapter_contract_metadata(),
-				'dependency_contracts' => $this->dependency_contracts(),
+					'contract'                  => $this->adapter_contract_metadata(),
+					'execution_handoff_posture' => $this->execution_handoff_posture(),
+					'dependency_contracts'      => $this->dependency_contracts(),
 				'client_policy' => $this->client_policy(),
 				'distribution_mode' => 'adapter_entry_with_separate_governance_and_ability_plugins',
 				'dependencies' => $this->dependency_status()['items'],
@@ -3269,7 +3399,8 @@ final class Controller {
 				$handoff = $this->store_preflight_handoff( $proposal_id, $proposal, $data );
 				$data['adapter_preflight_handoff_cached'] = is_array( $handoff );
 				$data['adapter_execution_route']          = '/wp-json/' . self::NAMESPACE . '/proposals/' . rawurlencode( $proposal_id ) . '/execute';
-				$batch_review_feedback = $this->batch_review_feedback_from_preflight( $data, $proposal );
+				$data['execution_handoff_posture']        = $this->execution_handoff_posture();
+				$batch_review_feedback                    = $this->batch_review_feedback_from_preflight( $data, $proposal );
 				if ( ! empty( $batch_review_feedback ) ) {
 					$data['batch_review_feedback'] = $batch_review_feedback;
 				}
@@ -3547,6 +3678,7 @@ final class Controller {
 				'commit_execution'         => false,
 				'core_commit_execution'    => false,
 				'execution_surface'        => 'wp_abilities_rest',
+				'execution_handoff_posture' => $this->execution_handoff_posture(),
 				'selected_count'           => absint( $execution['selected_count'] ?? 0 ),
 				'submitted_count'          => absint( $execution['submitted_count'] ?? 0 ),
 				'executed_count'           => absint( $execution['executed_count'] ?? 0 ),
@@ -3557,6 +3689,7 @@ final class Controller {
 				'operator_next_action'     => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
 				'batch_review_feedback'    => is_array( $execution['batch_review_feedback'] ?? null ) ? $execution['batch_review_feedback'] : array(),
 				'core_preflight_evidence'  => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
+				'implementation_posture_evidence' => is_array( $execution['implementation_posture_evidence'] ?? null ) ? $execution['implementation_posture_evidence'] : array(),
 				'execution_record'         => is_array( $execution['execution_record'] ?? null ) ? $execution['execution_record'] : array(),
 				'approval_context'         => is_array( $execution['approval_context'] ?? null ) ? $execution['approval_context'] : array(),
 				'execution_detail_included' => $include_detail,
@@ -4733,6 +4866,11 @@ final class Controller {
 		if ( is_wp_error( $binding_error ) ) {
 			return $binding_error;
 		}
+		$implementation_posture_evidence = $this->implementation_posture_execution_evidence( $proposal_id, $actions, $preflight );
+		if ( is_wp_error( $implementation_posture_evidence ) ) {
+			return $implementation_posture_evidence;
+		}
+		$preflight['implementation_posture_evidence'] = $implementation_posture_evidence;
 
 		$base_request_context = $this->request_log_context( $request, '' !== $proposal_ability_id ? $proposal_ability_id : (string) ( $actions[0]['ability_id'] ?? '' ) );
 		$base_request_context['proposal_id']    = $proposal_id;
@@ -4928,7 +5066,10 @@ final class Controller {
 				'preflight_source'        => $preflight_source,
 				'commit_execution'        => false,
 				'adapter_preflight_source' => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? $preflight_source ) ),
+				'implementation_posture_status' => sanitize_key( (string) ( $implementation_posture_evidence['status'] ?? '' ) ),
+				'implementation_posture_checked_count' => absint( $implementation_posture_evidence['checked_count'] ?? 0 ),
 			),
+			'implementation_posture_evidence' => $implementation_posture_evidence,
 			'batch_review_feedback' => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
 			'execution_mode'      => $execution_mode,
 			'selected_count'      => $execution_summary['selected_count'],
@@ -5429,6 +5570,8 @@ final class Controller {
 				'proposal_id'             => $proposal_id,
 				'correlation_id'          => sanitize_text_field( (string) ( $preflight['correlation_id'] ?? ( $approval_context['correlation_id'] ?? '' ) ) ),
 				'approval_context'        => $approval_context,
+				'capability'              => is_array( $preflight['capability'] ?? null ) ? $preflight['capability'] : array(),
+				'contract_preflight'      => is_array( $preflight['contract_preflight'] ?? null ) ? $preflight['contract_preflight'] : array(),
 				'proposal_item_preflight' => is_array( $preflight['proposal_item_preflight'] ?? null ) ? $preflight['proposal_item_preflight'] : array(),
 				'execution_handoff'       => is_array( $preflight['execution_handoff'] ?? null ) ? $preflight['execution_handoff'] : array(),
 				'idempotency_required'    => (bool) ( $preflight['idempotency_required'] ?? true ),
@@ -5597,6 +5740,250 @@ final class Controller {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Builds execution-time evidence for provider-declared implementation posture.
+	 *
+	 * @param string                       $proposal_id Proposal id.
+	 * @param array<int,array<string,mixed>> $actions Normalized execution actions.
+	 * @param array<string,mixed>          $preflight Core preflight payload.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	private function implementation_posture_execution_evidence( string $proposal_id, array $actions, array $preflight ) {
+		$ability_ids = array();
+		foreach ( $actions as $action ) {
+			if ( ! is_array( $action ) ) {
+				continue;
+			}
+			$ability_id = sanitize_text_field( (string) ( $action['ability_id'] ?? ( $action['target_ability_id'] ?? '' ) ) );
+			if ( '' !== $ability_id ) {
+				$ability_ids[] = $ability_id;
+			}
+		}
+		$ability_ids = array_values( array_unique( $ability_ids ) );
+
+		$items              = array();
+		$checked_count      = 0;
+		$not_declared_count = 0;
+		foreach ( $ability_ids as $ability_id ) {
+			$item = $this->implementation_posture_evidence_item( $proposal_id, $ability_id, $preflight );
+			if ( is_wp_error( $item ) ) {
+				return $item;
+			}
+			if ( 'checked' === (string) ( $item['status'] ?? '' ) ) {
+				++$checked_count;
+			}
+			if ( 'not_declared' === (string) ( $item['status'] ?? '' ) ) {
+				++$not_declared_count;
+			}
+			$items[] = $item;
+		}
+
+		return array(
+			'schema_version'     => 'npcink_openclaw_adapter_implementation_posture_evidence.v1',
+			'status'             => $checked_count > 0 ? 'checked' : 'not_declared',
+			'checked_count'      => $checked_count,
+			'not_declared_count' => $not_declared_count,
+			'ability_count'      => count( $ability_ids ),
+			'capabilities_surface' => '/wp-json/npcink-governance-core/v1/capabilities',
+			'core_preflight_contract_validation' => true,
+			'metadata_only'      => true,
+			'items'              => $items,
+		);
+	}
+
+	/**
+	 * Builds posture evidence for one target ability.
+	 *
+	 * @param string              $proposal_id Proposal id.
+	 * @param string              $ability_id Ability id.
+	 * @param array<string,mixed> $preflight Core preflight payload.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	private function implementation_posture_evidence_item( string $proposal_id, string $ability_id, array $preflight ) {
+		$capability = $this->find_core_capability( $ability_id );
+		if ( is_wp_error( $capability ) ) {
+			return $capability;
+		}
+
+		$posture = is_array( $capability['implementation_posture'] ?? null ) ? $capability['implementation_posture'] : array();
+		if ( empty( $posture ) || true !== (bool) ( $capability['implementation_posture_available'] ?? false ) ) {
+			return array(
+				'ability_id' => $ability_id,
+				'status'     => 'not_declared',
+			);
+		}
+
+		$valid = $this->validate_implementation_posture_for_execution( $proposal_id, $ability_id, $posture );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+
+		$preflight_capability = is_array( $preflight['capability'] ?? null ) ? $preflight['capability'] : array();
+		if ( $ability_id === (string) ( $preflight_capability['ability_id'] ?? '' ) ) {
+			$preflight_posture = is_array( $preflight_capability['implementation_posture'] ?? null ) ? $preflight_capability['implementation_posture'] : array();
+			if ( ! empty( $preflight_posture ) && $posture != $preflight_posture ) {
+				return $this->implementation_posture_mismatch_error( $proposal_id, $ability_id, 'capability' );
+			}
+		}
+
+		$contract_preflight = is_array( $preflight['contract_preflight'] ?? null ) ? $preflight['contract_preflight'] : array();
+		$current_contract   = is_array( $contract_preflight['current_contract'] ?? null ) ? $contract_preflight['current_contract'] : array();
+		if ( $ability_id === (string) ( $current_contract['ability_id'] ?? '' ) ) {
+			$contract_posture = is_array( $current_contract['implementation_posture'] ?? null ) ? $current_contract['implementation_posture'] : array();
+			if ( ! empty( $contract_posture ) && $posture != $contract_posture ) {
+				return $this->implementation_posture_mismatch_error( $proposal_id, $ability_id, 'contract_preflight' );
+			}
+		}
+
+		return array(
+			'ability_id'              => $ability_id,
+			'status'                  => 'checked',
+			'schema_version'          => sanitize_text_field( (string) ( $posture['schema_version'] ?? '' ) ),
+			'write_posture'           => sanitize_key( (string) ( $posture['write_posture'] ?? '' ) ),
+			'commit_authority'        => sanitize_key( (string) ( $posture['commit_authority'] ?? '' ) ),
+			'final_authorization_owner' => sanitize_key( (string) ( $posture['final_authorization_owner'] ?? '' ) ),
+			'approval_truth_owner'    => sanitize_key( (string) ( $posture['approval_truth_owner'] ?? '' ) ),
+			'audit_truth_owner'       => sanitize_key( (string) ( $posture['audit_truth_owner'] ?? '' ) ),
+			'dry_run_default'         => true === (bool) ( $posture['dry_run_default'] ?? false ),
+			'commit_default'          => true === (bool) ( $posture['commit_default'] ?? false ),
+			'direct_wordpress_write_default' => true === (bool) ( $posture['direct_wordpress_write_default'] ?? false ),
+			'forbidden_ownership_flags' => $this->implementation_posture_enabled_forbidden_flags( $posture ),
+		);
+	}
+
+	/**
+	 * Validates provider posture before Adapter final execution.
+	 *
+	 * @param string              $proposal_id Proposal id.
+	 * @param string              $ability_id Ability id.
+	 * @param array<string,mixed> $posture Provider posture.
+	 * @return true|WP_Error
+	 */
+	private function validate_implementation_posture_for_execution( string $proposal_id, string $ability_id, array $posture ) {
+		$expected = array(
+			'schema_version'             => 'npcink_abilities_toolkit_implementation_posture.v1',
+			'write_posture'              => 'host_governed_dry_run_first',
+			'commit_authority'           => 'host_runtime_approval_context_required',
+			'final_authorization_owner'  => 'host_governance_layer',
+			'approval_truth_owner'       => 'host_governance_layer',
+			'audit_truth_owner'          => 'host_governance_layer',
+		);
+
+		foreach ( $expected as $field => $value ) {
+			$actual = 'schema_version' === $field
+				? sanitize_text_field( (string) ( $posture[ $field ] ?? '' ) )
+				: sanitize_key( (string) ( $posture[ $field ] ?? '' ) );
+			if ( $value === $actual ) {
+				continue;
+			}
+
+			return new WP_Error(
+				'npcink_openclaw_adapter_implementation_posture_invalid',
+				__( 'Provider implementation posture is not accepted for Adapter final execution.', 'npcink-ai-client-adapter' ),
+				array(
+					'status'         => 409,
+					'proposal_id'    => $proposal_id,
+					'ability_id'     => $ability_id,
+					'field'          => $field,
+					'expected_value' => $value,
+					'actual_value'   => $actual,
+					'commit_execution' => false,
+				)
+			);
+		}
+
+		foreach (
+			array(
+				'dry_run_default'                 => true,
+				'commit_default'                  => false,
+				'direct_wordpress_write_default'  => false,
+			) as $field => $expected_bool
+		) {
+			if ( array_key_exists( $field, $posture ) && $expected_bool === (bool) $posture[ $field ] ) {
+				continue;
+			}
+
+			return new WP_Error(
+				'npcink_openclaw_adapter_implementation_posture_invalid',
+				__( 'Provider implementation posture write defaults are not accepted for Adapter final execution.', 'npcink-ai-client-adapter' ),
+				array(
+					'status'         => 409,
+					'proposal_id'    => $proposal_id,
+					'ability_id'     => $ability_id,
+					'field'          => $field,
+					'expected_value' => $expected_bool,
+					'actual_value'   => (bool) ( $posture[ $field ] ?? null ),
+					'commit_execution' => false,
+				)
+			);
+		}
+
+		$forbidden_flags = $this->implementation_posture_enabled_forbidden_flags( $posture );
+		if ( ! empty( $forbidden_flags ) ) {
+			return new WP_Error(
+				'npcink_openclaw_adapter_implementation_posture_forbidden_ownership',
+				__( 'Provider implementation posture declares ownership that Adapter must not execute through.', 'npcink-ai-client-adapter' ),
+				array(
+					'status'                  => 409,
+					'proposal_id'             => $proposal_id,
+					'ability_id'              => $ability_id,
+					'forbidden_ownership_flags' => $forbidden_flags,
+					'commit_execution'        => false,
+				)
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Returns forbidden ownership flags enabled by provider posture.
+	 *
+	 * @param array<string,mixed> $posture Provider posture.
+	 * @return array<int,string>
+	 */
+	private function implementation_posture_enabled_forbidden_flags( array $posture ): array {
+		$enabled = array();
+		foreach (
+			array(
+				'workflow_runtime',
+				'queue_or_scheduler',
+				'model_' . 'routing',
+				'provider_' . 'credentials',
+				'approval_storage',
+				'audit_storage',
+			) as $field
+		) {
+			if ( true === (bool) ( $posture[ $field ] ?? false ) ) {
+				$enabled[] = $field;
+			}
+		}
+
+		return $enabled;
+	}
+
+	/**
+	 * Returns an implementation posture mismatch error.
+	 *
+	 * @param string $proposal_id Proposal id.
+	 * @param string $ability_id Ability id.
+	 * @param string $source Mismatch source.
+	 * @return WP_Error
+	 */
+	private function implementation_posture_mismatch_error( string $proposal_id, string $ability_id, string $source ): WP_Error {
+		return new WP_Error(
+			'npcink_openclaw_adapter_implementation_posture_mismatch',
+			__( 'Core implementation posture evidence does not match capability discovery.', 'npcink-ai-client-adapter' ),
+			array(
+				'status'           => 409,
+				'proposal_id'      => $proposal_id,
+				'ability_id'       => $ability_id,
+				'evidence_source'  => sanitize_key( $source ),
+				'commit_execution' => false,
+			)
+		);
 	}
 
 	/**
@@ -6048,6 +6435,7 @@ final class Controller {
 			'adapter_request_id'  => sanitize_text_field( (string) ( $execution['adapter_request_id'] ?? '' ) ),
 			'execution_mode'      => sanitize_key( (string) ( $execution['execution_mode'] ?? '' ) ),
 			'execution_surface'   => 'wp_abilities_rest',
+			'execution_handoff_posture' => $this->execution_handoff_posture(),
 			'commit_execution'    => false,
 			'post_id'             => absint( $execution['post_id'] ?? 0 ),
 			'post_ids'            => array_values( array_map( 'absint', is_array( $execution['post_ids'] ?? null ) ? $execution['post_ids'] : array() ) ),
@@ -6060,6 +6448,7 @@ final class Controller {
 			'retryable'           => (bool) ( $execution['retryable'] ?? false ),
 			'operator_next_action' => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
 			'core_preflight_evidence' => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
+			'implementation_posture_evidence' => is_array( $execution['implementation_posture_evidence'] ?? null ) ? $execution['implementation_posture_evidence'] : array(),
 			'verification'        => $this->compact_execution_verification( $execution ),
 			'executed_at'         => gmdate( 'c' ),
 		);
@@ -6104,6 +6493,7 @@ final class Controller {
 			'adapter_request_id'  => sanitize_text_field( $adapter_request_id ),
 			'execution_mode'      => sanitize_key( $execution_mode ),
 			'execution_surface'   => 'wp_abilities_rest',
+			'execution_handoff_posture' => $this->execution_handoff_posture(),
 			'commit_execution'    => false,
 			'post_id'             => absint( $failed_action['post_id'] ?? 0 ),
 			'post_ids'            => array_values( array_map( 'absint', array_column( $results, 'post_id' ) ) ),
@@ -6128,7 +6518,10 @@ final class Controller {
 				'preflight_source'        => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? '' ) ),
 				'commit_execution'        => false,
 				'adapter_preflight_source' => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? '' ) ),
+				'implementation_posture_status' => sanitize_key( (string) ( $preflight['implementation_posture_evidence']['status'] ?? '' ) ),
+				'implementation_posture_checked_count' => absint( $preflight['implementation_posture_evidence']['checked_count'] ?? 0 ),
 			),
+			'implementation_posture_evidence' => is_array( $preflight['implementation_posture_evidence'] ?? null ) ? $preflight['implementation_posture_evidence'] : array(),
 			'failed_at'           => gmdate( 'c' ),
 			'executed_at'         => gmdate( 'c' ),
 		);
@@ -6254,6 +6647,7 @@ final class Controller {
 			'adapter_request_id'  => (string) ( $record['adapter_request_id'] ?? '' ),
 			'execution_mode'      => (string) ( $record['execution_mode'] ?? '' ),
 			'execution_surface'   => (string) ( $record['execution_surface'] ?? '' ),
+			'execution_handoff_posture' => is_array( $record['execution_handoff_posture'] ?? null ) ? $record['execution_handoff_posture'] : $this->execution_handoff_posture(),
 			'commit_execution'    => (bool) ( $record['commit_execution'] ?? false ),
 			'post_id'             => absint( $record['post_id'] ?? 0 ),
 			'post_ids'            => array_values( array_map( 'absint', is_array( $record['post_ids'] ?? null ) ? $record['post_ids'] : array() ) ),
@@ -6271,6 +6665,7 @@ final class Controller {
 			'failed_execution_profile' => (string) ( $record['failed_execution_profile'] ?? '' ),
 			'failed_idempotency_key' => (string) ( $record['failed_idempotency_key'] ?? '' ),
 			'core_preflight_evidence' => is_array( $record['core_preflight_evidence'] ?? null ) ? $record['core_preflight_evidence'] : null,
+			'implementation_posture_evidence' => is_array( $record['implementation_posture_evidence'] ?? null ) ? $record['implementation_posture_evidence'] : null,
 			'verification'        => is_array( $record['verification'] ?? null ) ? $record['verification'] : null,
 			'core_execution_record' => is_array( $record['core_execution_record'] ?? null ) ? $record['core_execution_record'] : null,
 			'failed_at'           => (string) ( $record['failed_at'] ?? '' ),
