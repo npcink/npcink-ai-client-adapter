@@ -3,6 +3,12 @@
 Product name: Npcink AI Client Adapter. The REST namespace keeps
 `npcink-openclaw-adapter/v1` for OpenClaw-compatible client compatibility.
 
+Cross-project platform coordination starts from
+`/Users/muze/gitee/npcink-workflow-toolbox/docs/platform/README.md`. This
+repository remains the thin channel adapter owner; do not expand platform,
+Core governance, Toolkit ability, Cloud transport, product-surface, or release
+coordination rules here beyond Adapter-owned channel contracts.
+
 ## Product Boundary
 
 Npcink AI Client Adapter is the thin OpenClaw-compatible channel layer.
