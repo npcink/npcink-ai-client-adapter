@@ -1247,6 +1247,33 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	$client_key_auth = substr( $controller, (int) strpos( $controller, 'private function authenticate_signed_request' ), 2600 );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'should_update_client_key_last_used' ), 'Signed request auth throttles last-used option writes.' );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'current_signed_client_fingerprint' ), 'Signed request auth records the current client fingerprint.' );
+	maa_adapter_assert( false === strpos( $controller, 'dbDelta(' ) && false === strpos( $controller, 'CREATE TABLE' ), 'Adapter controller does not create custom WordPress tables.' );
+	foreach (
+		array(
+			"const EXECUTION_RECORDS_OPTION  = 'npcink_openclaw_adapter_execution_records'",
+			'const MAX_EXECUTION_RECORDS        = 500',
+			'const EXECUTION_RECORD_RETENTION_TTL = 604800',
+			'private function execution_records()',
+			'private function prune_execution_records',
+			'update_option( self::EXECUTION_RECORDS_OPTION, $records, false )',
+			'record_core_execution_result',
+		) as $required_execution_record_boundary
+	) {
+		maa_adapter_assert( false !== strpos( $controller, $required_execution_record_boundary ), 'Adapter execution records remain bounded bridge state: ' . $required_execution_record_boundary );
+	}
+	foreach (
+		array(
+			"const PREFLIGHT_HANDOFFS_OPTION = 'npcink_openclaw_adapter_preflight_handoffs'",
+			'const MAX_PREFLIGHT_HANDOFFS       = 500',
+			'const PREFLIGHT_HANDOFF_RETENTION_TTL = 900',
+			'private function preflight_handoffs()',
+			'private function prune_preflight_handoffs',
+			'update_option( self::PREFLIGHT_HANDOFFS_OPTION, $records, false )',
+			'consume_cached_preflight_handoff',
+		) as $required_preflight_handoff_boundary
+	) {
+		maa_adapter_assert( false !== strpos( $controller, $required_preflight_handoff_boundary ), 'Adapter preflight handoffs remain bounded bridge state: ' . $required_preflight_handoff_boundary );
+	}
 	$upstream_dispatch = substr( $controller, (int) strpos( $controller, 'private function dispatch_upstream( string' ), 1600 );
 	maa_adapter_assert( false !== strpos( $upstream_dispatch, 'x-npcink-adapter-signed-client-fingerprint' ), 'Adapter forwards signed client fingerprint to Core app-token requests.' );
 	maa_adapter_assert( false !== strpos( $upstream_dispatch, 'x-npcink-adapter-client-key-fingerprint' ), 'Adapter forwards compatible client key fingerprint alias to Core app-token requests.' );
@@ -1720,6 +1747,12 @@ foreach (
 		'The registry stays in Adapter as post-Core execution policy',
 		'it must not be extended through filters, options',
 		'database rows, remote configuration, wildcards',
+			'Persistence Boundary',
+			'local bridge state only',
+			'not Core proposal truth',
+			'durable execution-history database',
+			'Adapter must not create custom WordPress tables',
+			'route that state to Core or Cloud',
 		'Each profile is an explicit post-Core policy entry, not a generic executor',
 		'validate required ids/enums/sizes',
 		'$outputs.create-draft.post_id',
