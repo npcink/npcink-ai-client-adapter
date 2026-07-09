@@ -853,6 +853,13 @@ include `proposals:read` for proposal status, plus the other scopes needed by
 the Core routes Adapter calls. The adapter must not print Core tokens in logs,
 proposal payloads, error responses, or documentation examples.
 
+## Persistence Boundary
+
+Adapter stores device pairing, client keys, preflight handoffs, and execution
+records as local bridge state only. They are not Core proposal truth, approval
+truth, audit truth, or a durable execution-history database. Adapter must not create custom WordPress tables; if a future feature needs long-term history,
+queues, retry recovery, or diagnostics detail, route that state to Core or Cloud through a new boundary decision.
+
 When OpenClaw has a Core `proposal_id` or commit-preflight `correlation_id`, it
 should pass those values to Adapter read or future execution requests as
 `log_context` or query parameters. Adapter will include them under

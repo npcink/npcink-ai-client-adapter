@@ -957,6 +957,25 @@ commit-preflight needs only `proposals:create`, `proposals:read`, and
 or `audit:read`. If a full Adapter discovery smoke also calls Core
 capabilities, add `capabilities:read` for that wider smoke only.
 
+## Persistence Boundary
+
+Adapter may keep bounded local options for device pairing, local client public
+keys, preflight handoffs, execution idempotency records, and short-lived locks.
+These options are local bridge state only. They are not Core proposal truth,
+approval truth, audit truth, or a durable execution-history database.
+
+The execution record option is capped and time-bounded. It exists so repeated
+commit requests for the same Core-approved proposal can fail closed or return a
+recent execution summary. The Core proposal lifecycle and Core audit log remain
+the durable source of truth after Adapter records an execution outcome back to
+Core.
+
+Adapter must not create custom WordPress tables for workflow runs, queues,
+approval records, audit records, provider request logs, or Cloud runtime
+history. If a future feature needs long-term queryable history, retry queues,
+dead-letter handling, or support diagnostics, route that state to Core or Cloud
+through a new boundary decision instead of adding Adapter-owned tables.
+
 ## Approval Disabled Stub Contract
 
 The adapter exposes these routes only as generic approval proxy routes:
