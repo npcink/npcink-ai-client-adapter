@@ -178,6 +178,15 @@ final class Execution_Profile_Registry {
 			),
 			'npcink-abilities-toolkit/patch-setting-value' => array(
 				'supported_input_fields'  => array( 'target_type', 'target_name', 'operations', 'dry_run', 'commit', 'idempotency_key' ),
+				'site_readiness'          => array(
+					'mode'                      => 'host_filter_target_allowlist',
+					'filter'                    => 'npcink_abilities_toolkit_patchable_setting_targets',
+					'policy_owner'              => 'wordpress_host',
+					'target_type_field'         => 'target_type',
+					'target_name_field'         => 'target_name',
+					'not_ready_code'            => 'npcink_openclaw_adapter_setting_target_not_ready',
+					'per_target_check_required' => true,
+				),
 				'enum_fields'           => array(
 					'target_type' => array(
 						'allowed' => array( 'option', 'theme_mod' ),

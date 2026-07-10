@@ -329,6 +329,13 @@ Run this order for a local acceptance pass:
     `dry_run=false` and `commit=true`, returned `proposal_id`,
     `correlation_id`, and `ability_id`, and did not execute pending,
     dry-run-only, or preflight-failed proposals.
+    Treat `patch-setting-value` as conditionally executable: confirm
+    `execution_profile_readiness` reports the host-policy state, an
+    unallowlisted target fails with
+    `npcink_openclaw_adapter_setting_target_not_ready` before approval or
+    commit-preflight, an allowlisted non-sensitive target can execute after
+    Core approval, and a sensitive target is still rejected by Toolkit even if
+    a host mistakenly includes it in the allowlist.
 19. Confirm rejected proposals, non-supported proposals, and preflight-blocked
     proposals do not execute through approve-and-execute.
 20. Pass `proposal_id` and `correlation_id` into later reads as query fields or

@@ -371,6 +371,12 @@ maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'npcink-abiliti
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'final class Execution_Profile_Registry' ), 'Execution profile registry exists.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'public static function profiles' ), 'Execution profile registry exposes profiles.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink-abilities-toolkit/update-post-blocks' ), 'Execution profile registry keeps governed block writes supported.' );
+maa_adapter_assert( false !== strpos( $execution_profile_registry, "'site_readiness'" ), 'Execution profile registry declares conditional site readiness.' );
+maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink_abilities_toolkit_patchable_setting_targets' ), 'Setting patch profile consumes the Toolkit host target allowlist contract.' );
+maa_adapter_assert( false !== strpos( $controller, 'npcink_openclaw_adapter_execution_profile_readiness.v1' ), 'Adapter exposes conditional execution profile readiness metadata.' );
+maa_adapter_assert( false !== strpos( $controller_contract, 'npcink_openclaw_adapter_setting_target_not_ready' ), 'Adapter uses a stable not-ready error for unallowlisted setting targets.' );
+maa_adapter_assert( false !== strpos( $controller, "'target_names_exposed'      => false" ), 'Adapter readiness metadata does not expose setting target names.' );
+maa_adapter_assert( false !== strpos( $controller, 'configure_reviewed_host_target_allowlist_and_create_a_new_proposal' ), 'Adapter returns bounded operator guidance for setting target readiness failures.' );
 foreach ( array( 'apply_filters', 'do_action', 'add_filter', 'add_action', 'get_option', 'update_option', 'wp_remote_', '$wpdb', 'register_post_type' ) as $dynamic_extension_signal ) {
 	maa_adapter_assert( false === strpos( $execution_profile_registry, $dynamic_extension_signal ), 'Execution profile registry does not use dynamic extension signal: ' . $dynamic_extension_signal );
 }

@@ -717,7 +717,13 @@ media object; `patch-post-content` requires `post_id` and bounded exact replacem
 	`mode=replace`; `upsert-template-blocks` requires `slug`, `blocks`, and
 	`mode=replace`, with optional `post_id` for an existing template override;
 	`patch-setting-value` requires `target_type`, `target_name`, and
-bounded exact replacement `operations`; `optimize-media-asset` requires `attachment_id`, may accept bounded
+bounded exact replacement `operations`. It is conditionally executable: the
+host must allowlist the concrete target with
+`npcink_abilities_toolkit_patchable_setting_targets`, and Adapter fails closed
+with `npcink_openclaw_adapter_setting_target_not_ready` before approval or
+commit-preflight when that site policy is absent. Adapter never exposes the
+allowlisted target names and Toolkit retains its independent sensitive-target
+block. `optimize-media-asset` requires `attachment_id`, may accept bounded
 format, width, quality, and suffix inputs, and must preserve the original file;
 `replace-media-file` requires `attachment_id`, uses a recorded
 `derivative_relative_file`, and records backup metadata for rollback;

@@ -186,13 +186,13 @@ function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $lab
 		'schema_version'                       => 'npcink_openclaw_adapter_contract.v1',
 		'adapter_contract_version'             => '3',
 		'client_policy_version'                => '1',
-		'execution_profile_registry_version'   => '1',
+		'execution_profile_registry_version'   => '2',
 		'supported_plan_abilities_version'     => '1',
 		'core_contract_min_version'            => '1',
 		'core_plugin_min_version'              => '0.1.0',
 		'toolkit_contract_min_version'         => '1',
-		'toolkit_plugin_min_version'           => '0.5.1',
-		'execution_profile_registry_hash'      => 'sha256:d31e94672ebeef0a2822fe5b4652d675ca0044fd77ef9df7a6afd63a1d477bc4',
+		'toolkit_plugin_min_version'           => '0.5.3',
+		'execution_profile_registry_hash'      => 'sha256:0ac832aec144bc6e6db498dd82a812eecbca6acc8603fd53346a1d4eb3393e9a',
 		'supported_execute_ability_ids_hash'   => 'sha256:dfa1e7d90d13c593a3c4a1fbbd104af3535e42f5fab03274f36099037ab6d97d',
 		'supported_plan_ability_ids_hash'      => 'sha256:58ea7d6e59d57f4026c6c0dacf8b63273157af5f0ca0e416de19f40a98e255be',
 		'max_execution_actions'                => 200,
@@ -508,6 +508,7 @@ function &maa_adapter_smoke_fixture_registry(): array {
 			'attachment_ids'   => array(),
 			'post_ids'         => array(),
 			'comment_ids'      => array(),
+			'option_names'     => array(),
 			'terms'            => array(),
 			'core_app_ids'     => array(),
 			'core_app_key_ids' => array(),
@@ -516,6 +517,29 @@ function &maa_adapter_smoke_fixture_registry(): array {
 	}
 
 	return $GLOBALS['maa_adapter_smoke_fixture_registry'];
+}
+
+/**
+ * Provides reviewed setting targets for conditional execution smoke coverage.
+ *
+ * @param mixed  $targets Existing targets.
+ * @param string $target_type Requested target type.
+ * @param string $target_name Requested target name.
+ * @return array<string,array<int,string>>
+ */
+function maa_adapter_smoke_patchable_setting_targets( $targets, string $target_type = '', string $target_name = '' ): array {
+	$targets = is_array( $targets ) ? $targets : array();
+	$targets['option'] = array_values(
+		array_unique(
+			array_merge(
+				is_array( $targets['option'] ?? null ) ? $targets['option'] : array(),
+				(array) ( $GLOBALS['maa_adapter_smoke_patchable_setting_option_names'] ?? array() )
+			)
+		)
+	);
+	$targets['theme_mod'] = is_array( $targets['theme_mod'] ?? null ) ? array_values( $targets['theme_mod'] ) : array();
+
+	return $targets;
 }
 
 /**
@@ -1003,6 +1027,10 @@ function maa_adapter_smoke_cleanup_registered_fixtures(): void {
 		}
 	}
 
+	foreach ( array_values( array_unique( array_filter( array_map( 'sanitize_key', (array) ( $registry['option_names'] ?? array() ) ) ) ) ) as $cleanup_option_name ) {
+		delete_option( $cleanup_option_name );
+	}
+
 	$visual_acceptance_registry = maa_adapter_smoke_visual_acceptance_registry();
 	$visual_acceptance_attachment_ids = maa_adapter_smoke_keep_visual_acceptance_fixtures()
 		? array_values( array_unique( array_filter( array_map( 'absint', (array) ( $visual_acceptance_registry['attachment_ids'] ?? array() ) ) ) ) )
@@ -1410,6 +1438,13 @@ maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/update-template-bl
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/upsert-template-blocks', (array) ( $health['supported_execute_ability_ids'] ?? array() ), true ), 'adapter health exposes upsert-template-blocks execute supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/update-template-part-blocks', (array) ( $health['supported_execute_ability_ids'] ?? array() ), true ), 'adapter health exposes update-template-part-blocks execute supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/patch-setting-value', (array) ( $health['supported_execute_ability_ids'] ?? array() ), true ), 'adapter health exposes patch-setting-value execute supported profiles' );
+$setting_profile_readiness = is_array( $health['execution_profile_readiness']['items']['npcink-abilities-toolkit/patch-setting-value'] ?? null ) ? $health['execution_profile_readiness']['items']['npcink-abilities-toolkit/patch-setting-value'] : array();
+maa_adapter_smoke_assert( 'npcink_openclaw_adapter_execution_profile_readiness.v1' === (string) ( $health['execution_profile_readiness']['schema_version'] ?? '' ), 'adapter health exposes execution profile readiness schema' );
+maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/patch-setting-value', (array) ( $health['execution_profile_readiness']['conditional_execute_ability_ids'] ?? array() ), true ), 'adapter health marks patch-setting-value as conditional' );
+maa_adapter_smoke_assert( 'not_configured' === (string) ( $setting_profile_readiness['status'] ?? '' ), 'adapter health reports unconfigured setting target policy by default' );
+maa_adapter_smoke_assert( false === (bool) ( $setting_profile_readiness['site_policy_configured'] ?? true ), 'adapter health keeps unconfigured setting target policy not ready' );
+maa_adapter_smoke_assert( false === (bool) ( $setting_profile_readiness['target_names_exposed'] ?? true ), 'adapter health does not expose setting target names' );
+maa_adapter_smoke_assert( 'fail_closed' === (string) ( $setting_profile_readiness['default_behavior'] ?? '' ), 'adapter health declares fail-closed conditional execution' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/set-post-seo-meta', (array) ( $health['supported_execute_ability_ids'] ?? array() ), true ), 'adapter health exposes set-post-seo-meta execute supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/set-post-slug', (array) ( $health['supported_execute_ability_ids'] ?? array() ), true ), 'adapter health exposes set-post-slug execute supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/set-post-terms', (array) ( $health['supported_execute_ability_ids'] ?? array() ), true ), 'adapter health exposes set-post-terms execute supported profiles' );
@@ -1435,6 +1470,8 @@ maa_adapter_smoke_assert( 'npcink_openclaw_adapter_contract.v1' === (string) ( $
 maa_adapter_smoke_assert( 0 === strpos( (string) ( $manifest['contract']['supported_execute_ability_ids_hash'] ?? '' ), 'sha256:' ), 'adapter connection manifest exposes execution ability hash' );
 maa_adapter_smoke_assert_contract_snapshot( $manifest, 'adapter connection manifest' );
 maa_adapter_smoke_assert( $health['contract'] === $manifest['contract'], 'adapter connection manifest contract snapshot matches health' );
+maa_adapter_smoke_assert( $health['execution_profile_readiness'] === $help['execution_profile_readiness'], 'adapter help readiness snapshot matches health' );
+maa_adapter_smoke_assert( $health['execution_profile_readiness'] === $manifest['execution_profile_readiness'], 'adapter connection manifest readiness snapshot matches health' );
 maa_adapter_smoke_assert( true === (bool) ( $manifest['dependency_contracts']['ready'] ?? false ), 'adapter connection manifest includes ready dependency contracts' );
 maa_adapter_smoke_assert( in_array( 'custom_scripts_for_wordpress_data', (array) ( $manifest['client_policy']['forbidden_local_access'] ?? array() ), true ), 'adapter manifest policy forbids custom data scripts' );
 maa_adapter_smoke_assert( true === (bool) ( $manifest['client_policy']['allowed_transport']['adapter_relative_routes_only'] ?? false ), 'adapter manifest policy requires adapter-relative routes' );
@@ -4208,6 +4245,157 @@ $empty_seo_proposal = maa_adapter_smoke_rest_result(
 	)
 );
 maa_adapter_smoke_assert( 400 === (int) $empty_seo_proposal['status'], 'adapter proposal create rejects set-post-seo-meta without SEO fields' );
+
+$setting_suffix             = substr( md5( wp_generate_uuid4() ), 0, 10 );
+$unallowlisted_setting_name = 'maa_adapter_setting_unlisted_' . $setting_suffix;
+$allowlisted_setting_name   = 'maa_adapter_setting_allowed_' . $setting_suffix;
+$sensitive_setting_name     = 'maa_adapter_api_token_' . $setting_suffix;
+foreach ( array( $unallowlisted_setting_name, $allowlisted_setting_name, $sensitive_setting_name ) as $setting_option_name ) {
+	$maa_adapter_smoke_fixture_registry['option_names'][] = $setting_option_name;
+	update_option( $setting_option_name, 'old-value', false );
+}
+
+$unallowlisted_setting_proposal = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/proposals',
+	array(
+		'ability_id' => 'npcink-abilities-toolkit/patch-setting-value',
+		'title'      => 'Adapter unallowlisted setting target smoke',
+		'summary'    => 'Adapter accepts the review artifact but must fail closed before final execution.',
+		'input'      => array(
+			'target_type' => 'option',
+			'target_name' => $unallowlisted_setting_name,
+			'operations'  => array(
+				array(
+					'op'      => 'replace',
+					'find'    => 'old-value',
+					'replace' => 'new-value',
+				),
+			),
+			'dry_run'     => true,
+			'commit'      => false,
+		),
+		'preview'    => array(
+			'action'           => 'patch_setting_value',
+			'dry_run'          => true,
+			'commit_execution' => false,
+		),
+	)
+);
+$unallowlisted_setting_proposal_id = (string) ( $unallowlisted_setting_proposal['proposal_id'] ?? '' );
+$maa_adapter_smoke_cleanup_proposal_ids[] = $unallowlisted_setting_proposal_id;
+maa_adapter_smoke_assert( '' !== $unallowlisted_setting_proposal_id, 'adapter accepts an unallowlisted setting target as a reviewable Core proposal' );
+$unallowlisted_setting_execute = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $unallowlisted_setting_proposal_id ) . '/approve-and-execute' );
+maa_adapter_smoke_assert( 409 === (int) $unallowlisted_setting_execute['status'], 'adapter blocks an unallowlisted setting target before final execution' );
+maa_adapter_smoke_assert( 'npcink_openclaw_adapter_setting_target_not_ready' === (string) ( $unallowlisted_setting_execute['data']['code'] ?? '' ), 'adapter uses the stable setting target not-ready code' );
+maa_adapter_smoke_assert( false === (bool) ( $unallowlisted_setting_execute['data']['data']['target_name_exposed'] ?? true ), 'adapter setting readiness error does not expose the target name' );
+maa_adapter_smoke_assert_payload_excludes_string( $unallowlisted_setting_execute, $unallowlisted_setting_name, 'adapter setting readiness error' );
+maa_adapter_smoke_assert( 'old-value' === (string) get_option( $unallowlisted_setting_name, '' ), 'adapter leaves an unallowlisted setting unchanged' );
+
+$GLOBALS['maa_adapter_smoke_patchable_setting_option_names'] = array( $allowlisted_setting_name, $sensitive_setting_name );
+add_filter( 'npcink_abilities_toolkit_patchable_setting_targets', 'maa_adapter_smoke_patchable_setting_targets', 10, 3 );
+$configured_setting_health = maa_adapter_smoke_rest( 'GET', '/npcink-openclaw-adapter/v1/health' );
+$configured_setting_readiness = is_array( $configured_setting_health['execution_profile_readiness']['items']['npcink-abilities-toolkit/patch-setting-value'] ?? null ) ? $configured_setting_health['execution_profile_readiness']['items']['npcink-abilities-toolkit/patch-setting-value'] : array();
+maa_adapter_smoke_assert( 'target_dependent' === (string) ( $configured_setting_readiness['status'] ?? '' ), 'adapter health reports target-dependent readiness after host policy registration' );
+maa_adapter_smoke_assert( true === (bool) ( $configured_setting_readiness['site_policy_configured'] ?? false ), 'adapter health reports the host target policy as configured' );
+
+$allowlisted_setting_preview_request = new WP_REST_Request( 'POST', '/wp-abilities/v1/abilities/npcink-abilities-toolkit/patch-setting-value/run' );
+$allowlisted_setting_preview_request->set_header( 'Content-Type', 'application/json' );
+$allowlisted_setting_preview_request->set_body(
+	wp_json_encode(
+		array(
+			'input' => array(
+				'target_type' => 'option',
+				'target_name' => $allowlisted_setting_name,
+				'operations'  => array(
+					array(
+						'op'      => 'replace',
+						'find'    => 'old-value',
+						'replace' => 'new-value',
+					),
+				),
+				'dry_run'     => true,
+				'commit'      => false,
+			),
+		)
+	)
+);
+$allowlisted_setting_preview_response = rest_do_request( $allowlisted_setting_preview_request );
+maa_adapter_smoke_assert( 200 === (int) $allowlisted_setting_preview_response->get_status(), 'Toolkit accepts a JSON dry-run request for an allowlisted setting target' );
+$allowlisted_setting_preview = $allowlisted_setting_preview_response->get_data();
+maa_adapter_smoke_assert( true === (bool) ( $allowlisted_setting_preview['dry_run'] ?? false ), 'Toolkit returns a dry-run preview for an allowlisted setting target' );
+maa_adapter_smoke_assert( 'old-value' === (string) get_option( $allowlisted_setting_name, '' ), 'Toolkit dry-run leaves the allowlisted setting unchanged' );
+
+$allowlisted_setting_proposal = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/proposals',
+	array(
+		'ability_id' => 'npcink-abilities-toolkit/patch-setting-value',
+		'title'      => 'Adapter allowlisted setting target smoke',
+		'summary'    => 'Adapter executes a reviewed non-sensitive setting target after Core approval.',
+		'input'      => array(
+			'target_type' => 'option',
+			'target_name' => $allowlisted_setting_name,
+			'operations'  => array(
+				array(
+					'op'      => 'replace',
+					'find'    => 'old-value',
+					'replace' => 'new-value',
+				),
+			),
+			'dry_run'     => true,
+			'commit'      => false,
+		),
+		'preview'    => array(
+			'action'           => 'patch_setting_value',
+			'dry_run'          => true,
+			'commit_execution' => false,
+		),
+	)
+);
+$allowlisted_setting_proposal_id = (string) ( $allowlisted_setting_proposal['proposal_id'] ?? '' );
+$maa_adapter_smoke_cleanup_proposal_ids[] = $allowlisted_setting_proposal_id;
+maa_adapter_smoke_assert( '' !== $allowlisted_setting_proposal_id, 'adapter creates an allowlisted setting target proposal' );
+$allowlisted_setting_execute = maa_adapter_smoke_rest( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $allowlisted_setting_proposal_id ) . '/approve-and-execute' );
+maa_adapter_smoke_assert( true === (bool) ( $allowlisted_setting_execute['success'] ?? false ), 'adapter executes an allowlisted setting target after Core approval' );
+maa_adapter_smoke_assert( 'new-value' === (string) get_option( $allowlisted_setting_name, '' ), 'adapter commits the allowlisted setting target' );
+
+$sensitive_setting_proposal = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/proposals',
+	array(
+		'ability_id' => 'npcink-abilities-toolkit/patch-setting-value',
+		'title'      => 'Adapter sensitive setting target smoke',
+		'summary'    => 'Toolkit must retain the final sensitive-target block.',
+		'input'      => array(
+			'target_type' => 'option',
+			'target_name' => $sensitive_setting_name,
+			'operations'  => array(
+				array(
+					'op'      => 'replace',
+					'find'    => 'old-value',
+					'replace' => 'new-value',
+				),
+			),
+			'dry_run'     => true,
+			'commit'      => false,
+		),
+		'preview'    => array(
+			'action'           => 'patch_setting_value',
+			'dry_run'          => true,
+			'commit_execution' => false,
+		),
+	)
+);
+$sensitive_setting_proposal_id = (string) ( $sensitive_setting_proposal['proposal_id'] ?? '' );
+$maa_adapter_smoke_cleanup_proposal_ids[] = $sensitive_setting_proposal_id;
+maa_adapter_smoke_assert( '' !== $sensitive_setting_proposal_id, 'adapter creates a reviewable sensitive setting proposal without claiming Toolkit authorization' );
+$sensitive_setting_execute = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $sensitive_setting_proposal_id ) . '/approve-and-execute' );
+maa_adapter_smoke_assert( $sensitive_setting_execute['status'] >= 400, 'Toolkit blocks a sensitive setting target after Adapter and Core handoff' );
+maa_adapter_smoke_assert( 'npcink_abilities_toolkit_setting_target_blocked' === (string) ( $sensitive_setting_execute['data']['code'] ?? '' ), 'Toolkit retains the final sensitive setting block code' );
+maa_adapter_smoke_assert( 'old-value' === (string) get_option( $sensitive_setting_name, '' ), 'Toolkit leaves the sensitive setting unchanged' );
+remove_filter( 'npcink_abilities_toolkit_patchable_setting_targets', 'maa_adapter_smoke_patchable_setting_targets', 10 );
+unset( $GLOBALS['maa_adapter_smoke_patchable_setting_option_names'] );
 
 $slug_post_id = maa_adapter_smoke_create_trash_post_fixture();
 $maa_adapter_smoke_cleanup_post_ids[] = $slug_post_id;

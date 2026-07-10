@@ -75,6 +75,13 @@ when every action targets the current execution allowlist
 These abilities remain owned by `npcink-abilities-toolkit`; Adapter only owns the
 post-Core execution profile policy that calls approved abilities after Core
 approval and commit-preflight.
+`npcink-abilities-toolkit/patch-setting-value` is a conditional profile: its
+presence in `supported_execute_ability_ids` means Adapter understands the
+execution shape, not that every setting target is executable on this site.
+The WordPress host must allowlist each reviewed target through
+`npcink_abilities_toolkit_patchable_setting_targets`; Adapter checks that
+Toolkit-owned host policy before approval/final execution and fails closed
+without exposing target names.
 Batch execution responses expose selected/submitted/executed/failed counts,
 per-action status, execution profile, idempotency key, Core preflight evidence,
 retryability, and `operator_next_action` so product surfaces such as Toolbox can
