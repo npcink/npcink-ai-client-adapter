@@ -27,12 +27,17 @@ action.
 ## Machine-Readable Contract Metadata
 
 `GET /health`, `GET /help`, and `GET /connection/manifest` expose a shared
-`contract` object. Adapter contract version `3` includes:
+`contract` object. Adapter contract version `4` includes:
 
 - Adapter/client policy/registry versions and stable hashes for execution
   profiles, supported execute ability ids, and supported plan ability ids;
 - `core_proxy_execute=false`;
 - `commit_execution=false`;
+- the generic `client_contract=generic_ai_client` product identity with
+  `priority_channel=openclaw` and the retained compatibility namespace;
+- `workflow_projection`, which points clients to Toolkit-owned definition
+  discovery, forbids Adapter definition/runtime storage, and lists parity
+  fields that fail closed on version mismatch;
 - Adapter-declared compatibility floors for Governance Core and Abilities
   Toolkit: `core_contract_min_version`, `core_plugin_min_version`,
   `toolkit_contract_min_version`, and `toolkit_plugin_min_version`.

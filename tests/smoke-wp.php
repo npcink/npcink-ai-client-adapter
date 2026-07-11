@@ -184,7 +184,11 @@ function maa_adapter_smoke_rest_result( string $method, string $route, array $pa
 function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $label ): void {
 	$expected = array(
 		'schema_version'                       => 'npcink_openclaw_adapter_contract.v1',
-		'adapter_contract_version'             => '3',
+		'adapter_contract_version'             => '4',
+		'product_name'                         => 'npcink-ai-client-adapter',
+		'client_contract'                      => 'generic_ai_client',
+		'priority_channel'                     => 'openclaw',
+		'compatibility_rest_namespace'         => 'npcink-openclaw-adapter/v1',
 		'client_policy_version'                => '1',
 		'execution_profile_registry_version'   => '2',
 		'supported_plan_abilities_version'     => '1',
@@ -198,6 +202,27 @@ function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $lab
 		'max_execution_actions'                => 200,
 		'core_proxy_execute'                   => false,
 		'commit_execution'                     => false,
+		'workflow_projection'                  => array(
+			'schema_version'                => 'npcink_ai_client_workflow_projection.v1',
+			'definition_owner'              => 'npcink-abilities-toolkit',
+			'definition_discovery_surface' => 'wordpress_abilities_api_via_adapter_read',
+			'definition_discovery_contract' => 'toolkit_workflow_definition_abilities',
+			'projection_role'               => 'external_ai_client_channel',
+			'supported_channels'            => array( 'openclaw' ),
+			'canonical_definition_storage'  => false,
+			'runtime_state_storage'         => false,
+			'version_mismatch_policy'       => 'fail_closed',
+			'parity_required_fields'        => array(
+				'recipe_id',
+				'contract_version',
+				'entrypoint_ability_id',
+				'required_scope',
+				'required_inputs',
+				'handoff',
+				'failure_policy',
+				'host_governed_write_boundary',
+			),
+		),
 		'execution_handoff_posture'            => array(
 			'schema_version'           => 'npcink_openclaw_adapter_execution_handoff_posture.v1',
 			'channel_owner'            => 'npcink-ai-client-adapter',
@@ -1377,7 +1402,12 @@ maa_adapter_smoke_assert( array_key_exists( 'core_app_token_configured', $health
 maa_adapter_smoke_assert( 'npcink_openclaw_adapter_client_policy.v1' === (string) ( $health['client_policy']['schema_version'] ?? '' ), 'adapter health exposes machine-readable client policy' );
 maa_adapter_smoke_assert( '1' === (string) ( $health['client_policy']['policy_version'] ?? '' ), 'adapter health exposes client policy version' );
 maa_adapter_smoke_assert( 'npcink_openclaw_adapter_contract.v1' === (string) ( $health['contract']['schema_version'] ?? '' ), 'adapter health exposes contract metadata' );
-maa_adapter_smoke_assert( '3' === (string) ( $health['contract']['adapter_contract_version'] ?? '' ), 'adapter health exposes adapter contract version' );
+maa_adapter_smoke_assert( '4' === (string) ( $health['contract']['adapter_contract_version'] ?? '' ), 'adapter health exposes adapter contract version' );
+maa_adapter_smoke_assert( 'generic_ai_client' === (string) ( $health['contract']['client_contract'] ?? '' ), 'adapter health exposes the generic AI client contract' );
+maa_adapter_smoke_assert( 'openclaw' === (string) ( $health['contract']['priority_channel'] ?? '' ), 'adapter health keeps OpenClaw as the priority channel' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit' === (string) ( $health['contract']['workflow_projection']['definition_owner'] ?? '' ), 'adapter health leaves workflow definition ownership with Toolkit' );
+maa_adapter_smoke_assert( false === (bool) ( $health['contract']['workflow_projection']['canonical_definition_storage'] ?? true ), 'adapter health does not expose a local workflow registry' );
+maa_adapter_smoke_assert( 'fail_closed' === (string) ( $health['contract']['workflow_projection']['version_mismatch_policy'] ?? '' ), 'adapter health fails closed on workflow definition version mismatch' );
 maa_adapter_smoke_assert( 0 === strpos( (string) ( $health['contract']['execution_profile_registry_hash'] ?? '' ), 'sha256:' ), 'adapter health exposes execution profile registry hash' );
 maa_adapter_smoke_assert( 0 === strpos( (string) ( $health['contract']['supported_plan_ability_ids_hash'] ?? '' ), 'sha256:' ), 'adapter health exposes supported plan ability hash' );
 maa_adapter_smoke_assert_contract_snapshot( $health, 'adapter health' );
@@ -1388,6 +1418,7 @@ maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['np
 maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['npcink-governance-core']['provider_secret_storage'] ?? true ), 'adapter health detects Core provider secret storage disabled' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['core_boundary_supported'] ?? false ), 'adapter health detects supported Core execution boundary' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['implementation_posture_supported'] ?? false ), 'adapter health detects supported Core implementation posture metadata' );
+maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['native_editor_commit_exclusion_supported'] ?? false ), 'adapter health detects Core native editor commit pre-classification exclusion' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['implementation_posture_metadata_only'] ?? false ), 'adapter health detects metadata-only Core implementation posture' );
 maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['npcink-governance-core']['implementation_posture_core_records_truth'] ?? true ), 'adapter health keeps Core posture out of record truth ownership' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-governance-core']['site_binding'] ?? false ), 'adapter health detects Core site context binding' );
@@ -1395,6 +1426,7 @@ maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npc
 maa_adapter_smoke_assert( 'npcink_abilities_toolkit_contract.v1' === (string) ( $health['dependency_contracts']['npcink-abilities-toolkit']['schema_version'] ?? '' ), 'adapter health detects Toolkit contract schema' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['host_governed_writes'] ?? false ), 'adapter health detects Toolkit host-governed writes' );
 maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['commit_default'] ?? true ), 'adapter health detects Toolkit commit default disabled' );
+maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['workflow_projection_source_supported'] ?? false ), 'adapter health detects Toolkit workflow definition projection source' );
 maa_adapter_smoke_assert( in_array( 'profile_path', (array) ( $health['client_policy']['forbidden_outputs'] ?? array() ), true ), 'adapter health policy forbids profile path output' );
 maa_adapter_smoke_assert( in_array( 'key_id', (array) ( $health['client_policy']['forbidden_outputs'] ?? array() ), true ), 'adapter health policy forbids key id output' );
 maa_adapter_smoke_assert( in_array( 'database_direct', (array) ( $health['client_policy']['forbidden_local_access'] ?? array() ), true ), 'adapter health policy forbids direct database access' );
