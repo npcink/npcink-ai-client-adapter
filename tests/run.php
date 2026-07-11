@@ -1368,7 +1368,8 @@ foreach (
 		'admin_menu',
 		'plugin_action_links_',
 		'filter_plugin_action_links',
-		'admin.php?page=npcink-ai-client-adapter',
+		'menu_page_url',
+		'options-general.php?page=npcink-ai-client-adapter',
 		'admin_post_npcink_openclaw_adapter_create_openclaw_password',
 		'register_admin_page',
 		'handle_create_openclaw_password',
@@ -1385,7 +1386,6 @@ maa_adapter_assert( false !== strpos( $connection_page, "const PARENT_MENU_SLUG 
 foreach (
 	array(
 		'Npcink AI Client Adapter',
-		'Connect this site to local AI clients.',
 		'Connect this WordPress site to OpenClaw or other local AI clients.',
 		'Adapter',
 		'AI Client Connection Created',
@@ -1544,6 +1544,9 @@ foreach (
 	foreach ( maa_adapter_removed_admin_connection_texts() as $removed_admin_text ) {
 		maa_adapter_assert( false === strpos( $connection_page, $removed_admin_text ), 'Connection page removes verbose/non-core admin text: ' . $removed_admin_text );
 	}
+maa_adapter_assert( false !== strpos( $connection_page, 'add_submenu_page' ) && false !== strpos( $connection_page, 'add_options_page' ), 'Connection page attaches to Toolbox navigation or falls back to WordPress Settings.' );
+maa_adapter_assert( false === strpos( $connection_page, 'add_menu_page' ) && false === strpos( $connection_page, 'render_overview' ), 'Adapter does not create the suite navigation shell or overview.' );
+maa_adapter_assert( false !== strpos( $plugin, 'menu_page_url' ) && false !== strpos( $plugin, 'options-general.php?page=npcink-ai-client-adapter' ), 'Plugin action link resolves the registered Adapter page or standalone Settings fallback.' );
 $render_start  = strpos( $connection_page, 'public function render(): void' );
 $render_end    = strpos( $connection_page, 'public function render_pairing_page(): void' );
 $render_source = false !== $render_start && false !== $render_end ? substr( $connection_page, $render_start, $render_end - $render_start ) : '';
@@ -1641,20 +1644,14 @@ maa_adapter_assert( false === strpos( $connection_page, "echo esc_html( (string)
 maa_adapter_assert( false !== strpos( $connection_page, 'openclaw_connection_manifest_text( string $username, string $password_uuid )' ), 'Connection manifest receives only username and password UUID.' );
 maa_adapter_assert( false === strpos( $connection_page, 'openclaw_created_handoff_text(' ), 'Connection page removes verbose created handoff text builder.' );
 maa_adapter_assert( false === strpos( $connection_page, 'workbuddy_handoff_text(' ), 'Connection page removes WorkBuddy setup text builder.' );
-maa_adapter_assert( false !== strpos( $connection_page, "admin_url( 'admin.php?page=' . self::MENU_SLUG )" ), 'Created handoff return link targets the Adapter admin page explicitly.' );
-maa_adapter_assert( false === strpos( $connection_page, 'menu_page_url( self::MENU_SLUG, false )' ), 'Created handoff return link does not resolve through current admin-post context.' );
+maa_adapter_assert( false !== strpos( $connection_page, 'connection_page_url()' ) && false !== strpos( $connection_page, "defined( 'NPCINK_TOOLBOX_VERSION' ) ? 'admin.php' : 'options-general.php'" ), 'Adapter return links target the Toolbox submenu or standalone Settings page.' );
 maa_adapter_assert( false !== strpos( $connection_page, "const MENU_SLUG        = 'npcink-ai-client-adapter';" ), 'Connection page uses the canonical Adapter admin slug.' );
-maa_adapter_assert( false !== strpos( $connection_page, "__( 'Npcink AI Client Adapter', 'npcink-ai-client-adapter' ),\n\t\t\t__( 'Adapter', 'npcink-ai-client-adapter' )," ), 'Connection page registers the requested page and menu titles.' );
+maa_adapter_assert( false !== strpos( $connection_page, "__( 'Npcink AI Client Adapter', 'npcink-ai-client-adapter' )" ) && false !== strpos( $connection_page, "__( 'Adapter', 'npcink-ai-client-adapter' )" ), 'Connection page registers the requested page and menu titles.' );
 maa_adapter_assert( false !== strpos( $connection_page, "esc_html( 'Npcink AI Client Adapter' )" ), 'Connection page uses the fixed product name for the primary admin heading.' );
 maa_adapter_assert( false === strpos( $connection_page, 'Developer route details and local testing notes are documented' ), 'Connection page default view does not show developer route notes.' );
 maa_adapter_assert( false === strpos( $connection_page, '<code>docs/admin-developer-reference.md</code>' ), 'Connection page default view keeps developer reference out of the admin surface.' );
 maa_adapter_assert( false === strpos( $connection_page, 'Connect AI clients through the Adapter surface.' ), 'Connection page avoids the old Adapter-surface connection wording.' );
 maa_adapter_assert( false === strpos( $connection_page, 'npcink-openclaw-adapter-openclaw' ), 'Connection page does not use the old OpenClaw-specific admin slug.' );
-maa_adapter_assert( false !== strpos( $connection_page, "'npcink-cloud-addon'" ), 'Connection page overview links to the canonical Cloud Addon slug.' );
-maa_adapter_assert( false !== strpos( $connection_page, "__( 'Cloud Addon', 'npcink-ai-client-adapter' )" ), 'Connection page overview labels the Cloud Addon surface.' );
-maa_adapter_assert( false !== strpos( $connection_page, "'npcink-workflow-toolbox'" ), 'Connection page overview links to the canonical Toolbox slug.' );
-maa_adapter_assert( false !== strpos( $connection_page, "__( 'Toolbox', 'npcink-ai-client-adapter' )" ), 'Connection page overview labels the Toolbox surface.' );
-
 $admin_surface_standard = maa_adapter_read( $root . '/docs/admin-surface-standard.md' );
 foreach (
 	array(
