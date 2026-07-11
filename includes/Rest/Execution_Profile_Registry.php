@@ -178,6 +178,15 @@ final class Execution_Profile_Registry {
 			),
 			'npcink-abilities-toolkit/patch-setting-value' => array(
 				'supported_input_fields'  => array( 'target_type', 'target_name', 'operations', 'dry_run', 'commit', 'idempotency_key' ),
+				'site_readiness'          => array(
+					'mode'                      => 'host_filter_target_allowlist',
+					'filter'                    => 'npcink_abilities_toolkit_patchable_setting_targets',
+					'policy_owner'              => 'wordpress_host',
+					'target_type_field'         => 'target_type',
+					'target_name_field'         => 'target_name',
+					'not_ready_code'            => 'npcink_openclaw_adapter_setting_target_not_ready',
+					'per_target_check_required' => true,
+				),
 				'enum_fields'           => array(
 					'target_type' => array(
 						'allowed' => array( 'option', 'theme_mod' ),
@@ -274,7 +283,7 @@ final class Execution_Profile_Registry {
 				'post_id_from_result'       => false,
 			),
 			'npcink-abilities-toolkit/update-media-details' => array(
-				'supported_input_fields'  => array( 'attachment_id', 'title', 'alt', 'caption', 'description', 'source_type', 'source_page_url', 'photographer_name', 'attribution_text', 'copyright_notice', 'dry_run', 'commit', 'idempotency_key' ),
+				'supported_input_fields'  => array( 'attachment_id', 'title', 'alt', 'caption', 'description', 'source_type', 'source_page_url', 'photographer_name', 'attribution_text', 'copyright_notice', 'expected_current_alt', 'operator_visual_review_confirmed', 'dry_run', 'commit', 'idempotency_key' ),
 				'enum_fields'           => array(
 					'source_type' => array(
 						'allowed' => array( 'owned', 'ai_generated', 'stock', 'external', 'test' ),

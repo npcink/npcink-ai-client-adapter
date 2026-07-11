@@ -99,6 +99,14 @@ profile entry plus the matching docs and smoke coverage. Abilities that are
 discoverable through Core or WordPress Abilities API but have no Adapter
 execution profile must fail closed.
 
+An execution profile may also declare a site-owned readiness condition.
+`patch-setting-value` uses this only to consume Toolkit's public host target
+allowlist; it does not make execution profiles dynamically extensible. Adapter
+may accept a structurally valid proposal for review, but execute and
+approve-and-execute fail closed before approval/preflight when the concrete
+target is not allowlisted. Capability discovery and profile membership alone
+therefore do not claim that a setting target is executable.
+
 For profiled abilities, Adapter validates proposal input at `POST /proposals`
 before forwarding to Core. This validation rejects fields outside the profile
 input schema and invalid enum values, then reuses the same profile checks again

@@ -18,6 +18,7 @@ Adapter may execute a write only when all of these are true:
   registry.
 - The execution input passes the profile's supported field, required field,
   enum, size, and safety validation.
+- Any profile-declared site readiness condition passes for the concrete target.
 
 The registry is implemented in
 [`../../includes/Rest/Execution_Profile_Registry.php`](../../includes/Rest/Execution_Profile_Registry.php).
@@ -82,6 +83,28 @@ commit_execution=false
 
 Clients can compare these fields against acceptance-tested builds. They do not
 authorize execution by themselves.
+
+## Conditional Site Readiness
+
+`npcink-abilities-toolkit/patch-setting-value` remains an explicit Adapter
+execution profile, but it is conditionally executable. Protocol support and
+site readiness are separate facts:
+
+- `supported_execute_ability_ids` means Adapter knows the bounded input and
+  post-Core dispatch shape;
+- `execution_profile_readiness` reports whether the required host policy hook
+  is configured, without returning setting names;
+- final execution checks the concrete `target_type` and `target_name` against
+  `npcink_abilities_toolkit_patchable_setting_targets` before approval or Core
+  commit-preflight is consumed;
+- an unallowlisted target returns
+  `npcink_openclaw_adapter_setting_target_not_ready` and executes no write;
+- Toolkit remains the final owner of sensitive-target rejection even when a
+  host accidentally includes a sensitive name in its allowlist.
+
+Adapter does not store or extend the allowlist. The WordPress host owns the
+site-specific values; Core still owns proposal, approval, preflight, and audit
+truth; Toolkit still owns the ability callback and hard security blocks.
 
 ## Block Theme Template Updates
 

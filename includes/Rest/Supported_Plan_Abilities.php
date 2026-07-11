@@ -55,6 +55,7 @@ final class Supported_Plan_Abilities {
 			'npcink-abilities-toolkit/build-content-metadata-apply-plan'       => true,
 			'npcink-abilities-toolkit/build-article-audio-adoption-plan'       => true,
 			'npcink-abilities-toolkit/build-article-optimization-apply-plan'   => true,
+			'npcink-abilities-toolkit/build-media-alt-apply-plan'              => true,
 			'npcink-abilities-toolkit/build-article-block-plan'                => true,
 			'npcink-abilities-toolkit/build-block-theme-site-plan'             => true,
 			'npcink-abilities-toolkit/build-pattern-page-plan'                 => true,

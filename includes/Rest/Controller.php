@@ -53,12 +53,12 @@ final class Controller {
 	const MAX_LIGHT_POST_BODY_BYTES   = 4096;
 	const ADAPTER_CONTRACT_VERSION    = '3';
 	const CLIENT_POLICY_VERSION       = '1';
-	const EXECUTION_PROFILE_REGISTRY_VERSION = '1';
+	const EXECUTION_PROFILE_REGISTRY_VERSION = '2';
 	const SUPPORTED_PLAN_ABILITIES_VERSION   = '1';
 	const CORE_CONTRACT_MIN_VERSION          = '1';
 	const CORE_PLUGIN_MIN_VERSION            = '0.1.0';
 	const TOOLKIT_CONTRACT_MIN_VERSION       = '1';
-	const TOOLKIT_PLUGIN_MIN_VERSION         = '0.5.1';
+	const TOOLKIT_PLUGIN_MIN_VERSION         = '0.5.3';
 
 	/**
 	 * Current request log context while an ability is running.
@@ -108,6 +108,59 @@ final class Controller {
 	 */
 	private static function supported_execute_ability_ids(): array {
 		return array_keys( self::execution_profiles() );
+	}
+
+	/**
+	 * Returns execution profiles whose final readiness depends on host policy.
+	 *
+	 * @return array<int,string>
+	 */
+	private static function conditional_execute_ability_ids(): array {
+		$ability_ids = array();
+		foreach ( self::execution_profiles() as $ability_id => $profile ) {
+			if ( is_array( $profile['site_readiness'] ?? null ) ) {
+				$ability_ids[] = (string) $ability_id;
+			}
+		}
+
+		return $ability_ids;
+	}
+
+	/**
+	 * Returns non-secret site readiness for conditional execution profiles.
+	 *
+	 * Target names stay private. A configured host filter still requires a
+	 * per-target check before final execution.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function execution_profile_readiness(): array {
+		$items = array();
+		foreach ( self::execution_profiles() as $ability_id => $profile ) {
+			$policy = is_array( $profile['site_readiness'] ?? null ) ? $profile['site_readiness'] : array();
+			if ( empty( $policy ) ) {
+				continue;
+			}
+
+			$filter     = sanitize_key( (string) ( $policy['filter'] ?? '' ) );
+			$configured = '' !== $filter && function_exists( 'has_filter' ) && false !== has_filter( $filter );
+			$items[ (string) $ability_id ] = array(
+				'status'                    => $configured ? 'target_dependent' : 'not_configured',
+				'site_policy_configured'    => $configured,
+				'per_target_check_required' => true,
+				'default_behavior'          => 'fail_closed',
+				'policy_owner'              => sanitize_key( (string) ( $policy['policy_owner'] ?? 'wordpress_host' ) ),
+				'filter'                    => $filter,
+				'not_ready_code'            => sanitize_key( (string) ( $policy['not_ready_code'] ?? 'npcink_openclaw_adapter_execution_profile_site_not_ready' ) ),
+				'target_names_exposed'      => false,
+			);
+		}
+
+		return array(
+			'schema_version'                  => 'npcink_openclaw_adapter_execution_profile_readiness.v1',
+			'conditional_execute_ability_ids' => self::conditional_execute_ability_ids(),
+			'items'                           => $items,
+		);
 	}
 
 	/**
@@ -1476,6 +1529,7 @@ final class Controller {
 			),
 			'client_policy'  => $this->client_policy(),
 			'contract'       => $this->adapter_contract_metadata(),
+			'execution_profile_readiness' => $this->execution_profile_readiness(),
 			'dependency_contracts' => $this->dependency_contracts(),
 		);
 
@@ -2063,6 +2117,7 @@ final class Controller {
 					'POST /proposals/{proposal_id}/approve-and-execute',
 				),
 				'supported_execute_ability_ids' => self::supported_execute_ability_ids(),
+				'execution_profile_readiness' => $this->execution_profile_readiness(),
 				'execution_input_contract' => array(
 					'single' => 'proposal.input, with ability-specific required fields',
 					'batch'  => 'proposal.input.write_actions[].target_ability_id + proposal.input.write_actions[].input',
@@ -2257,6 +2312,7 @@ final class Controller {
 					'POST /proposals/{proposal_id}/approve-and-execute',
 				),
 				'supported_execute_ability_ids' => self::supported_execute_ability_ids(),
+				'execution_profile_readiness' => $this->execution_profile_readiness(),
 				'execution_input_contract' => array(
 					'single' => 'proposal.input, with ability-specific required fields',
 					'batch'  => 'proposal.input.write_actions[].target_ability_id + proposal.input.write_actions[].input',
@@ -3690,6 +3746,7 @@ final class Controller {
 				'batch_review_feedback'    => is_array( $execution['batch_review_feedback'] ?? null ) ? $execution['batch_review_feedback'] : array(),
 				'core_preflight_evidence'  => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
 				'implementation_posture_evidence' => is_array( $execution['implementation_posture_evidence'] ?? null ) ? $execution['implementation_posture_evidence'] : array(),
+				'media_alt_live_preflight' => is_array( $execution['media_alt_live_preflight'] ?? null ) ? $execution['media_alt_live_preflight'] : array(),
 				'execution_record'         => is_array( $execution['execution_record'] ?? null ) ? $execution['execution_record'] : array(),
 				'approval_context'         => is_array( $execution['approval_context'] ?? null ) ? $execution['approval_context'] : array(),
 				'execution_detail_included' => $include_detail,
@@ -3710,6 +3767,7 @@ final class Controller {
 			'partial_success'      => (bool) ( $execution['partial_success'] ?? false ),
 			'retryable'            => (bool) ( $execution['retryable'] ?? false ),
 			'operator_next_action' => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
+			'media_alt_live_preflight' => $payload['media_alt_live_preflight'],
 			'result'               => $payload['result'],
 			'results'              => $payload['results'],
 		);
@@ -3842,9 +3900,10 @@ final class Controller {
 	 * @param int                 $post_id Post id when the ability targets an existing post.
 	 * @param int|null            $action_index Batch action index.
 	 * @param bool                $allow_output_refs Whether batch output references may satisfy id fields.
+	 * @param bool                $enforce_site_readiness Whether host policy must allow final execution.
 	 * @return true|WP_Error
 	 */
-	private function validate_execute_action_input( string $proposal_id, string $ability_id, array $input, int $post_id, ?int $action_index = null, bool $allow_output_refs = false ) {
+	private function validate_execute_action_input( string $proposal_id, string $ability_id, array $input, int $post_id, ?int $action_index = null, bool $allow_output_refs = false, bool $enforce_site_readiness = false ) {
 		$error_data = array(
 			'status'      => 400,
 			'proposal_id' => $proposal_id,
@@ -4102,7 +4161,75 @@ final class Controller {
 			}
 		}
 
+		if ( $enforce_site_readiness ) {
+			$site_ready = $this->validate_execution_profile_site_readiness( $proposal_id, $ability_id, $input, $action_index );
+			if ( is_wp_error( $site_ready ) ) {
+				return $site_ready;
+			}
+		}
+
 		return true;
+	}
+
+	/**
+	 * Validates site-owned conditions for one final execution profile.
+	 *
+	 * @param string              $proposal_id Proposal id.
+	 * @param string              $ability_id Ability id.
+	 * @param array<string,mixed> $input Ability input.
+	 * @param int|null            $action_index Batch action index.
+	 * @return true|WP_Error
+	 */
+	private function validate_execution_profile_site_readiness( string $proposal_id, string $ability_id, array $input, ?int $action_index = null ) {
+		$profiles = self::execution_profiles();
+		$profile  = is_array( $profiles[ $ability_id ] ?? null ) ? $profiles[ $ability_id ] : array();
+		$policy   = is_array( $profile['site_readiness'] ?? null ) ? $profile['site_readiness'] : array();
+		if ( empty( $policy ) ) {
+			return true;
+		}
+
+		$filter            = sanitize_key( (string) ( $policy['filter'] ?? '' ) );
+		$target_type_field = sanitize_key( (string) ( $policy['target_type_field'] ?? 'target_type' ) );
+		$target_name_field = sanitize_key( (string) ( $policy['target_name_field'] ?? 'target_name' ) );
+		$target_type       = sanitize_key( (string) ( $input[ $target_type_field ] ?? '' ) );
+		$target_name       = sanitize_key( (string) ( $input[ $target_name_field ] ?? '' ) );
+		$allowed_targets   = array(
+			'option'    => array(),
+			'theme_mod' => array(),
+		);
+		if ( 'npcink_abilities_toolkit_patchable_setting_targets' === $filter && function_exists( 'apply_filters' ) ) {
+			$allowed_targets = apply_filters( 'npcink_abilities_toolkit_patchable_setting_targets', $allowed_targets, $target_type, $target_name );
+		}
+		$allowed_targets = is_array( $allowed_targets ) ? $allowed_targets : array();
+		$allowed_names   = isset( $allowed_targets[ $target_type ] ) && is_array( $allowed_targets[ $target_type ] )
+			? array_filter( array_map( 'sanitize_key', $allowed_targets[ $target_type ] ) )
+			: array();
+		if ( '' !== $target_name && in_array( $target_name, $allowed_names, true ) ) {
+			return true;
+		}
+
+		$error_data = array(
+			'status'                    => 409,
+			'proposal_id'               => $proposal_id,
+			'ability_id'                => $ability_id,
+			'target_type'               => $target_type,
+			'site_readiness_status'     => 'not_ready',
+			'site_policy_owner'         => sanitize_key( (string) ( $policy['policy_owner'] ?? 'wordpress_host' ) ),
+			'site_policy_filter'        => $filter,
+			'per_target_check_required' => true,
+			'target_name_exposed'       => false,
+			'operator_next_action'      => 'configure_reviewed_host_target_allowlist_and_create_a_new_proposal',
+		);
+		if ( null !== $action_index ) {
+			$error_data['action_index']      = $action_index;
+			$error_data['target_ability_id'] = $ability_id;
+		}
+
+		return new WP_Error(
+			(string) ( $policy['not_ready_code'] ?? 'npcink_openclaw_adapter_execution_profile_site_not_ready' ),
+			__( 'This execution profile is supported, but the WordPress host has not allowlisted this setting target.', 'npcink-ai-client-adapter' ),
+			$error_data
+		);
 	}
 
 	/**
@@ -4404,7 +4531,7 @@ final class Controller {
 				}
 
 				$post_id      = absint( $action_input['post_id'] ?? 0 );
-				$valid_input  = $this->validate_execute_action_input( $proposal_id, $target_ability_id, $action_input, $post_id, $index, true );
+				$valid_input  = $this->validate_execute_action_input( $proposal_id, $target_ability_id, $action_input, $post_id, $index, true, true );
 				if ( is_wp_error( $valid_input ) ) {
 					return $valid_input;
 				}
@@ -4495,7 +4622,7 @@ final class Controller {
 			return $allowed;
 		}
 
-		$valid_input = $this->validate_execute_action_input( $proposal_id, $proposal_ability_id, $input, $top_level_post_id );
+		$valid_input = $this->validate_execute_action_input( $proposal_id, $proposal_ability_id, $input, $top_level_post_id, null, false, true );
 		if ( is_wp_error( $valid_input ) ) {
 			return $valid_input;
 		}
@@ -4652,7 +4779,7 @@ final class Controller {
 
 		$post_status_after = get_post_status( $post_id );
 
-		return array(
+		$result = array(
 			'action_id'          => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
 			'action_index'       => absint( $action['action_index'] ?? 0 ),
 			'target_ability_id'  => sanitize_text_field( (string) ( $action['target_ability_id'] ?? $ability_id ) ),
@@ -4665,6 +4792,111 @@ final class Controller {
 			'post_status_after'  => false === $post_status_after ? '' : (string) $post_status_after,
 			'adapter_request_id' => (string) ( $context['adapter_request_id'] ?? '' ),
 			'result'             => $result_data,
+		);
+		if ( is_array( $action['media_alt_live_preflight'] ?? null ) ) {
+			$result['media_alt_live_preflight'] = $action['media_alt_live_preflight'];
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Rechecks a governed missing-ALT write against live WordPress state.
+	 *
+	 * Core owns approval and preserves the reviewed evidence. Adapter validates
+	 * that handoff and asks Toolkit to dry-run the exact approved input directly
+	 * before commit, so Toolkit remains the live attachment truth.
+	 *
+	 * @param string              $proposal_id Proposal id.
+	 * @param array<string,mixed> $action Normalized action.
+	 * @param array<string,mixed> $preflight Core commit preflight.
+	 * @param array<string,mixed> $approval_context Core approval context.
+	 * @param string              $correlation_id Correlation id.
+	 * @param array<string,mixed> $base_request_context Base request context.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	private function media_alt_live_preflight( string $proposal_id, array $action, array $preflight, array $approval_context, string $correlation_id, array $base_request_context ) {
+		$item_preflight = is_array( $preflight['proposal_item_preflight'] ?? null ) ? $preflight['proposal_item_preflight'] : array();
+		$guard          = is_array( $item_preflight['media_alt_guard'] ?? null ) ? $item_preflight['media_alt_guard'] : array();
+		if ( empty( $guard['applies'] ) ) {
+			return array();
+		}
+
+		$ability_id = sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) );
+		$input      = is_array( $action['input'] ?? null ) ? $action['input'] : array();
+		$allowed    = array_fill_keys( array( 'attachment_id', 'alt', 'expected_current_alt', 'operator_visual_review_confirmed', 'dry_run', 'commit', 'idempotency_key' ), true );
+		$valid      = true === ( $guard['valid'] ?? false )
+			&& true === ( $guard['requires_live_value_check'] ?? false )
+			&& 'adapter_toolkit_dry_run_before_commit' === (string) ( $guard['live_value_check_owner'] ?? '' )
+			&& 'media_alt_apply_plan.v1' === (string) ( $guard['contract_version'] ?? '' )
+			&& 'npcink-abilities-toolkit/update-media-details' === $ability_id
+			&& absint( $input['attachment_id'] ?? 0 ) > 0
+			&& absint( $input['attachment_id'] ?? 0 ) === absint( $guard['attachment_id'] ?? 0 )
+			&& array_key_exists( 'expected_current_alt', $input )
+			&& '' === (string) $input['expected_current_alt']
+			&& true === ( $input['operator_visual_review_confirmed'] ?? false )
+			&& '' !== trim( sanitize_text_field( (string) ( $input['alt'] ?? '' ) ) )
+			&& '' !== trim( sanitize_text_field( (string) ( $input['idempotency_key'] ?? '' ) ) );
+		foreach ( array_keys( $input ) as $key ) {
+			if ( ! isset( $allowed[ (string) $key ] ) ) {
+				$valid = false;
+				break;
+			}
+		}
+
+		if ( ! $valid ) {
+			return new WP_Error(
+				'npcink_openclaw_adapter_media_alt_guard_invalid',
+				__( 'The Core media ALT guard does not match the approved ALT-only input.', 'npcink-ai-client-adapter' ),
+				array(
+					'status'               => 409,
+					'proposal_id'          => $proposal_id,
+					'operator_next_action' => 'review_media_alt_proposal_and_create_revised_proposal',
+				)
+			);
+		}
+
+		$dry_run_input            = $input;
+		$dry_run_input['dry_run'] = true;
+		$dry_run_input['commit']  = false;
+		$context                  = array_merge(
+			$approval_context,
+			$base_request_context,
+			array(
+				'ability_id'        => $ability_id,
+				'target_ability_id' => $ability_id,
+				'proposal_id'       => $proposal_id,
+				'correlation_id'    => $correlation_id,
+				'via'               => 'npcink-ai-client-adapter-media-alt-live-preflight',
+			)
+		);
+		$route    = '/wp-abilities/v1/abilities/' . $ability_id . '/run';
+		$response = $this->dispatch_upstream_with_runtime_context( $context, 'POST', $route, array( 'input' => $dry_run_input ), false, true );
+		if ( is_wp_error( $response ) ) {
+			$data = $response->get_error_data();
+			$data = is_array( $data ) ? $data : array();
+			$response->add_data(
+				array_merge(
+					$data,
+					array(
+						'status'               => absint( $data['status'] ?? 409 ) ?: 409,
+						'proposal_id'          => $proposal_id,
+						'media_alt_live_check' => 'failed',
+						'operator_next_action' => 'refresh_media_alt_review_and_create_revised_proposal',
+					)
+				)
+			);
+			return $response;
+		}
+
+		return array(
+			'checked'                  => true,
+			'contract_version'         => 'media_alt_apply_plan.v1',
+			'attachment_id'            => absint( $input['attachment_id'] ?? 0 ),
+			'expected_current_alt'     => '',
+			'visual_review_confirmed'  => true,
+			'toolkit_dry_run_succeeded' => true,
+			'live_value_check_owner'   => 'adapter_toolkit_dry_run_before_commit',
 		);
 	}
 
@@ -4935,7 +5167,9 @@ final class Controller {
 				sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) ),
 				$action['input'],
 				absint( $action['post_id'] ?? 0 ),
-				$action_index
+				$action_index,
+				false,
+				true
 			);
 			if ( is_wp_error( $valid_input ) ) {
 				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
@@ -4973,6 +5207,31 @@ final class Controller {
 					)
 				);
 				return $valid_input;
+			}
+
+			$media_alt_live_preflight = $this->media_alt_live_preflight( $proposal_id, $action, $preflight, $approval_context, $correlation_id, $base_request_context );
+			if ( is_wp_error( $media_alt_live_preflight ) ) {
+				$execution_record = $this->store_failed_execution_record(
+					$proposal_id,
+					$proposal,
+					$actions,
+					$results,
+					$preflight,
+					$correlation_id,
+					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+					$media_alt_live_preflight,
+					$action
+				);
+				$media_alt_live_preflight->add_data(
+					array_merge(
+						(array) $media_alt_live_preflight->get_error_data(),
+						array( 'execution_record' => $execution_record )
+					)
+				);
+				return $media_alt_live_preflight;
+			}
+			if ( ! empty( $media_alt_live_preflight ) ) {
+				$action['media_alt_live_preflight'] = $media_alt_live_preflight;
 			}
 
 			$result = $this->execute_normalized_action( $request, $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
@@ -5070,6 +5329,7 @@ final class Controller {
 				'implementation_posture_checked_count' => absint( $implementation_posture_evidence['checked_count'] ?? 0 ),
 			),
 			'implementation_posture_evidence' => $implementation_posture_evidence,
+			'media_alt_live_preflight' => is_array( $first_result['media_alt_live_preflight'] ?? null ) ? $first_result['media_alt_live_preflight'] : array(),
 			'batch_review_feedback' => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
 			'execution_mode'      => $execution_mode,
 			'selected_count'      => $execution_summary['selected_count'],
@@ -6449,6 +6709,7 @@ final class Controller {
 			'operator_next_action' => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
 			'core_preflight_evidence' => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
 			'implementation_posture_evidence' => is_array( $execution['implementation_posture_evidence'] ?? null ) ? $execution['implementation_posture_evidence'] : array(),
+			'media_alt_live_preflight' => is_array( $execution['media_alt_live_preflight'] ?? null ) ? $execution['media_alt_live_preflight'] : array(),
 			'verification'        => $this->compact_execution_verification( $execution ),
 			'executed_at'         => gmdate( 'c' ),
 		);
@@ -6666,6 +6927,7 @@ final class Controller {
 			'failed_idempotency_key' => (string) ( $record['failed_idempotency_key'] ?? '' ),
 			'core_preflight_evidence' => is_array( $record['core_preflight_evidence'] ?? null ) ? $record['core_preflight_evidence'] : null,
 			'implementation_posture_evidence' => is_array( $record['implementation_posture_evidence'] ?? null ) ? $record['implementation_posture_evidence'] : null,
+			'media_alt_live_preflight' => is_array( $record['media_alt_live_preflight'] ?? null ) ? $record['media_alt_live_preflight'] : null,
 			'verification'        => is_array( $record['verification'] ?? null ) ? $record['verification'] : null,
 			'core_execution_record' => is_array( $record['core_execution_record'] ?? null ) ? $record['core_execution_record'] : null,
 			'failed_at'           => (string) ( $record['failed_at'] ?? '' ),
