@@ -192,9 +192,9 @@ function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $lab
 		'core_plugin_min_version'              => '0.1.0',
 		'toolkit_contract_min_version'         => '1',
 		'toolkit_plugin_min_version'           => '0.5.3',
-		'execution_profile_registry_hash'      => 'sha256:0ac832aec144bc6e6db498dd82a812eecbca6acc8603fd53346a1d4eb3393e9a',
+		'execution_profile_registry_hash'      => 'sha256:808e535c14cecadc8985ea1a3bf78c652043a0c74765f035126785e35ca46e75',
 		'supported_execute_ability_ids_hash'   => 'sha256:dfa1e7d90d13c593a3c4a1fbbd104af3535e42f5fab03274f36099037ab6d97d',
-		'supported_plan_ability_ids_hash'      => 'sha256:58ea7d6e59d57f4026c6c0dacf8b63273157af5f0ca0e416de19f40a98e255be',
+		'supported_plan_ability_ids_hash'      => 'sha256:3474b36bb21317614cdc3401681f18b9c41039716e26581c33395d3938ff4831',
 		'max_execution_actions'                => 200,
 		'core_proxy_execute'                   => false,
 		'commit_execution'                     => false,
@@ -1426,6 +1426,7 @@ maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/build-media-adopti
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/build-media-rename-plan', (array) ( $health['supported_plan_ability_ids'] ?? array() ), true ), 'adapter health exposes media rename plan supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/build-content-metadata-apply-plan', (array) ( $health['supported_plan_ability_ids'] ?? array() ), true ), 'adapter health exposes content metadata apply plan supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/build-article-optimization-apply-plan', (array) ( $health['supported_plan_ability_ids'] ?? array() ), true ), 'adapter health exposes article optimization apply plan supported profiles' );
+maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/build-media-alt-apply-plan', (array) ( $health['supported_plan_ability_ids'] ?? array() ), true ), 'adapter health exposes missing media ALT apply plan supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/build-article-block-plan', (array) ( $health['supported_plan_ability_ids'] ?? array() ), true ), 'adapter health exposes article block plan supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/build-block-theme-site-plan', (array) ( $health['supported_plan_ability_ids'] ?? array() ), true ), 'adapter health exposes block theme site plan supported profiles' );
 maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/build-pattern-page-plan', (array) ( $health['supported_plan_ability_ids'] ?? array() ), true ), 'adapter health exposes pattern page plan supported profiles' );
@@ -1761,6 +1762,83 @@ maa_adapter_smoke_assert( false === (bool) ( $article_media_handoff_detail['prev
 maa_adapter_smoke_assert( 'Adapter Media Plan Smoke' === (string) get_the_title( $article_media_handoff_attachment_id ), 'adapter article media handoff proposal does not mutate media title' );
 maa_adapter_smoke_assert( '' === (string) get_post_meta( $article_media_handoff_attachment_id, '_wp_attachment_image_alt', true ), 'adapter article media handoff proposal does not mutate media alt text' );
 maa_adapter_smoke_assert( '' === (string) get_post_meta( $article_media_handoff_attachment_id, '_npcink_ai_media_source_type', true ), 'adapter article media handoff proposal does not mutate media source type' );
+
+$media_alt_attachment_id = maa_adapter_smoke_create_media_plan_attachment();
+$maa_adapter_smoke_cleanup_attachment_ids[] = $media_alt_attachment_id;
+$media_alt_reviewed_value = 'Editor reviewing the AI workflow illustration';
+$media_alt_plan_input = array(
+	'attachment_id'                     => $media_alt_attachment_id,
+	'alt'                               => $media_alt_reviewed_value,
+	'expected_current_alt'              => '',
+	'operator_visual_review_confirmed' => true,
+	'review_set_contract'               => 'media_alt_caption_review_set.v1',
+	'source_item_id'                    => 'adapter-media-alt:' . $media_alt_attachment_id,
+	'evidence_refs'                     => array( 'adapter-smoke-image:' . $media_alt_attachment_id ),
+);
+$media_alt_plan_response = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/run-read-ability',
+	array(
+		'ability_id' => 'npcink-abilities-toolkit/build-media-alt-apply-plan',
+		'input'      => $media_alt_plan_input,
+	)
+);
+$media_alt_plan = is_array( $media_alt_plan_response['result']['data'] ?? null ) ? $media_alt_plan_response['result']['data'] : array();
+maa_adapter_smoke_assert( 'media_alt_apply_plan.v1' === (string) ( $media_alt_plan['contract_version'] ?? '' ), 'adapter returns the Toolkit missing media ALT plan contract' );
+maa_adapter_smoke_assert( '' === (string) get_post_meta( $media_alt_attachment_id, '_wp_attachment_image_alt', true ), 'adapter media ALT planning does not mutate the attachment' );
+$media_alt_bridge = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/proposals/from-plan',
+	array(
+		'plan_ability_id'    => 'npcink-abilities-toolkit/build-media-alt-apply-plan',
+		'plan'               => $media_alt_plan_response['result'],
+		'plan_input'         => $media_alt_plan_input,
+		'adapter_request_id' => 'adapter-media-alt-e2e-request',
+		'correlation_id'     => 'adapter-media-alt-e2e-correlation',
+		'caller'             => array( 'external_thread_id' => 'adapter-media-alt-e2e-smoke' ),
+	)
+);
+$media_alt_proposal = is_array( $media_alt_bridge['proposals'][0] ?? null ) ? $media_alt_bridge['proposals'][0] : array();
+$media_alt_proposal_id = (string) ( $media_alt_proposal['proposal_id'] ?? '' );
+$maa_adapter_smoke_cleanup_proposal_ids[] = $media_alt_proposal_id;
+maa_adapter_smoke_assert( '' !== $media_alt_proposal_id, 'adapter submits one missing media ALT plan to Core' );
+maa_adapter_smoke_assert( 'media_alt_apply_plan_item' === (string) ( $media_alt_proposal['preview']['media_alt_apply']['artifact_type'] ?? '' ), 'adapter/Core handoff preserves missing ALT visual-review evidence' );
+$media_alt_execute = maa_adapter_smoke_rest( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $media_alt_proposal_id ) . '/approve-and-execute' );
+maa_adapter_smoke_assert( true === (bool) ( $media_alt_execute['success'] ?? false ), 'adapter executes the approved missing media ALT proposal' );
+maa_adapter_smoke_assert( true === (bool) ( $media_alt_execute['execution']['media_alt_live_preflight']['checked'] ?? false ), 'adapter records the successful Toolkit live ALT dry-run' );
+maa_adapter_smoke_assert( $media_alt_reviewed_value === (string) get_post_meta( $media_alt_attachment_id, '_wp_attachment_image_alt', true ), 'adapter writes the reviewed missing media ALT exactly once' );
+$media_alt_repeat = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $media_alt_proposal_id ) . '/execute' );
+maa_adapter_smoke_assert( 409 === (int) ( $media_alt_repeat['status'] ?? 0 ), 'adapter rejects repeated execution of the completed media ALT proposal' );
+
+$media_alt_stale_attachment_id = maa_adapter_smoke_create_media_plan_attachment();
+$maa_adapter_smoke_cleanup_attachment_ids[] = $media_alt_stale_attachment_id;
+$media_alt_stale_input = $media_alt_plan_input;
+$media_alt_stale_input['attachment_id'] = $media_alt_stale_attachment_id;
+$media_alt_stale_input['source_item_id'] = 'adapter-media-alt:' . $media_alt_stale_attachment_id;
+$media_alt_stale_response = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/run-read-ability',
+	array(
+		'ability_id' => 'npcink-abilities-toolkit/build-media-alt-apply-plan',
+		'input'      => $media_alt_stale_input,
+	)
+);
+$media_alt_stale_bridge = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/proposals/from-plan',
+	array(
+		'plan_ability_id' => 'npcink-abilities-toolkit/build-media-alt-apply-plan',
+		'plan'            => $media_alt_stale_response['result'],
+		'plan_input'      => $media_alt_stale_input,
+		'caller'          => array( 'external_thread_id' => 'adapter-media-alt-stale-smoke' ),
+	)
+);
+$media_alt_stale_proposal_id = (string) ( $media_alt_stale_bridge['proposals'][0]['proposal_id'] ?? '' );
+$maa_adapter_smoke_cleanup_proposal_ids[] = $media_alt_stale_proposal_id;
+update_post_meta( $media_alt_stale_attachment_id, '_wp_attachment_image_alt', 'Changed after the editor review' );
+$media_alt_stale_execute = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $media_alt_stale_proposal_id ) . '/approve-and-execute' );
+maa_adapter_smoke_assert( 409 === (int) ( $media_alt_stale_execute['status'] ?? 0 ), 'adapter blocks a missing media ALT write after the live value drifts' );
+maa_adapter_smoke_assert( 'Changed after the editor review' === (string) get_post_meta( $media_alt_stale_attachment_id, '_wp_attachment_image_alt', true ), 'adapter drift rejection does not overwrite the live ALT' );
 
 $media_plan_response = maa_adapter_smoke_rest(
 	'POST',

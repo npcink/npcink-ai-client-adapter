@@ -3746,6 +3746,7 @@ final class Controller {
 				'batch_review_feedback'    => is_array( $execution['batch_review_feedback'] ?? null ) ? $execution['batch_review_feedback'] : array(),
 				'core_preflight_evidence'  => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
 				'implementation_posture_evidence' => is_array( $execution['implementation_posture_evidence'] ?? null ) ? $execution['implementation_posture_evidence'] : array(),
+				'media_alt_live_preflight' => is_array( $execution['media_alt_live_preflight'] ?? null ) ? $execution['media_alt_live_preflight'] : array(),
 				'execution_record'         => is_array( $execution['execution_record'] ?? null ) ? $execution['execution_record'] : array(),
 				'approval_context'         => is_array( $execution['approval_context'] ?? null ) ? $execution['approval_context'] : array(),
 				'execution_detail_included' => $include_detail,
@@ -3766,6 +3767,7 @@ final class Controller {
 			'partial_success'      => (bool) ( $execution['partial_success'] ?? false ),
 			'retryable'            => (bool) ( $execution['retryable'] ?? false ),
 			'operator_next_action' => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
+			'media_alt_live_preflight' => $payload['media_alt_live_preflight'],
 			'result'               => $payload['result'],
 			'results'              => $payload['results'],
 		);
@@ -4777,7 +4779,7 @@ final class Controller {
 
 		$post_status_after = get_post_status( $post_id );
 
-		return array(
+		$result = array(
 			'action_id'          => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
 			'action_index'       => absint( $action['action_index'] ?? 0 ),
 			'target_ability_id'  => sanitize_text_field( (string) ( $action['target_ability_id'] ?? $ability_id ) ),
@@ -4790,6 +4792,111 @@ final class Controller {
 			'post_status_after'  => false === $post_status_after ? '' : (string) $post_status_after,
 			'adapter_request_id' => (string) ( $context['adapter_request_id'] ?? '' ),
 			'result'             => $result_data,
+		);
+		if ( is_array( $action['media_alt_live_preflight'] ?? null ) ) {
+			$result['media_alt_live_preflight'] = $action['media_alt_live_preflight'];
+		}
+
+		return $result;
+	}
+
+	/**
+	 * Rechecks a governed missing-ALT write against live WordPress state.
+	 *
+	 * Core owns approval and preserves the reviewed evidence. Adapter validates
+	 * that handoff and asks Toolkit to dry-run the exact approved input directly
+	 * before commit, so Toolkit remains the live attachment truth.
+	 *
+	 * @param string              $proposal_id Proposal id.
+	 * @param array<string,mixed> $action Normalized action.
+	 * @param array<string,mixed> $preflight Core commit preflight.
+	 * @param array<string,mixed> $approval_context Core approval context.
+	 * @param string              $correlation_id Correlation id.
+	 * @param array<string,mixed> $base_request_context Base request context.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	private function media_alt_live_preflight( string $proposal_id, array $action, array $preflight, array $approval_context, string $correlation_id, array $base_request_context ) {
+		$item_preflight = is_array( $preflight['proposal_item_preflight'] ?? null ) ? $preflight['proposal_item_preflight'] : array();
+		$guard          = is_array( $item_preflight['media_alt_guard'] ?? null ) ? $item_preflight['media_alt_guard'] : array();
+		if ( empty( $guard['applies'] ) ) {
+			return array();
+		}
+
+		$ability_id = sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) );
+		$input      = is_array( $action['input'] ?? null ) ? $action['input'] : array();
+		$allowed    = array_fill_keys( array( 'attachment_id', 'alt', 'expected_current_alt', 'operator_visual_review_confirmed', 'dry_run', 'commit', 'idempotency_key' ), true );
+		$valid      = true === ( $guard['valid'] ?? false )
+			&& true === ( $guard['requires_live_value_check'] ?? false )
+			&& 'adapter_toolkit_dry_run_before_commit' === (string) ( $guard['live_value_check_owner'] ?? '' )
+			&& 'media_alt_apply_plan.v1' === (string) ( $guard['contract_version'] ?? '' )
+			&& 'npcink-abilities-toolkit/update-media-details' === $ability_id
+			&& absint( $input['attachment_id'] ?? 0 ) > 0
+			&& absint( $input['attachment_id'] ?? 0 ) === absint( $guard['attachment_id'] ?? 0 )
+			&& array_key_exists( 'expected_current_alt', $input )
+			&& '' === (string) $input['expected_current_alt']
+			&& true === ( $input['operator_visual_review_confirmed'] ?? false )
+			&& '' !== trim( sanitize_text_field( (string) ( $input['alt'] ?? '' ) ) )
+			&& '' !== trim( sanitize_text_field( (string) ( $input['idempotency_key'] ?? '' ) ) );
+		foreach ( array_keys( $input ) as $key ) {
+			if ( ! isset( $allowed[ (string) $key ] ) ) {
+				$valid = false;
+				break;
+			}
+		}
+
+		if ( ! $valid ) {
+			return new WP_Error(
+				'npcink_openclaw_adapter_media_alt_guard_invalid',
+				__( 'The Core media ALT guard does not match the approved ALT-only input.', 'npcink-ai-client-adapter' ),
+				array(
+					'status'               => 409,
+					'proposal_id'          => $proposal_id,
+					'operator_next_action' => 'review_media_alt_proposal_and_create_revised_proposal',
+				)
+			);
+		}
+
+		$dry_run_input            = $input;
+		$dry_run_input['dry_run'] = true;
+		$dry_run_input['commit']  = false;
+		$context                  = array_merge(
+			$approval_context,
+			$base_request_context,
+			array(
+				'ability_id'        => $ability_id,
+				'target_ability_id' => $ability_id,
+				'proposal_id'       => $proposal_id,
+				'correlation_id'    => $correlation_id,
+				'via'               => 'npcink-ai-client-adapter-media-alt-live-preflight',
+			)
+		);
+		$route    = '/wp-abilities/v1/abilities/' . $ability_id . '/run';
+		$response = $this->dispatch_upstream_with_runtime_context( $context, 'POST', $route, array( 'input' => $dry_run_input ), false, true );
+		if ( is_wp_error( $response ) ) {
+			$data = $response->get_error_data();
+			$data = is_array( $data ) ? $data : array();
+			$response->add_data(
+				array_merge(
+					$data,
+					array(
+						'status'               => absint( $data['status'] ?? 409 ) ?: 409,
+						'proposal_id'          => $proposal_id,
+						'media_alt_live_check' => 'failed',
+						'operator_next_action' => 'refresh_media_alt_review_and_create_revised_proposal',
+					)
+				)
+			);
+			return $response;
+		}
+
+		return array(
+			'checked'                  => true,
+			'contract_version'         => 'media_alt_apply_plan.v1',
+			'attachment_id'            => absint( $input['attachment_id'] ?? 0 ),
+			'expected_current_alt'     => '',
+			'visual_review_confirmed'  => true,
+			'toolkit_dry_run_succeeded' => true,
+			'live_value_check_owner'   => 'adapter_toolkit_dry_run_before_commit',
 		);
 	}
 
@@ -5102,6 +5209,31 @@ final class Controller {
 				return $valid_input;
 			}
 
+			$media_alt_live_preflight = $this->media_alt_live_preflight( $proposal_id, $action, $preflight, $approval_context, $correlation_id, $base_request_context );
+			if ( is_wp_error( $media_alt_live_preflight ) ) {
+				$execution_record = $this->store_failed_execution_record(
+					$proposal_id,
+					$proposal,
+					$actions,
+					$results,
+					$preflight,
+					$correlation_id,
+					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+					$media_alt_live_preflight,
+					$action
+				);
+				$media_alt_live_preflight->add_data(
+					array_merge(
+						(array) $media_alt_live_preflight->get_error_data(),
+						array( 'execution_record' => $execution_record )
+					)
+				);
+				return $media_alt_live_preflight;
+			}
+			if ( ! empty( $media_alt_live_preflight ) ) {
+				$action['media_alt_live_preflight'] = $media_alt_live_preflight;
+			}
+
 			$result = $this->execute_normalized_action( $request, $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
 			if ( is_wp_error( $result ) ) {
 				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
@@ -5197,6 +5329,7 @@ final class Controller {
 				'implementation_posture_checked_count' => absint( $implementation_posture_evidence['checked_count'] ?? 0 ),
 			),
 			'implementation_posture_evidence' => $implementation_posture_evidence,
+			'media_alt_live_preflight' => is_array( $first_result['media_alt_live_preflight'] ?? null ) ? $first_result['media_alt_live_preflight'] : array(),
 			'batch_review_feedback' => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
 			'execution_mode'      => $execution_mode,
 			'selected_count'      => $execution_summary['selected_count'],
@@ -6576,6 +6709,7 @@ final class Controller {
 			'operator_next_action' => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
 			'core_preflight_evidence' => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
 			'implementation_posture_evidence' => is_array( $execution['implementation_posture_evidence'] ?? null ) ? $execution['implementation_posture_evidence'] : array(),
+			'media_alt_live_preflight' => is_array( $execution['media_alt_live_preflight'] ?? null ) ? $execution['media_alt_live_preflight'] : array(),
 			'verification'        => $this->compact_execution_verification( $execution ),
 			'executed_at'         => gmdate( 'c' ),
 		);
@@ -6793,6 +6927,7 @@ final class Controller {
 			'failed_idempotency_key' => (string) ( $record['failed_idempotency_key'] ?? '' ),
 			'core_preflight_evidence' => is_array( $record['core_preflight_evidence'] ?? null ) ? $record['core_preflight_evidence'] : null,
 			'implementation_posture_evidence' => is_array( $record['implementation_posture_evidence'] ?? null ) ? $record['implementation_posture_evidence'] : null,
+			'media_alt_live_preflight' => is_array( $record['media_alt_live_preflight'] ?? null ) ? $record['media_alt_live_preflight'] : null,
 			'verification'        => is_array( $record['verification'] ?? null ) ? $record['verification'] : null,
 			'core_execution_record' => is_array( $record['core_execution_record'] ?? null ) ? $record['core_execution_record'] : null,
 			'failed_at'           => (string) ( $record['failed_at'] ?? '' ),

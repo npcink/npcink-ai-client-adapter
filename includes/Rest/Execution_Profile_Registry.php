@@ -283,7 +283,7 @@ final class Execution_Profile_Registry {
 				'post_id_from_result'       => false,
 			),
 			'npcink-abilities-toolkit/update-media-details' => array(
-				'supported_input_fields'  => array( 'attachment_id', 'title', 'alt', 'caption', 'description', 'source_type', 'source_page_url', 'photographer_name', 'attribution_text', 'copyright_notice', 'dry_run', 'commit', 'idempotency_key' ),
+				'supported_input_fields'  => array( 'attachment_id', 'title', 'alt', 'caption', 'description', 'source_type', 'source_page_url', 'photographer_name', 'attribution_text', 'copyright_notice', 'expected_current_alt', 'operator_visual_review_confirmed', 'dry_run', 'commit', 'idempotency_key' ),
 				'enum_fields'           => array(
 					'source_type' => array(
 						'allowed' => array( 'owned', 'ai_generated', 'stock', 'external', 'test' ),

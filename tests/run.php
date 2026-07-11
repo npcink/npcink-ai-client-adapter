@@ -368,6 +368,7 @@ maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'final class Su
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function ids' ), 'Supported plan ability exposes ids.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function contains' ), 'Supported plan ability exposes membership checks.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'npcink-abilities-toolkit/build-content-metadata-apply-plan' ), 'Supported plan ability registry accepts Toolkit content metadata apply plans.' );
+maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'npcink-abilities-toolkit/build-media-alt-apply-plan' ), 'Supported plan ability registry accepts Toolkit missing ALT apply plans.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'final class Execution_Profile_Registry' ), 'Execution profile registry exists.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'public static function profiles' ), 'Execution profile registry exposes profiles.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink-abilities-toolkit/update-post-blocks' ), 'Execution profile registry keeps governed block writes supported.' );
@@ -377,6 +378,8 @@ maa_adapter_assert( false !== strpos( $controller, 'npcink_openclaw_adapter_exec
 maa_adapter_assert( false !== strpos( $controller_contract, 'npcink_openclaw_adapter_setting_target_not_ready' ), 'Adapter uses a stable not-ready error for unallowlisted setting targets.' );
 maa_adapter_assert( false !== strpos( $controller, "'target_names_exposed'      => false" ), 'Adapter readiness metadata does not expose setting target names.' );
 maa_adapter_assert( false !== strpos( $controller, 'configure_reviewed_host_target_allowlist_and_create_a_new_proposal' ), 'Adapter returns bounded operator guidance for setting target readiness failures.' );
+maa_adapter_assert( false !== strpos( $controller, 'media_alt_live_preflight' ) && false !== strpos( $controller, 'adapter_toolkit_dry_run_before_commit' ), 'Adapter performs the Core-required Toolkit live ALT dry-run before final commit.' );
+maa_adapter_assert( false !== strpos( $controller_contract, 'expected_current_alt' ) && false !== strpos( $controller_contract, 'operator_visual_review_confirmed' ), 'Adapter execution schema preserves missing-ALT drift and visual-review guards.' );
 foreach ( array( 'apply_filters', 'do_action', 'add_filter', 'add_action', 'get_option', 'update_option', 'wp_remote_', '$wpdb', 'register_post_type' ) as $dynamic_extension_signal ) {
 	maa_adapter_assert( false === strpos( $execution_profile_registry, $dynamic_extension_signal ), 'Execution profile registry does not use dynamic extension signal: ' . $dynamic_extension_signal );
 }
