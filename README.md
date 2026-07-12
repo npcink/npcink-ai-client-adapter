@@ -9,6 +9,11 @@ It gives OpenClaw-compatible and similar AI clients one WordPress REST namespace
 - create Core proposals for write or destructive operations;
 - forward one user-triggered approve-and-execute request to Core.
 
+The product contract is generic AI-client integration with OpenClaw as the
+first and priority channel implementation. The existing
+`npcink-openclaw-adapter/v1` namespace remains a compatibility contract; it
+does not limit future conforming clients to OpenClaw.
+
 AI clients should connect through Adapter. Npcink Governance
 Core is the governance service behind Adapter. Core remains the approval,
 preflight, and audit truth source; Adapter exposes the productized channel
@@ -163,6 +168,13 @@ Adapter does not expose direct-read shortcut routes, workflow recipe routes,
 provider/model smoke routes, or Cloud/media derivative façade routes. Use
 `POST /run-read-ability` for approved reads, Core proposal routes for governed
 writes, and `npcink-cloud-addon` for Cloud runtime transport.
+
+Clients discover reusable workflow definitions through
+`npcink-abilities-toolkit/list-workflow-recipes` and
+`npcink-abilities-toolkit/get-workflow-recipe` using `POST /run-read-ability`.
+Adapter projects those Toolkit-owned definitions into client actions without
+copying them into an Adapter registry. Contract version 4 exposes this rule as
+`contract.workflow_projection` and fails closed on definition-version drift.
 
 Disabled compatibility stubs:
 

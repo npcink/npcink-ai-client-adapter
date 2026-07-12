@@ -46,11 +46,16 @@ final class Plugin {
 	 * @return array<int|string,string>
 	 */
 	public function filter_plugin_action_links( array $links ): array {
+		$settings_url = menu_page_url( 'npcink-ai-client-adapter', false );
+		if ( '' === $settings_url ) {
+			$settings_url = admin_url( 'options-general.php?page=npcink-ai-client-adapter' );
+		}
+
 		array_unshift(
 			$links,
 			sprintf(
 				'<a href="%1$s">%2$s</a>',
-				esc_url( admin_url( 'admin.php?page=npcink-ai-client-adapter' ) ),
+				esc_url( $settings_url ),
 				esc_html__( 'Settings', 'npcink-ai-client-adapter' )
 			)
 		);

@@ -2,8 +2,9 @@
 
 Status: accepted Adapter client integration contract.
 
-This contract is for OpenClaw-compatible clients such as OpenClaw, WorkBuddy,
-Qclaw, and other local AI clients that need a stable WordPress channel.
+This is the generic Npcink AI-client contract. OpenClaw is the first and priority implementation;
+OpenClaw-compatible clients such as WorkBuddy, Qclaw,
+and other local AI clients can use the same stable WordPress channel.
 
 ## Positioning
 
@@ -31,10 +32,19 @@ The client must not treat Adapter as:
    `adapter_contract_version`, `client_policy_version`,
    `execution_profile_registry_hash`, `supported_execute_ability_ids_hash`, and
    `supported_plan_ability_ids_hash`.
+6. Read `contract.workflow_projection`, then discover canonical definitions
+   through the Toolkit `list-workflow-recipes` or `get-workflow-recipe`
+   abilities. Fail closed when the definition version or required parity fields
+   do not match the client projection.
 
 Fingerprints do not authorize reads or writes. Runtime authority still comes
 from Core approval, Core read authorization, Core commit-preflight, and Adapter
 execution profile validation.
+
+Adapter must not persist a second workflow definition catalog. A projected
+client action preserves Toolkit's `recipe_id`, `contract_version`, entrypoint,
+scope, required inputs, handoff, failure policy, and host-governed write
+boundary. OpenClaw-specific route names are transport compatibility details.
 
 ## Reads
 

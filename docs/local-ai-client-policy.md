@@ -67,6 +67,12 @@ separate `contract` object. Clients may cache or compare
 `supported_execute_ability_ids_hash`, and `supported_plan_ability_ids_hash` to
 detect whether the Adapter contract matches an acceptance-tested build.
 
+Contract version 4 also exposes `client_contract=generic_ai_client`, keeps
+OpenClaw as `priority_channel`, and publishes a `workflow_projection` object.
+Clients must read canonical workflow definitions from Toolkit through Adapter
+read execution, preserve the listed parity fields, and fail closed on version
+mismatch. This metadata does not make Adapter a workflow registry or runtime.
+
 The contract also exposes Adapter-declared compatibility floors:
 `core_contract_min_version`, `core_plugin_min_version`,
 `toolkit_contract_min_version`, and `toolkit_plugin_min_version`. These are the

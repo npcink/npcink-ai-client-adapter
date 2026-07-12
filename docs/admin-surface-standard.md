@@ -1,6 +1,7 @@
 # Adapter Admin Surface Standard
 
-Status: active for `Npcink -> Adapter`.
+Status: active for `Npcink AI -> Adapter` when Toolbox is active, with
+`Settings -> Npcink AI Client Adapter` as the standalone fallback.
 
 ## Purpose
 

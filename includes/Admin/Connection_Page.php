@@ -43,17 +43,25 @@ final class Connection_Page {
 	 * @return void
 	 */
 	public function register(): void {
-		$this->ensure_parent_menu();
-
-		$connection_hook = add_submenu_page(
-			self::PARENT_MENU_SLUG,
-			__( 'Npcink AI Client Adapter', 'npcink-ai-client-adapter' ),
-			__( 'Adapter', 'npcink-ai-client-adapter' ),
-			self::MENU_CAPABILITY,
-			self::MENU_SLUG,
-			array( $this, 'render' ),
-			20
-		);
+		if ( $this->has_parent_menu() ) {
+			$connection_hook = add_submenu_page(
+				self::PARENT_MENU_SLUG,
+				__( 'Npcink AI Client Adapter', 'npcink-ai-client-adapter' ),
+				__( 'Adapter', 'npcink-ai-client-adapter' ),
+				self::MENU_CAPABILITY,
+				self::MENU_SLUG,
+				array( $this, 'render' ),
+				20
+			);
+		} else {
+			$connection_hook = add_options_page(
+				__( 'Npcink AI Client Adapter', 'npcink-ai-client-adapter' ),
+				__( 'Npcink AI Client Adapter', 'npcink-ai-client-adapter' ),
+				self::MENU_CAPABILITY,
+				self::MENU_SLUG,
+				array( $this, 'render' )
+			);
+		}
 
 		$pairing_hook = add_submenu_page(
 			null,
@@ -95,37 +103,6 @@ final class Connection_Page {
 	}
 
 	/**
-	 * Ensures the shared Npcink parent menu exists.
-	 *
-	 * @return void
-	 */
-	private function ensure_parent_menu(): void {
-		if ( $this->has_parent_menu() ) {
-			return;
-		}
-
-		add_menu_page(
-			__( 'Npcink', 'npcink-ai-client-adapter' ),
-			__( 'Npcink', 'npcink-ai-client-adapter' ),
-			self::MENU_CAPABILITY,
-			self::PARENT_MENU_SLUG,
-			array( $this, 'render_overview' ),
-			'dashicons-superhero',
-			58
-		);
-
-		add_submenu_page(
-			self::PARENT_MENU_SLUG,
-			__( 'Npcink Overview', 'npcink-ai-client-adapter' ),
-			__( 'Overview', 'npcink-ai-client-adapter' ),
-			self::MENU_CAPABILITY,
-			self::PARENT_MENU_SLUG,
-			array( $this, 'render_overview' ),
-			0
-		);
-	}
-
-	/**
 	 * Returns whether another Npcink plugin already created the parent menu.
 	 *
 	 * @return bool
@@ -143,74 +120,13 @@ final class Connection_Page {
 	}
 
 	/**
-	 * Renders the shared Npcink overview page.
+	 * Returns the active Adapter page URL.
 	 *
-	 * @return void
+	 * @return string
 	 */
-	public function render_overview(): void {
-		if ( ! current_user_can( self::MENU_CAPABILITY ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'npcink-ai-client-adapter' ) );
-		}
-		?>
-		<div class="wrap">
-			<h1><?php echo esc_html__( 'Npcink', 'npcink-ai-client-adapter' ); ?></h1>
-			<p><?php echo esc_html__( 'Local WordPress entry points for Npcink governance, connections, cloud access, and ability packages.', 'npcink-ai-client-adapter' ); ?></p>
-			<h2><?php echo esc_html__( 'Installed Surfaces', 'npcink-ai-client-adapter' ); ?></h2>
-			<table class="widefat striped" style="max-width: 860px;">
-				<tbody>
-					<?php
-					$this->render_overview_row( __( 'Core', 'npcink-ai-client-adapter' ), __( 'Review proposals, approval decisions, commit preflight, audit, and Core app keys.', 'npcink-ai-client-adapter' ), 'npcink-governance-core' );
-					$this->render_overview_row( __( 'Adapter', 'npcink-ai-client-adapter' ), __( 'Connect this site to local AI clients.', 'npcink-ai-client-adapter' ), self::MENU_SLUG );
-					$this->render_overview_row( __( 'Abilities', 'npcink-ai-client-adapter' ), __( 'Verify WordPress Abilities API packages and demo ability controls.', 'npcink-ai-client-adapter' ), 'npcink-abilities-toolkit' );
-					$this->render_overview_row( __( 'Toolbox', 'npcink-ai-client-adapter' ), __( 'Open the operator-facing AI tool surface for suggestions and governed handoffs.', 'npcink-ai-client-adapter' ), 'npcink-workflow-toolbox' );
-					$this->render_overview_row( __( 'Cloud Addon', 'npcink-ai-client-adapter' ), __( 'Connect this site to Npcink Cloud without moving local control-plane truth.', 'npcink-ai-client-adapter' ), 'npcink-cloud-addon' );
-					?>
-				</tbody>
-			</table>
-		</div>
-		<?php
-	}
-
-	/**
-	 * Renders one overview row.
-	 *
-	 * @param string $label       Row label.
-	 * @param string $description Row description.
-	 * @param string $slug        Menu page slug.
-	 * @return void
-	 */
-	private function render_overview_row( string $label, string $description, string $slug ): void {
-		?>
-		<tr>
-			<th scope="row"><?php echo esc_html( $label ); ?></th>
-			<td><?php echo esc_html( $description ); ?></td>
-			<td>
-				<?php if ( $this->is_submenu_registered( $slug ) ) : ?>
-					<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=' . $slug ) ); ?>"><?php echo esc_html__( 'Open', 'npcink-ai-client-adapter' ); ?></a>
-				<?php else : ?>
-					<span style="color: #646970;"><?php echo esc_html__( 'Not installed', 'npcink-ai-client-adapter' ); ?></span>
-				<?php endif; ?>
-			</td>
-		</tr>
-		<?php
-	}
-
-	/**
-	 * Returns whether a Npcink submenu has been registered.
-	 *
-	 * @param string $slug Menu page slug.
-	 * @return bool
-	 */
-	private function is_submenu_registered( string $slug ): bool {
-		global $submenu;
-
-		foreach ( (array) ( $submenu[ self::PARENT_MENU_SLUG ] ?? array() ) as $item ) {
-			if ( isset( $item[2] ) && $slug === $item[2] ) {
-				return true;
-			}
-		}
-
-		return false;
+	private function connection_page_url(): string {
+		$parent = defined( 'NPCINK_TOOLBOX_VERSION' ) ? 'admin.php' : 'options-general.php';
+		return admin_url( $parent . '?page=' . self::MENU_SLUG );
 	}
 
 	/**
@@ -368,7 +284,7 @@ final class Connection_Page {
 						<p><strong><?php echo esc_html__( 'Connection approved.', 'npcink-ai-client-adapter' ); ?></strong></p>
 						<p><?php echo esc_html__( 'Return to the terminal or local AI client that started pairing. Wait for it to report ready; this browser page can be closed. Adapter stores only the public key; the private key was never sent to WordPress.', 'npcink-ai-client-adapter' ); ?></p>
 					</div>
-					<p class="description"><?php echo esc_html__( 'If you did not start this pairing, revoke this client from the Adapter page immediately.', 'npcink-ai-client-adapter' ); ?> <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::MENU_SLUG ) ); ?>"><?php echo esc_html__( 'Manage paired clients', 'npcink-ai-client-adapter' ); ?></a></p>
+				<p class="description"><?php echo esc_html__( 'If you did not start this pairing, revoke this client from the Adapter page immediately.', 'npcink-ai-client-adapter' ); ?> <a href="<?php echo esc_url( $this->connection_page_url() ); ?>"><?php echo esc_html__( 'Manage paired clients', 'npcink-ai-client-adapter' ); ?></a></p>
 				<?php elseif ( 'rejected' === $status ) : ?>
 					<div class="notice notice-warning">
 						<p><strong><?php echo esc_html__( 'Connection rejected.', 'npcink-ai-client-adapter' ); ?></strong></p>
@@ -545,7 +461,7 @@ final class Connection_Page {
 			wp_die( esc_html( $result->get_error_message() ) );
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=' . self::MENU_SLUG ) );
+		wp_safe_redirect( $this->connection_page_url() );
 		exit;
 	}
 
@@ -757,7 +673,7 @@ final class Connection_Page {
 						</tr>
 					</tbody>
 				</table>
-				<p class="actions"><a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=' . self::MENU_SLUG ) ); ?>"><?php echo esc_html__( 'Back to Npcink AI Client Adapter', 'npcink-ai-client-adapter' ); ?></a></p>
+				<p class="actions"><a class="button" href="<?php echo esc_url( $this->connection_page_url() ); ?>"><?php echo esc_html__( 'Back to Npcink AI Client Adapter', 'npcink-ai-client-adapter' ); ?></a></p>
 			</main>
 			<?php wp_print_scripts( array( 'npcink-openclaw-adapter-created-handoff' ) ); ?>
 		</body>

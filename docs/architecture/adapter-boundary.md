@@ -2,10 +2,14 @@
 
 Status: accepted architecture boundary.
 
-Npcink AI Client Adapter is the thin OpenClaw channel layer for WordPress. It
-owns the OpenClaw-facing REST namespace and the local client handoff surface. It
+Npcink AI Client Adapter is the thin generic AI-client channel layer for
+WordPress. OpenClaw is the first and priority channel. Adapter owns the
+OpenClaw-compatible REST namespace and the local client handoff surface. It
 does not own ability definitions, governance truth, workflow runtime, provider
 routing, prompt management, or generic WordPress write authority.
+
+The existing REST compatibility projection remains the thin OpenClaw channel layer;
+that compatibility wording does not redefine the generic product contract.
 
 ## Owned Here
 
@@ -19,6 +23,7 @@ Adapter owns:
   to Npcink Governance Core.
 - Explicit post-Core execution profile policy for approved writes.
 - Small health, help, manifest, diagnostics, and client handoff responses.
+- A read-only projection contract for Toolkit-owned workflow definitions.
 
 ## Not Owned Here
 
@@ -30,6 +35,7 @@ Adapter must not own:
   commit-preflight truth. Those belong in `npcink-governance-core`.
 - Workflow runtime, queues, MCP runtime, Agent Gateway catalogs, or long-running
   task orchestration.
+- A canonical or copied workflow definition registry.
 - Provider credentials, model routing, prompt catalogs, or product UX.
 - Cloud settings, Cloud connector routes, Cloud signing clients, or Cloud
   execution truth. Adapter calls the standalone Cloud Addon seam only where a

@@ -51,7 +51,7 @@ final class Controller {
 	const MAX_TERM_ITEMS              = 100;
 	const MAX_PROPOSAL_LIST_LIMIT     = 100;
 	const MAX_LIGHT_POST_BODY_BYTES   = 4096;
-	const ADAPTER_CONTRACT_VERSION    = '3';
+	const ADAPTER_CONTRACT_VERSION    = '4';
 	const CLIENT_POLICY_VERSION       = '1';
 	const EXECUTION_PROFILE_REGISTRY_VERSION = '2';
 	const SUPPORTED_PLAN_ABILITIES_VERSION   = '1';
@@ -175,6 +175,10 @@ final class Controller {
 		return array(
 			'schema_version'                       => 'npcink_openclaw_adapter_contract.v1',
 			'adapter_contract_version'             => self::ADAPTER_CONTRACT_VERSION,
+			'product_name'                         => 'npcink-ai-client-adapter',
+			'client_contract'                      => 'generic_ai_client',
+			'priority_channel'                     => 'openclaw',
+			'compatibility_rest_namespace'         => self::NAMESPACE,
 			'client_policy_version'                => self::CLIENT_POLICY_VERSION,
 			'execution_profile_registry_version'   => self::EXECUTION_PROFILE_REGISTRY_VERSION,
 			'supported_plan_abilities_version'     => self::SUPPORTED_PLAN_ABILITIES_VERSION,
@@ -188,7 +192,40 @@ final class Controller {
 			'max_execution_actions'                => self::MAX_EXECUTION_ACTIONS,
 			'core_proxy_execute'                   => false,
 			'commit_execution'                     => false,
+			'workflow_projection'                  => $this->workflow_projection_contract(),
 			'execution_handoff_posture'            => $this->execution_handoff_posture(),
+		);
+	}
+
+	/**
+	 * Returns the generic AI-client projection contract for Toolkit workflows.
+	 *
+	 * This is discovery metadata only. Adapter does not copy or persist workflow
+	 * definitions and does not become a workflow registry or runtime.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function workflow_projection_contract(): array {
+		return array(
+			'schema_version'                => 'npcink_ai_client_workflow_projection.v1',
+			'definition_owner'              => 'npcink-abilities-toolkit',
+			'definition_discovery_surface' => 'wordpress_abilities_api_via_adapter_read',
+			'definition_discovery_contract' => 'toolkit_workflow_definition_abilities',
+			'projection_role'               => 'external_ai_client_channel',
+			'supported_channels'            => array( 'openclaw' ),
+			'canonical_definition_storage'  => false,
+			'runtime_state_storage'         => false,
+			'version_mismatch_policy'       => 'fail_closed',
+			'parity_required_fields'        => array(
+				'recipe_id',
+				'contract_version',
+				'entrypoint_ability_id',
+				'required_scope',
+				'required_inputs',
+				'handoff',
+				'failure_policy',
+				'host_governed_write_boundary',
+			),
 		);
 	}
 
@@ -321,12 +358,14 @@ final class Controller {
 			$semantics_supported = ! empty( $boundary_summary['core_boundary_supported'] )
 				&& ! empty( $boundary_summary['site_binding'] )
 				&& ! empty( $boundary_summary['signed_client_fingerprint_binding'] )
-				&& ! empty( $boundary_summary['implementation_posture_supported'] );
+				&& ! empty( $boundary_summary['implementation_posture_supported'] )
+				&& ! empty( $boundary_summary['native_editor_commit_exclusion_supported'] );
 		} elseif ( 'npcink-abilities-toolkit' === $dependency ) {
 			$semantics_supported = ! empty( $boundary_summary['toolkit_boundary_supported'] )
 				&& ! empty( $boundary_summary['schema_controls_supported'] )
 				&& ! empty( $boundary_summary['write_controls_supported'] )
-				&& ! empty( $boundary_summary['forbidden_payloads_omitted'] );
+				&& ! empty( $boundary_summary['forbidden_payloads_omitted'] )
+				&& ! empty( $boundary_summary['workflow_projection_source_supported'] );
 		}
 
 		$summary = array(
@@ -359,6 +398,9 @@ final class Controller {
 		if ( 'npcink-governance-core' === $dependency ) {
 			$runtime_controls = is_array( $contract['runtime_controls'] ?? null ) ? $contract['runtime_controls'] : array();
 			$boundary         = is_array( $contract['boundary'] ?? null ) ? $contract['boundary'] : array();
+			$operation_classification = is_array( $contract['operation_classification'] ?? null ) ? $contract['operation_classification'] : array();
+			$classification_values = $this->sanitize_string_list( is_array( $operation_classification['classification_values'] ?? null ) ? $operation_classification['classification_values'] : array() );
+			$pre_classification_exclusions = $this->sanitize_string_list( is_array( $operation_classification['pre_classification_exclusions'] ?? null ) ? $operation_classification['pre_classification_exclusions'] : array() );
 			$context_bindings        = is_array( $contract['context_bindings'] ?? null ) ? $contract['context_bindings'] : array();
 			$site_binding            = is_array( $context_bindings['site_binding'] ?? null ) ? $context_bindings['site_binding'] : array();
 			$client_binding          = is_array( $context_bindings['client_key_fingerprint'] ?? null ) ? $context_bindings['client_key_fingerprint'] : array();
@@ -399,6 +441,10 @@ final class Controller {
 				&& in_array( 'provider_' . 'credentials', $posture_flags, true )
 				&& in_array( 'approval_storage', $posture_flags, true )
 				&& in_array( 'audit_storage', $posture_flags, true );
+			$native_editor_commit_exclusion_supported = in_array( 'native_editor_commit', $pre_classification_exclusions, true )
+				&& ! in_array( 'native_editor_commit', $classification_values, true )
+				&& false === (bool) ( $operation_classification['native_editor_commit_is_core_classification'] ?? true )
+				&& false === (bool) ( $operation_classification['native_editor_commit_core_record_required'] ?? true );
 
 			return array(
 				'core_proxy_execute'                 => $core_proxy_execute,
@@ -417,6 +463,8 @@ final class Controller {
 				'implementation_posture_capabilities_surface' => (string) ( $implementation_posture['capabilities_surface'] ?? '' ),
 				'implementation_posture_preflight_validation' => true === (bool) ( $implementation_posture['commit_preflight_contract_validation'] ?? false ),
 				'implementation_posture_forbidden_flags' => $posture_flags,
+				'native_editor_commit_exclusion_supported' => $native_editor_commit_exclusion_supported,
+				'pre_classification_exclusions' => $pre_classification_exclusions,
 			);
 		}
 
@@ -467,6 +515,8 @@ final class Controller {
 				&& false === (bool) ( $execution_controls['approval_storage'] ?? true )
 				&& false === (bool) ( $execution_controls['audit_truth'] ?? true )
 				&& false === (bool) ( $execution_controls['final_write_authorization'] ?? true );
+			$workflow_projection_source_supported = true === (bool) ( $compatibility['workflow_recipe_hash_available'] ?? false )
+				&& 0 === strpos( (string) ( $contract['workflow_recipes_hash'] ?? '' ), 'sha256:' );
 
 			return array(
 				'ability_count'          => absint( $contract['ability_count'] ?? 0 ),
@@ -496,6 +546,7 @@ final class Controller {
 				'schema_controls_supported' => $schema_controls_supported,
 				'write_controls_supported' => $write_controls_supported,
 				'forbidden_payloads_omitted' => $forbidden_payloads_omitted,
+				'workflow_projection_source_supported' => $workflow_projection_source_supported,
 			);
 		}
 
