@@ -92,10 +92,26 @@ final class Controller {
 	private $execution_input_validator;
 
 	/**
+	 * Adapter-owned normalized execution runner.
+	 *
+	 * @var Execution_Action_Runner
+	 */
+	private $execution_action_runner;
+
+	/**
 	 * Creates the REST controller with the canonical execution profile rules.
 	 */
 	public function __construct() {
 		$this->execution_input_validator = new Execution_Input_Validator( self::execution_profiles() );
+		$this->execution_action_runner   = new Execution_Action_Runner(
+			self::execution_profiles(),
+			function ( array $context, string $method, string $route, array $params, bool $query_params, bool $json_body ) {
+				return $this->dispatch_upstream_with_runtime_context( $context, $method, $route, $params, $query_params, $json_body );
+			},
+			function ( string $ability_id, array $ability_input, array $ability_result, array $base_request_context ): array {
+				return $this->block_write_readback_verification( $ability_id, $ability_input, $ability_result, $base_request_context );
+			}
+		);
 	}
 
 	/**
@@ -4059,8 +4075,8 @@ final class Controller {
 					'action_index'      => $index,
 					'ability_id'        => $target_ability_id,
 					'target_ability_id' => $target_ability_id,
-					'execution_profile' => $this->execution_profile_id_for_ability( $target_ability_id ),
-					'idempotency_key'   => $this->execution_action_idempotency_key( $proposal_id, $action_id, $action_input ),
+					'execution_profile' => $this->execution_action_runner->profile_id( $target_ability_id ),
+					'idempotency_key'   => $this->execution_action_runner->idempotency_key( $proposal_id, $action_id, $action_input ),
 					'post_id'           => $post_id,
 					'input'             => $action_input,
 					'execution_mode'    => 'batch_write_actions',
@@ -4087,43 +4103,13 @@ final class Controller {
 				'action_index'      => 0,
 				'ability_id'        => $proposal_ability_id,
 				'target_ability_id' => $proposal_ability_id,
-				'execution_profile' => $this->execution_profile_id_for_ability( $proposal_ability_id ),
-				'idempotency_key'   => $this->execution_action_idempotency_key( $proposal_id, 'single-post', $input ),
+				'execution_profile' => $this->execution_action_runner->profile_id( $proposal_ability_id ),
+				'idempotency_key'   => $this->execution_action_runner->idempotency_key( $proposal_id, 'single-post', $input ),
 				'post_id'           => $top_level_post_id,
 				'input'             => $input,
 				'execution_mode'    => 'single_post',
 			),
 		);
-	}
-
-	/**
-	 * Returns the Adapter execution profile id for one final write ability.
-	 *
-	 * The V1 registry keys are the profile ids. Keeping this as a helper makes
-	 * the response contract explicit without introducing a second allowlist.
-	 *
-	 * @param string $ability_id Ability id.
-	 * @return string
-	 */
-	private function execution_profile_id_for_ability( string $ability_id ): string {
-		return sanitize_text_field( $ability_id );
-	}
-
-	/**
-	 * Returns or derives a bounded per-action execution idempotency key.
-	 *
-	 * @param string              $proposal_id Proposal id.
-	 * @param string              $action_id Action id.
-	 * @param array<string,mixed> $input Action input.
-	 * @return string
-	 */
-	private function execution_action_idempotency_key( string $proposal_id, string $action_id, array $input ): string {
-		$provided = sanitize_text_field( (string) ( $input['idempotency_key'] ?? '' ) );
-		if ( '' !== $provided ) {
-			return $provided;
-		}
-
-		return 'adapter-' . substr( hash( 'sha256', $proposal_id . '|' . $action_id ), 0, 24 );
 	}
 
 	/**
@@ -4151,107 +4137,6 @@ final class Controller {
 			'retryable'            => false,
 			'operator_next_action' => $partial_success ? 'review_partial_failure_and_create_revised_proposal' : ( $failed_count > 0 ? 'review_failed_execution_and_create_revised_proposal' : 'review_execution_result' ),
 		);
-	}
-
-	/**
-	 * Executes one normalized action through WordPress Abilities API.
-	 *
-	 * @param WP_REST_Request     $request Request.
-	 * @param string              $proposal_id Proposal id.
-	 * @param array<string,mixed> $action Normalized action.
-	 * @param array<string,mixed> $approval_context Core approval context.
-	 * @param string              $correlation_id Correlation id.
-	 * @param array<string,mixed> $base_request_context Base request context.
-	 * @return array<string,mixed>|WP_Error
-	 */
-	private function execute_normalized_action( WP_REST_Request $request, string $proposal_id, array $action, array $approval_context, string $correlation_id, array $base_request_context ) {
-		$ability_id = sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) );
-		$post_id    = absint( $action['post_id'] ?? 0 );
-		$profiles   = self::execution_profiles();
-		$profile    = is_array( $profiles[ $ability_id ] ?? null ) ? $profiles[ $ability_id ] : array();
-
-		$post_status_before = get_post_status( $post_id );
-		$post_status_before = false === $post_status_before ? '' : (string) $post_status_before;
-
-		$ability_input = is_array( $action['input'] ?? null ) ? $action['input'] : array();
-		$idempotency_key = sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) );
-		if ( '' === $idempotency_key ) {
-			$idempotency_key = $this->execution_action_idempotency_key( $proposal_id, sanitize_key( (string) ( $action['action_id'] ?? '' ) ), $ability_input );
-		}
-		if ( ! empty( $profile['force_post_input'] ) ) {
-			$ability_input = array(
-				'post_id' => $post_id,
-				'dry_run' => false,
-				'commit'  => true,
-			);
-		} else {
-			$ability_input['dry_run'] = false;
-			$ability_input['commit']  = true;
-		}
-		if ( ! isset( $ability_input['idempotency_key'] ) ) {
-			$ability_input['idempotency_key'] = $idempotency_key;
-		}
-
-		$route           = '/wp-abilities/v1/abilities/' . $ability_id . '/run';
-		$request_context = $base_request_context;
-		$request_context['ability_id'] = $ability_id;
-		$context         = array_merge(
-			$approval_context,
-			$request_context,
-			array(
-				'ability_id'        => $ability_id,
-				'target_ability_id' => sanitize_text_field( (string) ( $action['target_ability_id'] ?? $ability_id ) ),
-				'execution_profile' => sanitize_text_field( (string) ( $action['execution_profile'] ?? $this->execution_profile_id_for_ability( $ability_id ) ) ),
-				'idempotency_key'   => $idempotency_key,
-				'action_id'         => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-				'action_index'      => absint( $action['action_index'] ?? 0 ),
-				'proposal_id'       => $proposal_id,
-				'post_id'           => $post_id,
-				'correlation_id'    => $correlation_id,
-				'via'               => 'npcink-ai-client-adapter',
-			)
-		);
-
-		$response = $this->dispatch_upstream_with_runtime_context( $context, 'POST', $route, array( 'input' => $ability_input ), false, true );
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-
-		$result_data = $response->get_data();
-		if ( ! empty( $profile['post_id_from_result'] ) && is_array( $result_data ) ) {
-			$post_id = absint( $result_data['post_id'] ?? $post_id );
-		}
-		if ( is_array( $result_data ) ) {
-			$readback_verification = $this->block_write_readback_verification( $ability_id, $ability_input, $result_data, $base_request_context );
-			if ( ! empty( $readback_verification ) ) {
-				$result_data['verification'] = array_merge(
-					is_array( $result_data['verification'] ?? null ) ? $result_data['verification'] : array(),
-					$readback_verification
-				);
-			}
-		}
-
-		$post_status_after = get_post_status( $post_id );
-
-		$result = array(
-			'action_id'          => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-			'action_index'       => absint( $action['action_index'] ?? 0 ),
-			'target_ability_id'  => sanitize_text_field( (string) ( $action['target_ability_id'] ?? $ability_id ) ),
-			'ability_id'         => $ability_id,
-			'execution_profile'  => sanitize_text_field( (string) ( $action['execution_profile'] ?? $this->execution_profile_id_for_ability( $ability_id ) ) ),
-			'idempotency_key'    => $idempotency_key,
-			'post_id'            => $post_id,
-			'status'             => 'executed',
-			'post_status_before' => $post_status_before,
-			'post_status_after'  => false === $post_status_after ? '' : (string) $post_status_after,
-			'adapter_request_id' => (string) ( $context['adapter_request_id'] ?? '' ),
-			'result'             => $result_data,
-		);
-		if ( is_array( $action['media_alt_live_preflight'] ?? null ) ) {
-			$result['media_alt_live_preflight'] = $action['media_alt_live_preflight'];
-		}
-
-		return $result;
 	}
 
 	/**
@@ -4688,7 +4573,7 @@ final class Controller {
 				$action['media_alt_live_preflight'] = $media_alt_live_preflight;
 			}
 
-			$result = $this->execute_normalized_action( $request, $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
+			$result = $this->execution_action_runner->execute( $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
 			if ( is_wp_error( $result ) ) {
 				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
 				$error_data = $result->get_error_data();

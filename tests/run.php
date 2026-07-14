@@ -364,11 +364,20 @@ $controller = maa_adapter_read( $root . '/includes/Rest/Controller.php' );
 $supported_plan_abilities = maa_adapter_read( $root . '/includes/Rest/Supported_Plan_Abilities.php' );
 $execution_profile_registry = maa_adapter_read( $root . '/includes/Rest/Execution_Profile_Registry.php' );
 $execution_input_validator = maa_adapter_read( $root . '/includes/Rest/Execution_Input_Validator.php' );
-$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry . "\n" . $execution_input_validator;
+$execution_action_runner = maa_adapter_read( $root . '/includes/Rest/Execution_Action_Runner.php' );
+$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry . "\n" . $execution_input_validator . "\n" . $execution_action_runner;
 maa_adapter_assert( false !== strpos( $execution_input_validator, 'final class Execution_Input_Validator' ), 'Execution input validator exists.' );
 maa_adapter_assert( false !== strpos( $controller, 'new Execution_Input_Validator( self::execution_profiles() )' ), 'Controller delegates execution input rules to the canonical validator.' );
 maa_adapter_assert( false === strpos( $controller, 'private function validate_execute_action_input(' ), 'Controller no longer owns execution input validation implementation.' );
 maa_adapter_assert( false === strpos( $controller, 'private function resolve_output_references(' ), 'Controller no longer owns output reference resolution implementation.' );
+maa_adapter_assert( false !== strpos( $execution_action_runner, 'final class Execution_Action_Runner' ), 'Execution action runner exists.' );
+maa_adapter_assert( false !== strpos( $controller, 'new Execution_Action_Runner(' ), 'Controller injects controlled execution seams into the action runner.' );
+maa_adapter_assert( false === strpos( $controller, 'private function execute_normalized_action(' ), 'Controller no longer owns normalized action execution.' );
+maa_adapter_assert( false === strpos( $controller, 'private function execution_profile_id_for_ability(' ), 'Controller no longer owns execution profile id normalization.' );
+maa_adapter_assert( false === strpos( $controller, 'private function execution_action_idempotency_key(' ), 'Controller no longer owns action idempotency derivation.' );
+foreach ( array( 'rest_do_request', 'register_rest_route', 'get_option', 'update_option' ) as $forbidden_runner_dependency ) {
+	maa_adapter_assert( false === strpos( $execution_action_runner, $forbidden_runner_dependency ), 'Execution action runner excludes forbidden dependency: ' . $forbidden_runner_dependency );
+}
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'final class Supported_Plan_Abilities' ), 'Supported plan ability registry exists.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function ids' ), 'Supported plan ability exposes ids.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function contains' ), 'Supported plan ability exposes membership checks.' );
@@ -857,11 +866,8 @@ foreach (
 			'execution_input_contract',
 			'partial_success',
 			'selected_batch_execution_summary',
-			'execution_profile_id_for_ability',
-			'execution_action_idempotency_key',
 			'batch_write_actions',
 			'normalize_execution_actions',
-			'execute_normalized_action',
 			'npcink_openclaw_adapter_execute_profile_unsupported',
 			'npcink_openclaw_adapter_execution_input_ambiguous',
 			'npcink_openclaw_adapter_write_action_invalid',
