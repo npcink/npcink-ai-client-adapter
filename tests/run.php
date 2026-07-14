@@ -363,7 +363,12 @@ maa_adapter_assert( ! file_exists( $root . '/npcink-openclaw-adapter.php' ), 'Le
 $controller = maa_adapter_read( $root . '/includes/Rest/Controller.php' );
 $supported_plan_abilities = maa_adapter_read( $root . '/includes/Rest/Supported_Plan_Abilities.php' );
 $execution_profile_registry = maa_adapter_read( $root . '/includes/Rest/Execution_Profile_Registry.php' );
-$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry;
+$execution_input_validator = maa_adapter_read( $root . '/includes/Rest/Execution_Input_Validator.php' );
+$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry . "\n" . $execution_input_validator;
+maa_adapter_assert( false !== strpos( $execution_input_validator, 'final class Execution_Input_Validator' ), 'Execution input validator exists.' );
+maa_adapter_assert( false !== strpos( $controller, 'new Execution_Input_Validator( self::execution_profiles() )' ), 'Controller delegates execution input rules to the canonical validator.' );
+maa_adapter_assert( false === strpos( $controller, 'private function validate_execute_action_input(' ), 'Controller no longer owns execution input validation implementation.' );
+maa_adapter_assert( false === strpos( $controller, 'private function resolve_output_references(' ), 'Controller no longer owns output reference resolution implementation.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'final class Supported_Plan_Abilities' ), 'Supported plan ability registry exists.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function ids' ), 'Supported plan ability exposes ids.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function contains' ), 'Supported plan ability exposes membership checks.' );
@@ -377,7 +382,7 @@ maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink_abili
 maa_adapter_assert( false !== strpos( $controller, 'npcink_openclaw_adapter_execution_profile_readiness.v1' ), 'Adapter exposes conditional execution profile readiness metadata.' );
 maa_adapter_assert( false !== strpos( $controller_contract, 'npcink_openclaw_adapter_setting_target_not_ready' ), 'Adapter uses a stable not-ready error for unallowlisted setting targets.' );
 maa_adapter_assert( false !== strpos( $controller, "'target_names_exposed'      => false" ), 'Adapter readiness metadata does not expose setting target names.' );
-maa_adapter_assert( false !== strpos( $controller, 'configure_reviewed_host_target_allowlist_and_create_a_new_proposal' ), 'Adapter returns bounded operator guidance for setting target readiness failures.' );
+maa_adapter_assert( false !== strpos( $execution_input_validator, 'configure_reviewed_host_target_allowlist_and_create_a_new_proposal' ), 'Adapter returns bounded operator guidance for setting target readiness failures.' );
 maa_adapter_assert( false !== strpos( $controller, 'media_alt_live_preflight' ) && false !== strpos( $controller, 'adapter_toolkit_dry_run_before_commit' ), 'Adapter performs the Core-required Toolkit live ALT dry-run before final commit.' );
 maa_adapter_assert( false !== strpos( $controller_contract, 'expected_current_alt' ) && false !== strpos( $controller_contract, 'operator_visual_review_confirmed' ), 'Adapter execution schema preserves missing-ALT drift and visual-review guards.' );
 foreach ( array( 'apply_filters', 'do_action', 'add_filter', 'add_action', 'get_option', 'update_option', 'wp_remote_', '$wpdb', 'register_post_type' ) as $dynamic_extension_signal ) {

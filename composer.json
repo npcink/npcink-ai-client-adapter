@@ -9,6 +9,7 @@
   "scripts": {
     "lint:php": "find . -name '*.php' -not -path './.git/*' -not -path './build/*' -print0 | xargs -0 -n1 php -l",
     "test": "php tests/run.php",
+    "test:execution-input-validator": "php tests/execution-input-validator-behavior.php",
     "smoke:wp": "bash tests/smoke-wp.sh",
     "smoke:package-install": "bash tests/package-install-smoke.sh",
     "accept:local-ai-client": "bash tests/local-ai-client-acceptance.sh",
@@ -32,6 +33,7 @@
     ],
     "test:all": [
       "@lint:php",
+      "@test:execution-input-validator",
       "@test"
     ]
   }
