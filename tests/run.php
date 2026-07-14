@@ -1064,8 +1064,8 @@ foreach (
 		"current_user_can( 'manage_options' )",
 		'/npcink-governance-core/v1/capabilities',
 		'/npcink-governance-core/v1/proposals',
-		"caller_type' => 'openclaw_adapter'",
-		"'via'         => 'npcink-ai-client-adapter'",
+		"'caller_type']       = 'openclaw_adapter'",
+		"'via']               = 'npcink-ai-client-adapter'",
 		'/wp-abilities/v1/abilities/',
 		'governance_mode',
 		'direct_read',
@@ -1138,7 +1138,6 @@ foreach (
 			'GET /proposals/{proposal_id}',
 			'approve-and-execute',
 			'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN',
-		'npcink_openclaw_adapter_core_app_token',
 			'x-npcink-governance-core-app-token',
 			'core_capabilities_data',
 			'public_upstream_error_data',
@@ -1284,7 +1283,37 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	$client_key_auth = substr( $controller, (int) strpos( $controller, 'private function authenticate_signed_request' ), 2600 );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'should_update_client_key_last_used' ), 'Signed request auth throttles last-used option writes.' );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'current_signed_client_fingerprint' ), 'Signed request auth records the current client fingerprint.' );
+	maa_adapter_assert( false !== strpos( $client_key_auth, 'claim_signature_nonce( $key_id, $nonce )' ), 'Signed request auth atomically claims a nonce only after signature verification.' );
+	maa_adapter_assert( false === strpos( $client_key_auth, 'get_transient( $nonce_key )' ) && false === strpos( $client_key_auth, 'set_transient( $nonce_key' ), 'Signed request auth removes the non-atomic transient nonce check.' );
+	$nonce_claim = substr( $controller, (int) strpos( $controller, 'private function claim_signature_nonce' ), 5200 );
+	maa_adapter_assert( false !== strpos( $nonce_claim, 'insert_signature_nonce_option( $nonce_key, $expires_at )' ), 'Signature nonce claim uses an insert-only options primitive.' );
+	maa_adapter_assert( false !== strpos( $nonce_claim, 'delete_expired_signature_nonce_option' ), 'Expired nonce reclaim uses conditional deletion.' );
+	maa_adapter_assert( false !== strpos( $nonce_claim, 'SIGNATURE_NONCE_CLEANUP_BATCH' ), 'Signature nonce cleanup remains bounded.' );
+	$nonce_insert = substr( $controller, (int) strpos( $controller, 'private function insert_signature_nonce_option' ), 1500 );
+	maa_adapter_assert( false !== strpos( $nonce_insert, 'INSERT IGNORE INTO' ) && false !== strpos( $nonce_insert, "'off'" ), 'Signature nonce claim is strict insert-only and non-autoloaded.' );
+	maa_adapter_assert( false === strpos( $nonce_insert, "wp_cache_delete( 'notoptions'" ), 'Signature nonce insertion does not flush the global missing-option cache.' );
+	$nonce_expiry = substr( $controller, (int) strpos( $controller, 'private function signature_nonce_option_expiry' ), 900 );
+	maa_adapter_assert( false !== strpos( $nonce_expiry, 'SELECT option_value FROM' ) && false === strpos( $nonce_expiry, 'get_option(' ), 'Signature nonce expiry reads bypass the shared options cache.' );
+	maa_adapter_assert( false !== strpos( $nonce_claim, 'wp_rand( 1, 64 )' ), 'Signature nonce cleanup sampling is not controlled by client nonce values.' );
 	maa_adapter_assert( false === strpos( $controller, 'dbDelta(' ) && false === strpos( $controller, 'CREATE TABLE' ), 'Adapter controller does not create custom WordPress tables.' );
+	$core_token_source = substr( $controller, (int) strpos( $controller, 'private function core_app_token_source' ), 900 );
+	maa_adapter_assert( false !== strpos( $core_token_source, 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) && false !== strpos( $core_token_source, "return 'environment';" ), 'Core app token source is restricted to constant or environment configuration.' );
+	maa_adapter_assert( false === strpos( $core_token_source, 'get_option(' ), 'Core app token source does not read plaintext WordPress options.' );
+	$caller_context = substr( $controller, (int) strpos( $controller, 'private function proposal_caller_context' ), 1900 );
+	foreach ( array( 'caller_type', 'via', 'ability_id', 'governance_source', 'signed_client_fingerprint' ) as $trusted_caller_field ) {
+		maa_adapter_assert( false !== strpos( $caller_context, $trusted_caller_field ), 'Adapter derives trusted caller field: ' . $trusted_caller_field );
+	}
+	maa_adapter_assert( false !== strpos( $caller_context, 'current_signed_client_fingerprint()' ), 'Proposal caller binds the authenticated signed client fingerprint.' );
+	$read_request_create = substr( $controller, (int) strpos( $controller, 'public function create_read_request' ), 1900 );
+	maa_adapter_assert( false !== strpos( $read_request_create, 'proposal_caller_context( $request, $ability_id )' ), 'Sensitive read requests reuse the trusted caller builder.' );
+	$client_log_context = substr( $controller, (int) strpos( $controller, 'private function client_log_context' ), 1700 );
+	foreach ( array( 'proposal_id', 'correlation_id', 'external_thread_id', 'openclaw_thread_id', 'adapter_request_id', 'adapter_route' ) as $client_annotation_field ) {
+		maa_adapter_assert( false !== strpos( $client_log_context, "'" . $client_annotation_field . "'" ), 'Client log context allowlist retains annotation field: ' . $client_annotation_field );
+	}
+	$log_context_sanitizer = substr( $controller, (int) strpos( $controller, 'private function sanitize_log_context' ), 6200 );
+	foreach ( array( 'MAX_LOG_CONTEXT_FIELDS', 'MAX_LOG_CONTEXT_DEPTH', 'MAX_LOG_CONTEXT_STRING_BYTES', 'MAX_LOG_CONTEXT_SERIALIZED_BYTES', 'is_sensitive_log_context_key' ) as $log_context_guard ) {
+		maa_adapter_assert( false !== strpos( $log_context_sanitizer, $log_context_guard ), 'Log context sanitizer enforces guard: ' . $log_context_guard );
+	}
 	foreach (
 		array(
 			"const EXECUTION_RECORDS_OPTION  = 'npcink_openclaw_adapter_execution_records'",
@@ -1856,7 +1885,6 @@ foreach (
 		'npcink-abilities-toolkit/trash-comment',
 			'npcink-abilities-toolkit/approve-comment',
 			'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN',
-			'npcink_openclaw_adapter_core_app_token',
 			'approval_surface=npcink_governance_core_admin',
 		'POST /wp-json/npcink-openclaw-adapter/v1/run-read-ability',
 		'proposals:read',
@@ -2383,7 +2411,6 @@ foreach (
 		'proposals:read',
 			'audit_timeline',
 			'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN',
-				'npcink_openclaw_adapter_core_app_token',
 				'approve-and-execute',
 				'npcink_openclaw_adapter_execute_profile_unsupported',
 			'approval_surface=npcink_governance_core_admin',
@@ -2552,7 +2579,6 @@ foreach (
 		'proposal_id',
 		'correlation_id',
 		'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN',
-		'npcink_openclaw_adapter_core_app_token',
 		'Read-Only Planning Contract',
 		'npcink-abilities-toolkit/build-content-inventory-fix-plan',
 		'npcink-abilities-toolkit/build-nonproduction-content-cleanup-plan',

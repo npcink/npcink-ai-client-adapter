@@ -890,11 +890,17 @@ For read routes and future execution handoff routes, OpenClaw may pass:
 - `openclaw_thread_id`;
 - `adapter_request_id`;
 - `adapter_route`;
-- `ai_provider`;
-- `ai_model`;
 - a top-level `log_context` object on POST `/run-read-ability`.
 
-Adapter must not forward those reserved query fields as ability input. While an
+Those six values are the complete client-writable context allowlist. Adapter
+must not forward those reserved query fields as ability input. It derives
+`ability_id`, `governance_source`, `via`, nested Core correlation fields, and
+trusted caller provenance; caller input cannot override
+`caller_type=openclaw_adapter`, `via=npcink-ai-client-adapter`, the current
+ability id, governance source, or authenticated signed-client fingerprint.
+Client log context is capped at 32 fields, two nested array levels, 200 bytes
+per string, and approximately 8 KiB serialized, and secret-bearing keys are
+removed. While an
 ability is running, Adapter adds the sanitized values to AI Request Logs via the
 `wpai_request_log_context` filter. The AI log context receives a
 `npcink_openclaw_adapter` object, top-level provider correlation fields, and nested
@@ -956,9 +962,9 @@ The adapter must not print Core tokens in logs, proposal payloads, error
 responses, or documentation examples. It must not add proposal approval or
 rejection proxy routes by default.
 
-Adapter Core app token configuration may come from
-`NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` or the
-`npcink_openclaw_adapter_core_app_token` option. When configured, the token is used
+Adapter Core app token configuration may come only from the
+`NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` constant or environment variable. It
+is not read from a WordPress option. When configured, the token is used
 only for internal Core REST calls through the request header supported by Core,
 and the raw value must not appear in health, help, handoff text, error details,
 proposal payloads, or docs examples.

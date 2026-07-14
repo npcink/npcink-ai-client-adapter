@@ -11,6 +11,7 @@
     "test": "php tests/run.php",
     "test:execution-input-validator": "php tests/execution-input-validator-behavior.php",
     "test:execution-action-runner": "php tests/execution-action-runner-behavior.php",
+    "test:security-hardening": "php tests/security-hardening-behavior.php",
     "smoke:wp": "bash tests/smoke-wp.sh",
     "smoke:package-install": "bash tests/package-install-smoke.sh",
     "accept:local-ai-client": "bash tests/local-ai-client-acceptance.sh",
@@ -36,6 +37,7 @@
       "@lint:php",
       "@test:execution-input-validator",
       "@test:execution-action-runner",
+      "@test:security-hardening",
       "@test"
     ]
   }

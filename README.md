@@ -321,9 +321,10 @@ older proposal previews, Adapter derives actual replacement counts from
 `actual_replacement_count`/`unmatched_rules` fields are absent.
 
 Reserved governance correlation query parameters are not forwarded as ability
-input. Adapter copies `proposal_id`, `correlation_id`, `external_thread_id`,
-`openclaw_thread_id`, `ability_id`, `adapter_request_id`, `adapter_route`,
-`ai_provider`, `ai_model`, `governance_source=npcink-governance-core`, and nested
+input. Client-writable `log_context` is limited to `proposal_id`,
+`correlation_id`, `external_thread_id`, `openclaw_thread_id`,
+`adapter_request_id`, and `adapter_route`. Adapter derives `ability_id`,
+`governance_source=npcink-governance-core`, `via=npcink-ai-client-adapter`, and nested
 `npcink_governance_core.proposal_id` / `npcink_governance_core.correlation_id` into AI Request
 Logs context through the `wpai_request_log_context` filter while an ability or
 downstream provider integration request is running. POST `/run-read-ability` accepts
@@ -332,6 +333,12 @@ execution rows correlate with Core proposal and commit-preflight audit records
 without merging the two log systems.
 Adapter performs identifier passthrough only; Core Audit and AI Request Logs
 remain separate truth sources.
+
+Client log context is capped at 32 fields, two nested array levels, 200 bytes
+per string, and approximately 8 KiB serialized. Secret-bearing keys are
+removed. Proposal and sensitive-read caller metadata accepts only the same
+annotation fields; Adapter writes trusted caller type, transport, ability,
+governance source, and authenticated signed-client fingerprint last.
 
 Core Governance Audit is the governance log. WordPress `ai` plugin AI Request
 Logs are the provider request log. Adapter carries identifiers between them but
@@ -865,8 +872,8 @@ Proposal list/detail are read-only Core proxies. They preserve Core response
 fields such as `proposal_id`, `ability_id`, `status`, `title`, `summary`,
 `input`, `preview`, `caller`, `created_at`, `updated_at`, and detail
 `audit_timeline` when Core returns it. Adapter may be configured with a Core app
-token through `NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` or the
-`npcink_openclaw_adapter_core_app_token` option. When configured, Adapter sends that
+token only through the `NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` constant or
+environment variable; it is not read from a WordPress option. When configured, Adapter sends that
 token only on internal Core REST requests and does not print it. That key must
 include `proposals:read` for proposal status, plus the other scopes needed by
 the Core routes Adapter calls. The adapter must not print Core tokens in logs,

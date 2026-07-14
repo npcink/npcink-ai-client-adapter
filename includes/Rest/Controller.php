@@ -29,6 +29,8 @@ final class Controller {
 	const PREFLIGHT_HANDOFFS_OPTION = 'npcink_openclaw_adapter_preflight_handoffs';
 	const DEVICE_PAIRING_TTL       = 600;
 	const SIGNATURE_NONCE_TTL      = 300;
+	const SIGNATURE_NONCE_OPTION_PREFIX = 'npcink_openclaw_adapter_sig_nonce_';
+	const SIGNATURE_NONCE_CLEANUP_BATCH = 100;
 	const DEVICE_PAIRING_RATE_LIMIT_TTL = 60;
 	const DEVICE_PAIRING_POLL_RATE_LIMIT_TTL = 60;
 	const MAX_DEVICE_PAIRINGS          = 100;
@@ -47,6 +49,10 @@ final class Controller {
 	const MAX_REST_BODY_BYTES         = 1048576;
 	const MAX_PROPOSAL_LIST_LIMIT     = 100;
 	const MAX_LIGHT_POST_BODY_BYTES   = 4096;
+	const MAX_LOG_CONTEXT_FIELDS      = 32;
+	const MAX_LOG_CONTEXT_DEPTH       = 2;
+	const MAX_LOG_CONTEXT_STRING_BYTES = 200;
+	const MAX_LOG_CONTEXT_SERIALIZED_BYTES = 8192;
 	const ADAPTER_CONTRACT_VERSION    = '4';
 	const CLIENT_POLICY_VERSION       = '1';
 	const EXECUTION_PROFILE_REGISTRY_VERSION = '2';
@@ -1964,11 +1970,6 @@ final class Controller {
 			return false;
 		}
 
-		$nonce_key = 'npcink_openclaw_adapter_sig_nonce_' . md5( $key_id . '|' . $nonce );
-		if ( get_transient( $nonce_key ) ) {
-			return false;
-		}
-
 		$public_key = $this->base64url_decode( (string) ( $record['public_key'] ?? '' ) );
 		$signature_bytes = $this->base64url_decode( $signature );
 		$canonical = $this->signed_request_canonical_string( $request, $timestamp, $nonce, $content_sha256 );
@@ -1976,7 +1977,9 @@ final class Controller {
 			return false;
 		}
 
-		set_transient( $nonce_key, 1, self::SIGNATURE_NONCE_TTL );
+		if ( ! $this->claim_signature_nonce( $key_id, $nonce ) ) {
+			return false;
+		}
 		if ( $this->should_update_client_key_last_used( (string) ( $record['last_used_at'] ?? '' ) ) ) {
 			$record['last_used_at'] = gmdate( 'c' );
 			$keys[ $key_id ]        = $record;
@@ -1986,6 +1989,149 @@ final class Controller {
 		$this->current_signed_client_fingerprint = $this->sanitize_signed_client_fingerprint( (string) ( $record['fingerprint'] ?? '' ) );
 
 		return true;
+	}
+
+	/**
+	 * Atomically claims one verified signature nonce.
+	 *
+	 * The option name is unique in wp_options, so concurrent requests using the
+	 * same nonce cannot both succeed. Expired records are reclaimed with a
+	 * compare-and-delete query so an old cleanup cannot remove a newer claim.
+	 *
+	 * @param string $key_id Registered client key id.
+	 * @param string $nonce Signed request nonce.
+	 * @return bool
+	 */
+	private function claim_signature_nonce( string $key_id, string $nonce ): bool {
+		$nonce_key = self::SIGNATURE_NONCE_OPTION_PREFIX . hash( 'sha256', $key_id . '|' . $nonce );
+		$expires_at = time() + self::SIGNATURE_NONCE_TTL;
+
+		if ( $this->insert_signature_nonce_option( $nonce_key, $expires_at ) ) {
+			$this->maybe_cleanup_expired_signature_nonces();
+			return true;
+		}
+
+		$stored_expiry = $this->signature_nonce_option_expiry( $nonce_key );
+		if ( null === $stored_expiry || $stored_expiry >= time() ) {
+			return false;
+		}
+
+		if ( ! $this->delete_expired_signature_nonce_option( $nonce_key, $stored_expiry ) ) {
+			return false;
+		}
+
+		if ( ! $this->insert_signature_nonce_option( $nonce_key, $expires_at ) ) {
+			return false;
+		}
+
+		$this->maybe_cleanup_expired_signature_nonces();
+		return true;
+	}
+
+	/**
+	 * Inserts one nonce claim without WordPress' duplicate-update option path.
+	 *
+	 * WordPress 7 add_option() uses ON DUPLICATE KEY UPDATE, so it cannot be the
+	 * strict insert-only primitive required for replay protection.
+	 *
+	 * @param string $option_name Nonce option name.
+	 * @param int    $expires_at Expiry epoch.
+	 * @return bool
+	 */
+	private function insert_signature_nonce_option( string $option_name, int $expires_at ): bool {
+		global $wpdb;
+
+		$inserted = $wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, %s)",
+				$option_name,
+				maybe_serialize( $expires_at ),
+				'off'
+			)
+		);
+
+		if ( 1 !== (int) $inserted ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Reads one nonce expiry without entering the shared options cache.
+	 *
+	 * @param string $option_name Nonce option name.
+	 * @return int|null
+	 */
+	private function signature_nonce_option_expiry( string $option_name ): ?int {
+		global $wpdb;
+
+		$value = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+				$option_name
+			)
+		);
+
+		return is_numeric( $value ) ? (int) $value : null;
+	}
+
+	/**
+	 * Deletes one expired nonce only if its stored value is unchanged.
+	 *
+	 * @param string    $option_name Option name.
+	 * @param int|float|string $stored_expiry Expected stored expiry.
+	 * @return bool
+	 */
+	private function delete_expired_signature_nonce_option( string $option_name, $stored_expiry ): bool {
+		global $wpdb;
+
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
+				$option_name,
+				maybe_serialize( $stored_expiry )
+			)
+		);
+
+		if ( 1 !== (int) $deleted ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Performs server-randomized, low-frequency, bounded nonce cleanup.
+	 *
+	 * @return void
+	 */
+	private function maybe_cleanup_expired_signature_nonces(): void {
+		if ( 1 !== wp_rand( 1, 64 ) ) {
+			return;
+		}
+
+		global $wpdb;
+		$like = $wpdb->esc_like( self::SIGNATURE_NONCE_OPTION_PREFIX ) . '%';
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s AND CAST(option_value AS UNSIGNED) < %d ORDER BY option_id ASC LIMIT %d",
+				$like,
+				time(),
+				self::SIGNATURE_NONCE_CLEANUP_BATCH
+			),
+			ARRAY_A
+		);
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$option_name = is_array( $row ) ? (string) ( $row['option_name'] ?? '' ) : '';
+			$option_value = is_array( $row ) ? (string) ( $row['option_value'] ?? '' ) : '';
+			if ( '' === $option_name || 0 !== strpos( $option_name, self::SIGNATURE_NONCE_OPTION_PREFIX ) || ! is_numeric( $option_value ) || (int) $option_value >= time() ) {
+				continue;
+			}
+
+			$this->delete_expired_signature_nonce_option( $option_name, $option_value );
+		}
 	}
 
 	/**
@@ -2601,13 +2747,7 @@ final class Controller {
 			'purpose'                  => sanitize_textarea_field( (string) $request->get_param( 'purpose' ) ),
 			'redaction_level'          => sanitize_key( (string) $request->get_param( 'redaction_level' ) ),
 			'bounds'                   => $this->object_param( $request, 'bounds' ),
-			'caller'                   => array_merge(
-				$this->object_param( $request, 'caller' ),
-				array(
-					'via'        => 'npcink-ai-client-adapter',
-					'ability_id' => $ability_id,
-				)
-			),
+			'caller'                   => $this->proposal_caller_context( $request, $ability_id ),
 		);
 
 		return $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/read-requests', $payload, false, true );
@@ -6579,7 +6719,6 @@ final class Controller {
 		$npcink_governance_core['correlation_id'] = $log_context['correlation_id'];
 		if ( ! empty( $grant_context ) ) {
 			$log_context['read_authorization_granted'] = true;
-			$log_context['read_authorization_context'] = $grant_context;
 			$log_context['redaction_level']            = sanitize_key( (string) ( $grant_context['redaction_level'] ?? 'strict' ) );
 			$log_context['read_authorization_bounds']  = is_array( $grant_context['bounds'] ?? null ) ? $grant_context['bounds'] : array();
 			$npcink_governance_core['read_request_id'] = sanitize_text_field( (string) ( $grant_context['request_id'] ?? '' ) );
@@ -6590,7 +6729,7 @@ final class Controller {
 		}
 		$log_context['npcink_governance_core']    = $npcink_governance_core;
 
-		return $this->sanitize_log_context( $log_context );
+		return $this->sanitize_log_context( $log_context, true );
 	}
 
 	/**
@@ -7463,18 +7602,13 @@ final class Controller {
 			return trim( (string) $env_token );
 		}
 
-		if ( 'option' !== $source ) {
-			return '';
-		}
-
-		$option = get_option( 'npcink_openclaw_adapter_core_app_token', '' );
-		return is_string( $option ) ? trim( $option ) : '';
+		return '';
 	}
 
 	/**
 	 * Returns the configured Core app token source without exposing the token.
 	 *
-	 * @return string constant|environment|option|none
+	 * @return string constant|environment|none
 	 */
 	private function core_app_token_source(): string {
 		if ( defined( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) && '' !== trim( (string) constant( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) ) ) {
@@ -7484,11 +7618,6 @@ final class Controller {
 		$env_token = getenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
 		if ( is_string( $env_token ) && '' !== trim( $env_token ) ) {
 			return 'environment';
-		}
-
-		$option = get_option( 'npcink_openclaw_adapter_core_app_token', '' );
-		if ( is_string( $option ) && '' !== trim( $option ) ) {
-			return 'option';
 		}
 
 		return 'none';
@@ -7531,11 +7660,11 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function request_log_context( WP_REST_Request $request, string $ability_id ): array {
-		$context = $this->object_param( $request, 'log_context' );
+		$context = $this->client_log_context( $request );
 
 		foreach ( array( 'proposal_id', 'correlation_id', 'external_thread_id', 'openclaw_thread_id', 'adapter_request_id', 'adapter_route' ) as $key ) {
 			$value = $request->get_param( $key );
-			if ( null !== $value && '' !== (string) $value ) {
+			if ( is_scalar( $value ) && '' !== (string) $value ) {
 				$context[ $key ] = $value;
 			}
 		}
@@ -7565,6 +7694,49 @@ final class Controller {
 	}
 
 	/**
+	 * Returns only client-writable request log annotations.
+	 *
+	 * Governance, ability, authorization, and transport provenance fields are
+	 * always derived by Adapter and cannot be supplied through log_context.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string,mixed>
+	 */
+	private function client_log_context( WP_REST_Request $request ): array {
+		$input = $this->object_param( $request, 'log_context' );
+		$clean = array();
+
+		foreach ( $this->client_annotation_fields() as $key ) {
+			if ( ! isset( $input[ $key ] ) || ! is_scalar( $input[ $key ] ) ) {
+				continue;
+			}
+
+			$value = sanitize_text_field( wp_unslash( (string) $input[ $key ] ) );
+			if ( '' !== $value ) {
+				$clean[ $key ] = $value;
+			}
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Returns untrusted client fields that may be kept as annotations.
+	 *
+	 * @return array<int,string>
+	 */
+	private function client_annotation_fields(): array {
+		return array(
+			'proposal_id',
+			'correlation_id',
+			'external_thread_id',
+			'openclaw_thread_id',
+			'adapter_request_id',
+			'adapter_route',
+		);
+	}
+
+	/**
 	 * Returns caller metadata for Core proposal requests.
 	 *
 	 * @param WP_REST_Request $request Request.
@@ -7572,14 +7744,33 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function proposal_caller_context( WP_REST_Request $request, string $ability_id ): array {
-		return array_merge(
-			array(
-				'caller_type' => 'openclaw_adapter',
-				'via'         => 'npcink-ai-client-adapter',
-			),
-			$this->request_log_context( $request, $ability_id ),
-			$this->object_param( $request, 'caller' )
-		);
+		$caller      = array();
+		$log_context = $this->request_log_context( $request, $ability_id );
+		$input       = $this->object_param( $request, 'caller' );
+
+		foreach ( $this->client_annotation_fields() as $key ) {
+			$value = $input[ $key ] ?? ( $log_context[ $key ] ?? null );
+			if ( ! is_scalar( $value ) ) {
+				continue;
+			}
+
+			$value = sanitize_text_field( wp_unslash( (string) $value ) );
+			if ( '' !== $value ) {
+				$caller[ $key ] = $value;
+			}
+		}
+
+		$caller['caller_type']       = 'openclaw_adapter';
+		$caller['via']               = 'npcink-ai-client-adapter';
+		$caller['ability_id']        = sanitize_text_field( $ability_id );
+		$caller['governance_source'] = 'npcink-governance-core';
+
+		$fingerprint = $this->current_signed_client_fingerprint();
+		if ( '' !== $fingerprint ) {
+			$caller['signed_client_fingerprint'] = $fingerprint;
+		}
+
+		return $this->sanitize_log_context( $caller );
 	}
 
 	/**
@@ -7650,14 +7841,59 @@ final class Controller {
 	 * Sanitizes AI request log context.
 	 *
 	 * @param mixed $value Context value.
+	 * @param bool  $trusted_internal Whether Adapter-generated governance fields may be retained.
 	 * @return mixed
 	 */
-	private function sanitize_log_context( $value ) {
+	private function sanitize_log_context( $value, bool $trusted_internal = false ) {
+		$field_count = 0;
+		$clean       = $this->sanitize_log_context_value( $value, 0, $field_count, $trusted_internal );
+		if ( ! is_array( $clean ) ) {
+			return $clean;
+		}
+
+		while ( $this->serialized_log_context_bytes( $clean ) > self::MAX_LOG_CONTEXT_SERIALIZED_BYTES ) {
+			if ( ! $this->remove_last_log_context_field( $clean ) ) {
+				return array();
+			}
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Recursively sanitizes bounded log context.
+	 *
+	 * @param mixed $value Context value.
+	 * @param int   $depth Current array depth.
+	 * @param int   $field_count Global retained field count.
+	 * @param bool  $trusted_internal Whether Adapter-generated governance fields may be retained.
+	 * @return mixed
+	 */
+	private function sanitize_log_context_value( $value, int $depth, int &$field_count, bool $trusted_internal ) {
 		if ( is_array( $value ) ) {
+			if ( $depth > self::MAX_LOG_CONTEXT_DEPTH ) {
+				return array();
+			}
+
 			$clean = array();
 			foreach ( $value as $key => $item ) {
-				$clean[ sanitize_key( (string) $key ) ] = $this->sanitize_log_context( $item );
+				if ( $field_count >= self::MAX_LOG_CONTEXT_FIELDS ) {
+					break;
+				}
+
+				$clean_key = substr( sanitize_key( (string) $key ), 0, 64 );
+				if ( '' === $clean_key || $this->is_sensitive_log_context_key( $clean_key, $trusted_internal ) ) {
+					continue;
+				}
+
+				if ( is_array( $item ) && $depth >= self::MAX_LOG_CONTEXT_DEPTH ) {
+					continue;
+				}
+
+				++$field_count;
+				$clean[ $clean_key ] = $this->sanitize_log_context_value( $item, $depth + 1, $field_count, $trusted_internal );
 			}
+
 			return $clean;
 		}
 
@@ -7665,7 +7901,82 @@ final class Controller {
 			return $value;
 		}
 
-		return sanitize_text_field( wp_unslash( (string) $value ) );
+		$value = sanitize_text_field( wp_unslash( (string) $value ) );
+		if ( strlen( $value ) <= self::MAX_LOG_CONTEXT_STRING_BYTES ) {
+			return $value;
+		}
+
+		if ( function_exists( 'mb_strcut' ) ) {
+			return mb_strcut( $value, 0, self::MAX_LOG_CONTEXT_STRING_BYTES, 'UTF-8' );
+		}
+
+		return substr( $value, 0, self::MAX_LOG_CONTEXT_STRING_BYTES );
+	}
+
+	/**
+	 * Returns whether a log context key may hold secret-bearing material.
+	 *
+	 * @param string $key Sanitized key.
+	 * @param bool   $trusted_internal Whether Adapter-generated governance fields may be retained.
+	 * @return bool
+	 */
+	private function is_sensitive_log_context_key( string $key, bool $trusted_internal ): bool {
+		if (
+			$trusted_internal
+			&& in_array(
+				$key,
+				array(
+					'read_authorization_granted',
+					'read_authorization_bounds',
+					'core_authorization_truth',
+				),
+				true
+			)
+		) {
+			return false;
+		}
+
+		return 1 === preg_match( '/password|passwd|token|secret|authorization|cookie|nonce|signature|private[-_]?key|api[-_]?key|credential/i', $key );
+	}
+
+	/**
+	 * Returns serialized log context size.
+	 *
+	 * @param array<string,mixed> $value Log context.
+	 * @return int
+	 */
+	private function serialized_log_context_bytes( array $value ): int {
+		$encoded = wp_json_encode( $value );
+		return is_string( $encoded ) ? strlen( $encoded ) : PHP_INT_MAX;
+	}
+
+	/**
+	 * Removes the final retained field from a nested context.
+	 *
+	 * @param array<string,mixed> $value Log context mutated in place.
+	 * @return bool
+	 */
+	private function remove_last_log_context_field( array &$value ): bool {
+		$keys = array_keys( $value );
+		for ( $index = count( $keys ) - 1; $index >= 0; --$index ) {
+			$key = $keys[ $index ];
+			if ( is_array( $value[ $key ] ) && ! empty( $value[ $key ] ) ) {
+				$child = $value[ $key ];
+				if ( $this->remove_last_log_context_field( $child ) ) {
+					if ( empty( $child ) ) {
+						unset( $value[ $key ] );
+					} else {
+						$value[ $key ] = $child;
+					}
+					return true;
+				}
+			}
+
+			unset( $value[ $key ] );
+			return true;
+		}
+
+		return false;
 	}
 
 	/**

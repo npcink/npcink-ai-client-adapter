@@ -121,10 +121,16 @@ external_thread_id
 openclaw_thread_id
 adapter_request_id
 adapter_route
-governance_source=npcink-governance-core
 ```
 
-Adapter must not forward reserved correlation fields as ability input.
+These six fields are untrusted annotations. Adapter must not forward them as
+ability input. It derives `caller_type=openclaw_adapter`,
+`via=npcink-ai-client-adapter`, the current `ability_id`,
+`governance_source=npcink-governance-core`, and any authenticated
+`signed_client_fingerprint`; client values cannot override those fields.
+Client log context is capped at 32 fields, two nested array levels, 200 bytes
+per string, and approximately 8 KiB serialized, with secret-bearing keys
+removed.
 
 ## Client Failure Rules
 

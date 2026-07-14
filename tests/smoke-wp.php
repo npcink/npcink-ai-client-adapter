@@ -3324,9 +3324,13 @@ $sensitive_read_request    = maa_adapter_smoke_rest(
 		'redaction_level'         => 'strict',
 		'purpose'                 => 'Adapter smoke verifies Core sensitive read grant; authorization header: SHOULD_NOT_LEAK',
 		'caller'                  => array(
-			'via'       => 'npcink-openclaw-adapter',
-			'token'     => 'SHOULD_NOT_LEAK',
-			'ability_id' => $sensitive_read_ability_id,
+			'external_thread_id'        => 'adapter-sensitive-read-smoke',
+			'caller_type'               => 'forged-caller-type',
+			'via'                       => 'forged-via',
+			'token'                     => 'SHOULD_NOT_LEAK',
+			'ability_id'                => 'forged/ability',
+			'governance_source'         => 'forged-governance',
+			'signed_client_fingerprint' => 'sha256:' . str_repeat( 'b', 64 ),
 		),
 		'bounds'                  => array(
 			'max_rows'      => 10,
@@ -3340,6 +3344,11 @@ $maa_adapter_smoke_cleanup_read_request_ids[] = $sensitive_read_request_id;
 maa_adapter_smoke_assert( '' !== $sensitive_read_request_id, 'adapter creates Core sensitive read request' );
 maa_adapter_smoke_assert( 'pending' === (string) ( $sensitive_read_request['status'] ?? '' ), 'adapter sensitive read request starts pending' );
 maa_adapter_smoke_assert( false === strpos( (string) wp_json_encode( $sensitive_read_request ), 'SHOULD_NOT_LEAK' ), 'adapter sensitive read request response does not leak secret sentinel' );
+maa_adapter_smoke_assert( 'openclaw_adapter' === (string) ( $sensitive_read_request['caller']['caller_type'] ?? '' ), 'adapter sensitive read caller type cannot be forged' );
+maa_adapter_smoke_assert( 'npcink-ai-client-adapter' === (string) ( $sensitive_read_request['caller']['via'] ?? '' ), 'adapter sensitive read caller transport cannot be forged' );
+maa_adapter_smoke_assert( $sensitive_read_ability_id === (string) ( $sensitive_read_request['caller']['ability_id'] ?? '' ), 'adapter sensitive read caller ability cannot be forged' );
+maa_adapter_smoke_assert( 'npcink-governance-core' === (string) ( $sensitive_read_request['caller']['governance_source'] ?? '' ), 'adapter sensitive read caller governance source cannot be forged' );
+maa_adapter_smoke_assert( ! isset( $sensitive_read_request['caller']['signed_client_fingerprint'] ), 'unsigned WordPress REST caller cannot forge a signed client fingerprint' );
 
 $sensitive_read_list = maa_adapter_smoke_rest( 'GET', '/npcink-openclaw-adapter/v1/read-requests', array( 'status' => 'pending', 'limit' => 10 ) );
 $sensitive_read_listed = false;
@@ -3444,6 +3453,15 @@ $site_info = maa_adapter_smoke_rest(
 		'input'           => array(),
 		'proposal_id'     => 'proposal-log-context-smoke',
 		'correlation_id'  => 'correlation-log-context-smoke',
+		'log_context'     => array(
+			'external_thread_id'        => str_repeat( 'x', 500 ),
+			'governance_source'         => 'forged-governance',
+			'via'                      => 'forged-via',
+			'ability_id'               => 'forged/ability',
+			'signed_client_fingerprint' => 'sha256:' . str_repeat( 'c', 64 ),
+			'authorization'            => 'SHOULD_NOT_LEAK',
+			'ai_provider'              => 'forged-provider',
+		),
 	)
 );
 maa_adapter_smoke_assert( 'npcink-abilities-toolkit/site-info' === (string) ( $site_info['ability_id'] ?? '' ), 'adapter runs site-info through generic read ability route' );
@@ -3453,6 +3471,11 @@ maa_adapter_smoke_assert( 'proposal-log-context-smoke' === (string) ( $site_info
 maa_adapter_smoke_assert( 'correlation-log-context-smoke' === (string) ( $site_info['log_context']['correlation_id'] ?? '' ), 'adapter read log context carries correlation id' );
 maa_adapter_smoke_assert( '/npcink-openclaw-adapter/v1/run-read-ability' === (string) ( $site_info['log_context']['adapter_route'] ?? '' ), 'adapter read log context carries adapter_route' );
 maa_adapter_smoke_assert( 'npcink-governance-core' === (string) ( $site_info['log_context']['governance_source'] ?? '' ), 'adapter read log context carries governance_source' );
+maa_adapter_smoke_assert( 'npcink-ai-client-adapter' === (string) ( $site_info['log_context']['via'] ?? '' ), 'adapter read log context carries trusted transport provenance' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/site-info' === (string) ( $site_info['log_context']['ability_id'] ?? '' ), 'adapter read log context carries trusted ability id' );
+maa_adapter_smoke_assert( 200 === strlen( (string) ( $site_info['log_context']['external_thread_id'] ?? '' ) ), 'adapter read log context caps client strings' );
+maa_adapter_smoke_assert( ! isset( $site_info['log_context']['authorization'] ) && ! isset( $site_info['log_context']['ai_provider'] ) && ! isset( $site_info['log_context']['signed_client_fingerprint'] ), 'adapter read log context drops secret and non-allowlisted client fields' );
+maa_adapter_smoke_assert( false === strpos( (string) wp_json_encode( $site_info['log_context'] ), 'SHOULD_NOT_LEAK' ), 'adapter read log context excludes secret sentinel' );
 
 $media = maa_adapter_smoke_rest(
 	'POST',
@@ -5216,7 +5239,12 @@ $proposal = maa_adapter_smoke_rest(
 			'mode' => 'adapter_status_smoke',
 		),
 		'caller'     => array(
-			'external_thread_id' => 'adapter-status-smoke',
+			'external_thread_id'        => 'adapter-status-smoke',
+			'caller_type'               => 'forged-caller-type',
+			'via'                       => 'forged-via',
+			'ability_id'                => 'forged/ability',
+			'governance_source'         => 'forged-governance',
+			'signed_client_fingerprint' => 'sha256:' . str_repeat( 'd', 64 ),
 		),
 	)
 );
@@ -5225,6 +5253,9 @@ maa_adapter_smoke_assert( '' !== $proposal_id, 'adapter creates Core proposal fo
 maa_adapter_smoke_assert( 'pending' === (string) ( $proposal['status'] ?? '' ), 'adapter created proposal starts pending' );
 maa_adapter_smoke_assert( 'openclaw_adapter' === (string) ( $proposal['caller']['caller_type'] ?? '' ), 'adapter proposal caller marks OpenClaw adapter' );
 maa_adapter_smoke_assert( 'npcink-ai-client-adapter' === (string) ( $proposal['caller']['via'] ?? '' ), 'adapter proposal caller preserves adapter source' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/create-draft' === (string) ( $proposal['caller']['ability_id'] ?? '' ), 'adapter proposal caller ability cannot be forged' );
+maa_adapter_smoke_assert( 'npcink-governance-core' === (string) ( $proposal['caller']['governance_source'] ?? '' ), 'adapter proposal caller governance source cannot be forged' );
+maa_adapter_smoke_assert( ! isset( $proposal['caller']['signed_client_fingerprint'] ), 'unsigned WordPress REST proposal caller cannot forge a signed client fingerprint' );
 
 $proposal_list = maa_adapter_smoke_rest(
 	'GET',
@@ -5317,11 +5348,12 @@ maa_adapter_smoke_assert( in_array( 'commit:preflight', (array) ( $adapter_core_
 maa_adapter_smoke_assert( ! in_array( 'proposals:approve', (array) ( $adapter_core_app['scopes'] ?? array() ), true ), 'adapter Core app token does not include approval scope' );
 maa_adapter_smoke_assert( ! in_array( 'audit:read', (array) ( $adapter_core_app['scopes'] ?? array() ), true ), 'adapter Core app token does not include audit read scope' );
 
-$previous_adapter_core_app_token = get_option( 'npcink_openclaw_adapter_core_app_token', null );
-update_option( 'npcink_openclaw_adapter_core_app_token', $adapter_core_app_token, false );
+$previous_adapter_core_app_token = getenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
+putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN=' . $adapter_core_app_token );
 
 $app_token_health = maa_adapter_smoke_rest( 'GET', '/npcink-openclaw-adapter/v1/health' );
 maa_adapter_smoke_assert( true === (bool) ( $app_token_health['core_app_token_configured'] ?? false ), 'adapter health reports Core app token configured' );
+maa_adapter_smoke_assert( 'environment' === (string) ( $app_token_health['core_app_token_source'] ?? '' ), 'adapter health reports environment-only Core app token source' );
 maa_adapter_smoke_assert_payload_excludes_string( $app_token_health, $adapter_core_app_token, 'adapter health with Core app token' );
 $app_token_help = maa_adapter_smoke_rest( 'GET', '/npcink-openclaw-adapter/v1/help' );
 maa_adapter_smoke_assert( true === (bool) ( $app_token_help['core_app_token_configured'] ?? false ), 'adapter help reports Core app token configured' );
@@ -5406,10 +5438,10 @@ foreach ( (array) ( $app_token_audit['items'] ?? array() ) as $audit_item ) {
 maa_adapter_smoke_assert( $found_app_token_create_audit, 'Core audit stores Adapter app attribution for proposal creation' );
 maa_adapter_smoke_assert( $found_app_token_preflight_audit, 'Core audit stores Adapter app attribution for commit preflight' );
 
-if ( null === $previous_adapter_core_app_token ) {
-	delete_option( 'npcink_openclaw_adapter_core_app_token' );
+if ( false === $previous_adapter_core_app_token ) {
+	putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
 } else {
-	update_option( 'npcink_openclaw_adapter_core_app_token', $previous_adapter_core_app_token, false );
+	putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN=' . $previous_adapter_core_app_token );
 }
 
 $provider_smoke = maa_adapter_smoke_rest_result(
