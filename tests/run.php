@@ -366,6 +366,20 @@ $execution_profile_registry = maa_adapter_read( $root . '/includes/Rest/Executio
 $execution_input_validator = maa_adapter_read( $root . '/includes/Rest/Execution_Input_Validator.php' );
 $execution_action_runner = maa_adapter_read( $root . '/includes/Rest/Execution_Action_Runner.php' );
 $controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry . "\n" . $execution_input_validator . "\n" . $execution_action_runner;
+maa_adapter_assert( false !== strpos( $controller, 'npcink_cloud_addon_receive_media_derivative_artifact' ), 'Media optimization readiness consumes the verified Cloud Addon receive seam.' );
+maa_adapter_assert( false === strpos( $controller, 'npcink_cloud_addon_download_media_derivative_artifact' ), 'Media optimization readiness removes the legacy Cloud Addon download seam.' );
+maa_adapter_assert( false !== strpos( $controller, 'cloud_artifact_receive_available' ), 'Media optimization readiness names the current receive check.' );
+maa_adapter_assert( false === strpos( $controller, 'cloud_artifact_download_available' ), 'Media optimization readiness removes the legacy download check name.' );
+maa_adapter_assert( false !== strpos( $controller, 'media_derivative_artifact_contract_is_valid' ), 'Media optimization readiness validates the exact local11 artifact contract.' );
+maa_adapter_assert( false !== strpos( $controller, 'artifact_contract_valid' ), 'Media optimization readiness exposes exact artifact contract status.' );
+maa_adapter_assert( false === strpos( $controller, "\$artifact['id']" ), 'Media optimization readiness removes the legacy artifact id alias.' );
+$media_expiry_check_start = strpos( $controller, 'private function media_optimization_artifact_expiry_check' );
+$media_expiry_check_end   = strpos( $controller, 'private function media_derivative_artifact_contract_is_valid' );
+$media_expiry_check       = false !== $media_expiry_check_start && false !== $media_expiry_check_end
+	? substr( $controller, $media_expiry_check_start, $media_expiry_check_end - $media_expiry_check_start )
+	: '';
+maa_adapter_assert( '' !== $media_expiry_check && false === strpos( $media_expiry_check, 'strtotime(' ), 'Media optimization readiness removes permissive artifact expiry parsing.' );
+maa_adapter_assert( false !== strpos( $controller, 'media_derivative_expiry_timestamp' ) && false !== strpos( $controller, '0 === $parsed->getOffset()' ), 'Media optimization readiness requires canonical UTC RFC3339 expiry.' );
 maa_adapter_assert( false !== strpos( $execution_input_validator, 'final class Execution_Input_Validator' ), 'Execution input validator exists.' );
 maa_adapter_assert( false !== strpos( $controller, 'new Execution_Input_Validator( self::execution_profiles() )' ), 'Controller delegates execution input rules to the canonical validator.' );
 maa_adapter_assert( false === strpos( $controller, 'private function validate_execute_action_input(' ), 'Controller no longer owns execution input validation implementation.' );
@@ -694,7 +708,7 @@ foreach (
 			'npcink_cloud_addon_get_media_derivative_run_result',
 			'npcink_cloud_addon_public_media_derivative_cloud_projection',
 			'npcink_cloud_addon_build_media_derivative_optimization_payload',
-			'npcink_cloud_addon_download_media_derivative_artifact',
+			'npcink_cloud_addon_receive_media_derivative_artifact',
 			'npcink_governance_core_build_media_derivative_ability_input',
 		"'crop'",
 		"'watermark_enabled'",
@@ -990,8 +1004,9 @@ foreach (
 			'proposal_review_summary',
 			'preflight_already_issued',
 			'already_executed',
-			'cloud_artifact_download_available',
+			'cloud_artifact_receive_available',
 			'artifact_not_expired',
+			'artifact_contract_valid',
 			'adapter_validator_aligned',
 			'content_reference_scan_completed',
 			'normalize_media_optimization_reference_repairs',
@@ -3071,6 +3086,12 @@ foreach (
 }
 
 $smoke_wp = maa_adapter_read( $root . '/tests/smoke-wp.php' );
+maa_adapter_assert( false !== strpos( $smoke_wp, 'function npcink_cloud_addon_receive_media_derivative_artifact' ), 'WordPress smoke provides the verified Cloud Addon receive fixture.' );
+maa_adapter_assert( false === strpos( $smoke_wp, 'npcink_abilities_toolkit_cloud_media_derivative_artifact_download' ), 'WordPress smoke removes the legacy Toolkit artifact download filter.' );
+maa_adapter_assert( false !== strpos( $smoke_wp, 'media_artifact_verified_transfer.v1' ), 'WordPress smoke fixture carries exact verified transfer evidence.' );
+maa_adapter_assert( false !== strpos( $smoke_wp, 'media_artifact_delivery_ack.v1' ), 'WordPress smoke fixture carries the transfer-only delivery ACK.' );
+maa_adapter_assert( false !== strpos( $smoke_wp, "'artifact_expires_at'   => \$artifact_expiry" ) && false !== strpos( $smoke_wp, "'expires_at'        => \$artifact_expiry" ), 'WordPress smoke receive fixture preserves the reviewed local11 artifact expiry.' );
+maa_adapter_assert( false === strpos( $smoke_wp, 'shortened_expiry' ), 'WordPress smoke removes the obsolete five-minute ACK retention fixture.' );
 foreach (
 	array(
 		'/npcink-openclaw-adapter/v1/health',

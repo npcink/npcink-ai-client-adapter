@@ -20,6 +20,10 @@ function sanitize_text_field( $value ): string {
 	return trim( preg_replace( '/\s+/', ' ', strip_tags( (string) $value ) ) ?: '' );
 }
 
+function sanitize_file_name( $value ): string {
+	return (string) preg_replace( '/[^A-Za-z0-9._-]/', '', basename( (string) $value ) );
+}
+
 function wp_unslash( $value ) {
 	return is_string( $value ) ? stripslashes( $value ) : $value;
 }
@@ -149,6 +153,35 @@ function maa_security_contains_key_fragment( array $value, string $fragment ): b
 	return false;
 }
 
+/**
+ * Returns one exact local11 media derivative artifact.
+ *
+ * @param array<string,mixed> $overrides Overrides.
+ * @return array<string,mixed>
+ */
+function maa_security_media_derivative_artifact( array $overrides = array() ): array {
+	return array_merge(
+		array(
+			'artifact_id'        => 'art_' . str_repeat( 'a', 32 ),
+			'expires_at'         => gmdate( 'c', time() + 3600 ),
+			'mime_type'          => 'image/webp',
+			'format'             => 'webp',
+			'width'              => 1200,
+			'height'             => 800,
+			'filesize_bytes'     => 210000,
+			'sha256'             => str_repeat( 'b', 64 ),
+			'suggested_filename' => 'adapter-readiness.webp',
+			'filename_basis'     => array(
+				'owner'                          => 'wordpress_write_ability_final',
+				'strategy'                       => 'format_checksum',
+				'final_sanitize_unique_required' => true,
+			),
+			'processing_warnings' => array(),
+		),
+		$overrides
+	);
+}
+
 require_once dirname( __DIR__ ) . '/includes/Rest/Controller.php';
 
 $reflection = new ReflectionClass( \Npcink\OpenClawAdapter\Rest\Controller::class );
@@ -157,6 +190,35 @@ $fingerprint_property = $reflection->getProperty( 'current_signed_client_fingerp
 $fingerprint_property->setAccessible( true );
 $trusted_fingerprint = 'sha256:' . str_repeat( 'a', 64 );
 $fingerprint_property->setValue( $controller, $trusted_fingerprint );
+
+$valid_media_artifact = maa_security_media_derivative_artifact();
+maa_security_assert(
+	true === maa_security_invoke( $controller, 'media_derivative_artifact_contract_is_valid', array( $valid_media_artifact ) ),
+	'Exact local11 media derivative artifact is readiness-valid.'
+);
+$legacy_id_artifact = $valid_media_artifact;
+$legacy_id_artifact['id'] = $legacy_id_artifact['artifact_id'];
+unset( $legacy_id_artifact['artifact_id'] );
+maa_security_assert(
+	false === maa_security_invoke( $controller, 'media_derivative_artifact_contract_is_valid', array( $legacy_id_artifact ) ),
+	'Legacy artifact id alias is blocked by readiness.'
+);
+$impossible_date_artifact = maa_security_media_derivative_artifact( array( 'expires_at' => '2027-02-31T12:00:00Z' ) );
+$impossible_date_check = maa_security_invoke( $controller, 'media_optimization_artifact_expiry_check', array( $impossible_date_artifact ) );
+maa_security_assert(
+	false === ( $impossible_date_check['ready'] ?? true )
+	&& 'invalid_expires_at' === ( $impossible_date_check['status'] ?? '' )
+	&& false === maa_security_invoke( $controller, 'media_derivative_artifact_contract_is_valid', array( $impossible_date_artifact ) ),
+	'Impossible artifact calendar date is blocked by readiness.'
+);
+$non_utc_artifact = maa_security_media_derivative_artifact( array( 'expires_at' => '2099-01-01T08:00:00+08:00' ) );
+$non_utc_check = maa_security_invoke( $controller, 'media_optimization_artifact_expiry_check', array( $non_utc_artifact ) );
+maa_security_assert(
+	false === ( $non_utc_check['ready'] ?? true )
+	&& 'invalid_expires_at' === ( $non_utc_check['status'] ?? '' )
+	&& false === maa_security_invoke( $controller, 'media_derivative_artifact_contract_is_valid', array( $non_utc_artifact ) ),
+	'Non-UTC artifact expiry is blocked by readiness.'
+);
 
 $request = new WP_REST_Request(
 	array(

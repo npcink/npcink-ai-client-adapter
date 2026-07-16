@@ -3005,23 +3005,29 @@ final class Controller {
 			return null;
 		}
 
-		$artifact       = $this->media_optimization_derivative_artifact( $proposal );
-		$repairs        = $this->normalize_media_optimization_reference_repairs( $this->media_optimization_reference_repairs( $proposal ) );
-		$valid_actions  = $this->validate_plan_write_action_inputs( is_array( $proposal['input'] ?? null ) ? $proposal['input'] : array() );
-		$artifact_check = $this->media_optimization_artifact_expiry_check( $artifact );
-		$checks         = array(
-			'cloud_artifact_download_available' => array(
-				'ready'  => function_exists( 'npcink_cloud_addon_download_media_derivative_artifact' ),
-				'status' => function_exists( 'npcink_cloud_addon_download_media_derivative_artifact' ) ? 'available' : 'missing',
+		$artifact                = $this->media_optimization_derivative_artifact( $proposal );
+		$repairs                 = $this->normalize_media_optimization_reference_repairs( $this->media_optimization_reference_repairs( $proposal ) );
+		$valid_actions           = $this->validate_plan_write_action_inputs( is_array( $proposal['input'] ?? null ) ? $proposal['input'] : array() );
+		$artifact_check          = $this->media_optimization_artifact_expiry_check( $artifact );
+		$artifact_contract_valid = $this->media_derivative_artifact_contract_is_valid( $artifact );
+		$artifact_id             = is_string( $artifact['artifact_id'] ?? null ) ? $artifact['artifact_id'] : '';
+		$checks                  = array(
+			'cloud_artifact_receive_available' => array(
+				'ready'  => function_exists( 'npcink_cloud_addon_receive_media_derivative_artifact' ),
+				'status' => function_exists( 'npcink_cloud_addon_receive_media_derivative_artifact' ) ? 'available' : 'missing',
 			),
 			'cloud_addon_configured'            => array(
 				'ready'  => ! function_exists( 'npcink_cloud_addon_is_configured' ) || (bool) npcink_cloud_addon_is_configured(),
 				'status' => function_exists( 'npcink_cloud_addon_is_configured' ) ? ( (bool) npcink_cloud_addon_is_configured() ? 'configured' : 'not_configured' ) : 'unknown',
 			),
 			'artifact_present'                  => array(
-				'ready'       => ! empty( $artifact ),
-				'status'      => empty( $artifact ) ? 'missing' : 'present',
-				'artifact_id' => sanitize_text_field( (string) ( $artifact['artifact_id'] ?? ( $artifact['id'] ?? '' ) ) ),
+				'ready'       => 1 === preg_match( '/^art_[0-9a-f]{32}$/D', $artifact_id ),
+				'status'      => 1 === preg_match( '/^art_[0-9a-f]{32}$/D', $artifact_id ) ? 'present' : 'missing',
+				'artifact_id' => $artifact_id,
+			),
+			'artifact_contract_valid'           => array(
+				'ready'  => $artifact_contract_valid,
+				'status' => $artifact_contract_valid ? 'valid' : 'invalid',
 			),
 			'artifact_not_expired'              => $artifact_check,
 			'adapter_validator_aligned'         => array(
@@ -3056,8 +3062,8 @@ final class Controller {
 			'status'             => $ready ? 'ready' : 'blocked',
 			'first_failed_check' => $first_failed_check,
 			'checks'             => $checks,
-			'artifact'           => empty( $artifact ) ? null : array(
-				'artifact_id' => sanitize_text_field( (string) ( $artifact['artifact_id'] ?? ( $artifact['id'] ?? '' ) ) ),
+			'artifact'           => ! $artifact_contract_valid ? null : array(
+				'artifact_id' => $artifact_id,
 				'mime_type'   => sanitize_text_field( (string) ( $artifact['mime_type'] ?? '' ) ),
 				'expires_at'  => sanitize_text_field( (string) ( $artifact['expires_at'] ?? '' ) ),
 			),
@@ -3343,8 +3349,8 @@ final class Controller {
 			);
 		}
 
-		$expires = strtotime( $expires_at );
-		if ( false === $expires ) {
+		$expires = $this->media_derivative_expiry_timestamp( $expires_at );
+		if ( $expires <= 0 ) {
 			return array(
 				'ready'      => false,
 				'status'     => 'invalid_expires_at',
@@ -3357,6 +3363,130 @@ final class Controller {
 			'status'     => $expires > time() ? 'valid' : 'expired',
 			'expires_at' => $expires_at,
 		);
+	}
+
+	/**
+	 * Validates the exact local 11-field media derivative artifact contract.
+	 *
+	 * @param array<string,mixed> $artifact Artifact descriptor.
+	 * @return bool
+	 */
+	private function media_derivative_artifact_contract_is_valid( array $artifact ): bool {
+		$expected_keys = array(
+			'artifact_id',
+			'expires_at',
+			'mime_type',
+			'format',
+			'width',
+			'height',
+			'filesize_bytes',
+			'sha256',
+			'suggested_filename',
+			'filename_basis',
+			'processing_warnings',
+		);
+		$actual_keys = array_keys( $artifact );
+		sort( $actual_keys );
+		sort( $expected_keys );
+		if ( $actual_keys !== $expected_keys ) {
+			return false;
+		}
+
+		if ( ! is_string( $artifact['artifact_id'] ) || 1 !== preg_match( '/^art_[0-9a-f]{32}$/D', $artifact['artifact_id'] ) ) {
+			return false;
+		}
+		if ( ! is_string( $artifact['expires_at'] ) || $this->media_derivative_expiry_timestamp( $artifact['expires_at'] ) <= time() ) {
+			return false;
+		}
+
+		$format_by_mime = array(
+			'image/webp' => 'webp',
+			'image/avif' => 'avif',
+			'image/jpeg' => 'jpeg',
+			'image/png'  => 'png',
+		);
+		$mime_type = is_string( $artifact['mime_type'] ) ? $artifact['mime_type'] : '';
+		$format    = is_string( $artifact['format'] ) ? $artifact['format'] : '';
+		if ( ! isset( $format_by_mime[ $mime_type ] ) || $format_by_mime[ $mime_type ] !== $format ) {
+			return false;
+		}
+
+		if (
+			! is_int( $artifact['width'] )
+			|| ! is_int( $artifact['height'] )
+			|| $artifact['width'] < 1
+			|| $artifact['height'] < 1
+			|| $artifact['width'] > 8192
+			|| $artifact['height'] > 8192
+			|| $artifact['width'] * $artifact['height'] > 16777216
+			|| ! is_int( $artifact['filesize_bytes'] )
+			|| $artifact['filesize_bytes'] < 1
+			|| $artifact['filesize_bytes'] > 26214400
+			|| ! is_string( $artifact['sha256'] )
+			|| 1 !== preg_match( '/^[a-f0-9]{64}$/D', $artifact['sha256'] )
+		) {
+			return false;
+		}
+
+		$suggested_filename = is_string( $artifact['suggested_filename'] ) ? $artifact['suggested_filename'] : '';
+		if ( '' === $suggested_filename || strlen( $suggested_filename ) > 120 || sanitize_file_name( $suggested_filename ) !== $suggested_filename ) {
+			return false;
+		}
+
+		$filename_basis = is_array( $artifact['filename_basis'] ) ? $artifact['filename_basis'] : array();
+		$filename_basis_keys = array_keys( $filename_basis );
+		sort( $filename_basis_keys );
+		if (
+			array( 'final_sanitize_unique_required', 'owner', 'strategy' ) !== $filename_basis_keys
+			|| 'wordpress_write_ability_final' !== ( $filename_basis['owner'] ?? null )
+			|| 'format_checksum' !== ( $filename_basis['strategy'] ?? null )
+			|| true !== ( $filename_basis['final_sanitize_unique_required'] ?? null )
+		) {
+			return false;
+		}
+
+		$warnings = $artifact['processing_warnings'];
+		if ( ! is_array( $warnings ) || count( $warnings ) > 20 ) {
+			return false;
+		}
+		foreach ( $warnings as $warning ) {
+			if ( ! is_string( $warning ) || strlen( $warning ) > 200 || sanitize_text_field( $warning ) !== $warning ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Parses canonical UTC RFC3339 artifact expiry without date normalization.
+	 *
+	 * @param string $value Expiry.
+	 * @return int
+	 */
+	private function media_derivative_expiry_timestamp( string $value ): int {
+		$utc = new \DateTimeZone( 'UTC' );
+		$formats = array(
+			'!Y-m-d\TH:i:s\Z'   => 'Y-m-d\TH:i:s\Z',
+			'!Y-m-d\TH:i:sP'    => 'Y-m-d\TH:i:sP',
+			'!Y-m-d\TH:i:s.u\Z' => 'Y-m-d\TH:i:s.u\Z',
+			'!Y-m-d\TH:i:s.uP'  => 'Y-m-d\TH:i:s.uP',
+		);
+		foreach ( $formats as $parse_format => $roundtrip_format ) {
+			$parsed = \DateTimeImmutable::createFromFormat( $parse_format, $value, $utc );
+			$errors = \DateTimeImmutable::getLastErrors();
+			$has_errors = is_array( $errors ) && ( (int) ( $errors['warning_count'] ?? 0 ) > 0 || (int) ( $errors['error_count'] ?? 0 ) > 0 );
+			if (
+				$parsed instanceof \DateTimeImmutable
+				&& ! $has_errors
+				&& 0 === $parsed->getOffset()
+				&& $value === $parsed->format( $roundtrip_format )
+			) {
+				return $parsed->getTimestamp();
+			}
+		}
+
+		return 0;
 	}
 
 	/**

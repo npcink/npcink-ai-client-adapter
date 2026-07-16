@@ -314,8 +314,10 @@ such as `executed` without changing Core's approval truth. The same media
 readiness object is available through
 `GET /proposals/{proposal_id}/media-optimization-readiness`. The readiness
 checks are diagnostic only and do not download Cloud artifacts; they report
-local helper availability, artifact presence/expiry, Adapter execution-profile
-validation, and whether post-content reference scan evidence is present. For
+local helper availability, exact local11 artifact validity, canonical UTC
+expiry, Adapter execution-profile validation, and whether post-content
+reference scan evidence is present. Legacy artifact id aliases and permissive
+date normalization are rejected. For
 older proposal previews, Adapter derives actual replacement counts from
 `patch_preview[].applied` when the newer
 `actual_replacement_count`/`unmatched_rules` fields are absent.
