@@ -521,13 +521,20 @@ through `wpai_request_log_context`; it does not merge AI Request Logs with Core
 audit, and it does not forward those reserved fields as ability input.
 
 Core Governance Audit is the governance log. WordPress `ai` plugin AI Request
-Logs are the provider request log. Adapter carries `proposal_id`,
-`correlation_id`, `ability_id`, `adapter_request_id`, `adapter_route`,
-`ai_provider`, `ai_model`, `governance_source=npcink-governance-core`, and nested
+Logs are the provider request log. Client `log_context` may carry only
+`proposal_id`, `correlation_id`, `external_thread_id`, `openclaw_thread_id`,
+`adapter_request_id`, and `adapter_route`. Adapter derives `ability_id`,
+`governance_source=npcink-governance-core`, `via=npcink-ai-client-adapter`, and nested
 `npcink_governance_core` identifiers into AI Request Logs context. It does not put
 provider credentials, prompts, responses, token details, or AI Request Logs into
 Core.
 AI Request Logs are the provider request log.
+
+The same annotation allowlist applies to proposal and sensitive-read caller
+metadata. Client values cannot override Adapter's caller type, transport,
+ability id, governance source, or authenticated signed-client fingerprint.
+Log context is capped at 32 fields, two nested array levels, 200 bytes per
+string, and approximately 8 KiB serialized, with secret-bearing keys removed.
 
 Provider log correlation is verified only when a downstream AI client, Cloud
 runtime, or provider integration emits an AI Request Logs row under Adapter
@@ -576,8 +583,8 @@ trusted handoff, the key must include `proposals:read` for list/detail status.
 Do not put Core tokens in logs, proposal payloads, error responses, or docs
 examples.
 
-Adapter may also be configured with a Core app token through
-`NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` or the
-`npcink_openclaw_adapter_core_app_token` option. This is Adapter internal
+Adapter may also be configured with a Core app token only through the
+`NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` constant or environment variable. It
+is not read from a WordPress option. This is Adapter internal
 configuration only; do not put the raw token into OpenClaw prompts, proposal
 payloads, screenshots, or handoff examples.

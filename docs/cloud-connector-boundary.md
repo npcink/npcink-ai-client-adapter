@@ -118,8 +118,13 @@ support. Current Adapter-safe examples include:
 
 - `npcink_cloud_addon_runtime_client()`;
 - `npcink_cloud_addon_is_configured()`;
-- `npcink_cloud_addon_download_media_derivative_artifact()` for
-  proposal-specific readiness checks and approved local adoption only.
+- `npcink_cloud_addon_receive_media_derivative_artifact()` for
+  proposal-specific readiness checks and approved local adoption only. The
+  Addon seam must return the exact verified receive contract: artifact bytes,
+  bounded facts, transfer evidence, and the transfer-only delivery ACK.
+  Adapter readiness accepts only the exact local 11-field artifact descriptor
+  with canonical `artifact_id` and strict UTC RFC3339 expiry; legacy id aliases,
+  impossible dates, and non-UTC offsets fail closed.
 
 Adapter must not expose a parallel `/cloud/*` REST surface or duplicate Cloud
 Addon settings. If OpenClaw needs Cloud health, run status, results, stats,

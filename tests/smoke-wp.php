@@ -293,7 +293,7 @@ if ( ! function_exists( 'npcink_cloud_addon_build_media_derivative_optimization_
 				'filesize_bytes' => absint( $source_asset['filesize_bytes'] ?? 734003 ),
 			),
 			'derivative'    => array(
-				'mime_type'      => sanitize_text_field( (string) ( $derivative['mime_type'] ?? ( $artifact['mime_type'] ?? 'image/webp' ) ) ),
+				'mime_type'      => sanitize_text_field( (string) ( $derivative['mime_type'] ?? ( $artifact['mime_type'] ?? 'image/png' ) ) ),
 				'width'          => absint( $derivative['width'] ?? ( $artifact['width'] ?? 1600 ) ),
 				'height'         => absint( $derivative['height'] ?? ( $artifact['height'] ?? 900 ) ),
 				'filesize_bytes' => absint( $derivative['filesize_bytes'] ?? ( $artifact['filesize_bytes'] ?? 196608 ) ),
@@ -324,29 +324,100 @@ if ( ! function_exists( 'npcink_cloud_addon_build_media_derivative_optimization_
 	}
 }
 
-$GLOBALS['maa_adapter_smoke_cloud_artifact_downloads'] = array();
+$GLOBALS['maa_adapter_smoke_cloud_artifact_receives'] = array();
 
 /**
- * Provides local Cloud artifact bytes for final-write smoke tests.
+ * Returns real 1x1 PNG bytes for Cloud media receive smoke fixtures.
  *
- * @param mixed               $download Existing filtered download.
- * @param array<string,mixed> $artifact Artifact descriptor.
- * @return mixed
+ * @return string
  */
-function maa_adapter_smoke_cloud_artifact_download( $download, array $artifact ) {
-	if ( null !== $download ) {
-		return $download;
-	}
-
-	$artifact_id = sanitize_text_field( (string) ( $artifact['artifact_id'] ?? '' ) );
-	$downloads   = is_array( $GLOBALS['maa_adapter_smoke_cloud_artifact_downloads'] ?? null ) ? $GLOBALS['maa_adapter_smoke_cloud_artifact_downloads'] : array();
-	if ( '' === $artifact_id || ! isset( $downloads[ $artifact_id ] ) || ! is_array( $downloads[ $artifact_id ] ) ) {
-		return null;
-	}
-
-	return $downloads[ $artifact_id ];
+function maa_adapter_smoke_png_bytes(): string {
+	$contents = base64_decode( 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true );
+	return is_string( $contents ) ? $contents : '';
 }
-add_filter( 'npcink_abilities_toolkit_cloud_media_derivative_artifact_download', 'maa_adapter_smoke_cloud_artifact_download', 10, 2 );
+
+/**
+ * Builds a valid opaque Cloud artifact id for smoke fixtures.
+ *
+ * @param string $seed Fixture seed.
+ * @return string
+ */
+function maa_adapter_smoke_artifact_id( string $seed ): string {
+	return 'art_' . substr( hash( 'sha256', $seed ), 0, 32 );
+}
+
+if ( ! function_exists( 'npcink_cloud_addon_receive_media_derivative_artifact' ) ) {
+	/**
+	 * Provides an exact verified Cloud Addon receive payload for final-write smoke tests.
+	 *
+	 * @param array<string,mixed> $artifact Exact local proposal descriptor.
+	 * @param string              $trace_id Trace or replacement id.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	function npcink_cloud_addon_receive_media_derivative_artifact( array $artifact, string $trace_id = '' ) {
+		unset( $trace_id );
+		$descriptor_keys = array( 'artifact_id', 'expires_at', 'mime_type', 'format', 'width', 'height', 'filesize_bytes', 'sha256', 'suggested_filename', 'filename_basis', 'processing_warnings' );
+		if ( $descriptor_keys !== array_keys( $artifact ) ) {
+			return new WP_Error( 'maa_adapter_smoke_cloud_artifact_descriptor_invalid', 'Smoke Cloud artifact descriptor must contain exactly 11 fields.' );
+		}
+
+		$artifact_id = sanitize_text_field( (string) ( $artifact['artifact_id'] ?? '' ) );
+		$receives    = is_array( $GLOBALS['maa_adapter_smoke_cloud_artifact_receives'] ?? null ) ? $GLOBALS['maa_adapter_smoke_cloud_artifact_receives'] : array();
+		if ( '' === $artifact_id || ! isset( $receives[ $artifact_id ] ) || ! is_array( $receives[ $artifact_id ] ) ) {
+			return new WP_Error( 'maa_adapter_smoke_cloud_artifact_missing', 'Smoke Cloud artifact receive fixture is missing.' );
+		}
+
+		$contents          = (string) ( $receives[ $artifact_id ]['contents'] ?? '' );
+		$received_size     = strlen( $contents );
+		$received_sha256   = hash( 'sha256', $contents );
+		$received_checksum = 'sha256:' . $received_sha256;
+		$delivery_id       = 'mdl_' . substr( hash( 'sha256', $artifact_id . $contents ), 0, 32 );
+		$ack_deadline_at   = gmdate( 'c', time() + 540 );
+		$acknowledged_at   = gmdate( 'c', time() + 1 );
+		$artifact_expiry   = sanitize_text_field( (string) ( $artifact['expires_at'] ?? '' ) );
+
+		$transfer_evidence = array(
+			'contract_version'      => 'media_artifact_verified_transfer.v1',
+			'artifact_id'           => $artifact_id,
+			'delivery_id'           => $delivery_id,
+			'received_byte_size'    => $received_size,
+			'received_checksum'     => $received_checksum,
+			'byte_size_verified'    => true,
+			'checksum_verified'     => true,
+			'content_type_verified' => true,
+			'image_decoded'         => true,
+			'dimensions_verified'   => true,
+			'ack_deadline_at'       => $ack_deadline_at,
+		);
+		$delivery_ack = array(
+			'contract_version'      => 'media_artifact_delivery_ack.v1',
+			'delivery_id'           => $delivery_id,
+			'artifact_id'           => $artifact_id,
+			'status'                => 'acknowledged',
+			'received_byte_size'    => $received_size,
+			'received_checksum'     => $received_checksum,
+			'byte_size_verified'    => true,
+			'checksum_verified'     => true,
+			'acknowledged_at'       => $acknowledged_at,
+			'artifact_expires_at'   => $artifact_expiry,
+			'idempotent_replay'     => false,
+			'acknowledgement_scope' => 'verified_transfer_only',
+		);
+
+		return array(
+			'artifact_id'       => $artifact_id,
+			'contents'          => $contents,
+			'mime_type'         => 'image/png',
+			'width'             => 1,
+			'height'            => 1,
+			'filesize_bytes'    => $received_size,
+			'sha256'            => $received_sha256,
+			'expires_at'        => $artifact_expiry,
+			'transfer_evidence' => $transfer_evidence,
+			'delivery_ack'      => $delivery_ack,
+		);
+	}
+}
 
 /**
  * Captured Adapter observability events.
@@ -1218,13 +1289,8 @@ function maa_adapter_smoke_media_optimization_payload_params( int $attachment_id
 		: '';
 	$current_size  = '' !== $current_file && is_readable( $current_file ) ? filesize( $current_file ) : 0;
 
-	$GLOBALS['maa_adapter_smoke_cloud_artifact_downloads'][ $artifact_id ] = array(
-		'artifact_id'    => $artifact_id,
-		'contents'       => $artifact_contents,
-		'mime_type'      => 'image/webp',
-		'filesize_bytes' => strlen( $artifact_contents ),
-		'sha256'         => $sha256,
-		'expires_at'     => $expires_at,
+	$GLOBALS['maa_adapter_smoke_cloud_artifact_receives'][ $artifact_id ] = array(
+		'contents' => $artifact_contents,
 	);
 
 	$params = array(
@@ -1244,7 +1310,7 @@ function maa_adapter_smoke_media_optimization_payload_params( int $attachment_id
 						'filesize_bytes' => absint( $current_size ),
 					),
 					'requested_derivative' => array(
-						'format'           => 'webp',
+						'format'           => 'png',
 						'quality'          => 82,
 						'replace_original' => false,
 					),
@@ -1262,8 +1328,8 @@ function maa_adapter_smoke_media_optimization_payload_params( int $attachment_id
 			'run_id'     => 'adapter-smoke-derivative-run',
 			'derivative' => array(
 				'artifact_id'    => $artifact_id,
-				'mime_type'      => 'image/webp',
-				'format'         => 'webp',
+				'mime_type'      => 'image/png',
+				'format'         => 'png',
 				'width'          => 1,
 				'height'         => 1,
 				'filesize_bytes' => strlen( $artifact_contents ),
@@ -1272,19 +1338,26 @@ function maa_adapter_smoke_media_optimization_payload_params( int $attachment_id
 			),
 		),
 		'derivative_artifact' => array(
-			'attachment_id'   => $attachment_id,
-			'artifact_id'     => $artifact_id,
-			'run_id'          => 'adapter-smoke-derivative-run',
-			'mime_type'       => 'image/webp',
-			'format'          => 'webp',
-			'width'           => 1,
-			'height'          => 1,
-			'filesize_bytes'  => strlen( $artifact_contents ),
-			'expires_at'      => $expires_at,
-			'download_url'    => 'https://example.test/' . rawurlencode( $artifact_id ) . '.webp',
-			'sha256'          => $sha256,
-			'checksum'        => 'sha256:' . $sha256,
+			'artifact_id'         => $artifact_id,
+			'expires_at'          => $expires_at,
+			'mime_type'           => 'image/png',
+			'format'              => 'png',
+			'width'               => 1,
+			'height'              => 1,
+			'filesize_bytes'      => strlen( $artifact_contents ),
+			'sha256'              => $sha256,
+			'suggested_filename'  => 'adapter-cloud-' . substr( $sha256, 0, 12 ) . '.png',
+			'filename_basis'      => array(
+				'owner'                          => 'wordpress_write_ability_final',
+				'strategy'                       => 'format_checksum',
+				'final_sanitize_unique_required' => true,
+			),
+			'processing_warnings' => array(),
 		),
+	);
+	maa_adapter_smoke_assert(
+		array( 'artifact_id', 'expires_at', 'mime_type', 'format', 'width', 'height', 'filesize_bytes', 'sha256', 'suggested_filename', 'filename_basis', 'processing_warnings' ) === array_keys( $params['derivative_artifact'] ),
+		'adapter fake optimization payload carries exact 11-field derivative artifact'
 	);
 
 	if ( $with_media_details ) {
@@ -1315,7 +1388,7 @@ function maa_adapter_smoke_media_optimization_payload_params( int $attachment_id
 						array(
 							'op'      => 'replace',
 							'find'    => 'https://example.test/wp-content/uploads/2026/06/original.jpg',
-							'replace' => 'https://example.test/wp-content/uploads/2026/06/optimized.webp',
+							'replace' => 'https://example.test/wp-content/uploads/2026/06/optimized.png',
 							'limit'   => 1,
 						),
 					),
@@ -2855,12 +2928,13 @@ $media_optimization_original_relative = (string) get_post_meta( $media_optimizat
 $media_optimization_original_uploads  = wp_upload_dir();
 $media_optimization_original_path     = is_array( $media_optimization_original_uploads ) ? trailingslashit( (string) ( $media_optimization_original_uploads['basedir'] ?? '' ) ) . ltrim( $media_optimization_original_relative, '/' ) : '';
 $media_optimization_original_contents = '' !== $media_optimization_original_path && is_readable( $media_optimization_original_path ) ? (string) file_get_contents( $media_optimization_original_path ) : '';
-$media_optimization_artifact_id = 'adapter-smoke-webp-artifact-' . substr( wp_generate_uuid4(), 0, 8 );
-$media_optimization_artifact_contents = 'adapter-smoke-webp-derivative-bytes';
+$media_optimization_artifact_id = maa_adapter_smoke_artifact_id( 'adapter-smoke-png-' . wp_generate_uuid4() );
+$media_optimization_artifact_contents = maa_adapter_smoke_png_bytes();
+maa_adapter_smoke_assert( false !== getimagesizefromstring( $media_optimization_artifact_contents ), 'adapter media optimization fixture contains real PNG bytes' );
 $media_optimization_removed_payload_route = maa_adapter_smoke_rest_result(
 	'POST',
 	'/npcink-openclaw-adapter/v1/media-derivative-proposal-payload',
-	maa_adapter_smoke_media_optimization_payload_params( $media_optimization_attachment_id, $media_optimization_artifact_id . '-missing-details', $media_optimization_artifact_contents, false )
+	maa_adapter_smoke_media_optimization_payload_params( $media_optimization_attachment_id, maa_adapter_smoke_artifact_id( $media_optimization_artifact_id . '-missing-details' ), $media_optimization_artifact_contents, false )
 );
 $media_optimization_removed_payload_data = is_array( $media_optimization_removed_payload_route['data'] ) ? $media_optimization_removed_payload_route['data'] : array();
 maa_adapter_smoke_assert( 404 === (int) $media_optimization_removed_payload_route['status'], 'adapter media derivative proposal payload route is removed' );
@@ -2890,7 +2964,7 @@ maa_adapter_smoke_assert( 'npcink-abilities-toolkit/adopt-cloud-media-derivative
 $media_optimization_repairs_payload = maa_adapter_smoke_rest(
 	'POST',
 	'/npcink-openclaw-adapter/v1/media-derivative-proposal-payload',
-	maa_adapter_smoke_media_optimization_payload_params( $media_optimization_attachment_id, $media_optimization_artifact_id . '-repairs', $media_optimization_artifact_contents, true, true )
+	maa_adapter_smoke_media_optimization_payload_params( $media_optimization_attachment_id, maa_adapter_smoke_artifact_id( $media_optimization_artifact_id . '-repairs' ), $media_optimization_artifact_contents, true, true )
 );
 $media_optimization_repairs_from_plan = is_array( $media_optimization_repairs_payload['from_plan_request'] ?? null ) ? $media_optimization_repairs_payload['from_plan_request'] : array();
 $media_optimization_repairs_plan = is_array( $media_optimization_repairs_from_plan['plan'] ?? null ) ? $media_optimization_repairs_from_plan['plan'] : array();
@@ -2980,12 +3054,12 @@ if ( 404 === (int) $media_optimization_bridge_result['status'] && 'npcink_govern
 	maa_adapter_smoke_assert( 'Adapter media optimization smoke' === (string) get_the_title( $media_optimization_attachment_id ), 'adapter media optimization batch updates media title' );
 	maa_adapter_smoke_assert( 'Adapter media optimization smoke image' === (string) get_post_meta( $media_optimization_attachment_id, '_wp_attachment_image_alt', true ), 'adapter media optimization batch updates media alt text' );
 	maa_adapter_smoke_assert( 'ai_generated' === (string) get_post_meta( $media_optimization_attachment_id, '_npcink_ai_media_source_type', true ), 'adapter media optimization batch updates media source type' );
-	maa_adapter_smoke_assert( 'image/webp' === (string) get_post_mime_type( $media_optimization_attachment_id ), 'adapter media optimization batch adopts WebP mime type' );
+	maa_adapter_smoke_assert( 'image/png' === (string) get_post_mime_type( $media_optimization_attachment_id ), 'adapter media optimization batch adopts PNG mime type' );
 	$media_optimization_after_relative = (string) get_post_meta( $media_optimization_attachment_id, '_wp_attached_file', true );
 	$media_optimization_after_uploads  = wp_upload_dir();
 	$media_optimization_after_path     = is_array( $media_optimization_after_uploads ) ? trailingslashit( (string) ( $media_optimization_after_uploads['basedir'] ?? '' ) ) . ltrim( $media_optimization_after_relative, '/' ) : '';
-	maa_adapter_smoke_assert( false !== strpos( $media_optimization_after_relative, '.webp' ), 'adapter media optimization batch points attachment at WebP file' );
-	maa_adapter_smoke_assert( '' !== $media_optimization_after_path && is_readable( $media_optimization_after_path ), 'adapter media optimization batch writes adopted WebP file' );
+	maa_adapter_smoke_assert( false !== strpos( $media_optimization_after_relative, '.png' ), 'adapter media optimization batch points attachment at PNG file' );
+	maa_adapter_smoke_assert( '' !== $media_optimization_after_path && is_readable( $media_optimization_after_path ), 'adapter media optimization batch writes adopted PNG file' );
 	maa_adapter_smoke_assert( $media_optimization_artifact_contents === (string) file_get_contents( $media_optimization_after_path ), 'adapter media optimization batch writes expected Cloud artifact bytes' );
 	$media_optimization_executed_detail = maa_adapter_smoke_rest( 'GET', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $media_optimization_proposal_id ) );
 	maa_adapter_smoke_assert( 'executed' === (string) ( $media_optimization_executed_detail['status'] ?? '' ), 'adapter media optimization detail records Core executed status' );
@@ -3012,7 +3086,7 @@ if ( 404 === (int) $media_optimization_bridge_result['status'] && 'npcink_govern
 				'attachment_id'                  => $media_optimization_attachment_id,
 				'backup_id'                      => $media_optimization_replacement_id,
 				'expected_current_relative_file' => $media_optimization_after_relative,
-				'expected_current_mime_type'     => 'image/webp',
+				'expected_current_mime_type'     => 'image/png',
 				'target_conflict_mode'           => 'overwrite',
 				'dry_run'                        => true,
 				'commit'                         => false,
@@ -3075,8 +3149,8 @@ $multi_media_optimization_plan = array(
 );
 $multi_media_optimization_expected_artifacts = array();
 foreach ( $multi_media_optimization_attachment_ids as $multi_media_optimization_index => $multi_media_optimization_attachment_id ) {
-	$multi_media_optimization_artifact_contents = 'adapter-smoke-multi-webp-derivative-bytes-' . ( $multi_media_optimization_index + 1 );
-	$multi_media_optimization_artifact_id       = 'adapter-smoke-multi-webp-artifact-' . ( $multi_media_optimization_index + 1 ) . '-' . substr( wp_generate_uuid4(), 0, 8 );
+	$multi_media_optimization_artifact_contents = maa_adapter_smoke_png_bytes();
+	$multi_media_optimization_artifact_id       = maa_adapter_smoke_artifact_id( 'adapter-smoke-multi-png-' . ( $multi_media_optimization_index + 1 ) . '-' . wp_generate_uuid4() );
 	$multi_media_optimization_payload = maa_adapter_smoke_rest(
 		'POST',
 		'/npcink-openclaw-adapter/v1/media-derivative-proposal-payload',
@@ -3151,8 +3225,8 @@ foreach ( $multi_media_optimization_expected_artifacts as $multi_media_optimizat
 	$multi_media_optimization_after_relative = (string) get_post_meta( (int) $multi_media_optimization_attachment_id, '_wp_attached_file', true );
 	$multi_media_optimization_after_uploads  = wp_upload_dir();
 	$multi_media_optimization_after_path     = is_array( $multi_media_optimization_after_uploads ) ? trailingslashit( (string) ( $multi_media_optimization_after_uploads['basedir'] ?? '' ) ) . ltrim( $multi_media_optimization_after_relative, '/' ) : '';
-	maa_adapter_smoke_assert( 'image/webp' === (string) get_post_mime_type( (int) $multi_media_optimization_attachment_id ), 'adapter multi media optimization adopts WebP mime type for each attachment' );
-	maa_adapter_smoke_assert( '' !== $multi_media_optimization_after_path && is_readable( $multi_media_optimization_after_path ), 'adapter multi media optimization writes each adopted WebP file' );
+	maa_adapter_smoke_assert( 'image/png' === (string) get_post_mime_type( (int) $multi_media_optimization_attachment_id ), 'adapter multi media optimization adopts PNG mime type for each attachment' );
+	maa_adapter_smoke_assert( '' !== $multi_media_optimization_after_path && is_readable( $multi_media_optimization_after_path ), 'adapter multi media optimization writes each adopted PNG file' );
 	maa_adapter_smoke_assert( $multi_media_optimization_artifact_contents === (string) file_get_contents( $multi_media_optimization_after_path ), 'adapter multi media optimization writes expected artifact bytes for each attachment' );
 }
 
@@ -3164,15 +3238,14 @@ $checksum_mismatch_payload = maa_adapter_smoke_rest(
 	'/npcink-openclaw-adapter/v1/media-derivative-proposal-payload',
 	maa_adapter_smoke_media_optimization_payload_params(
 		$checksum_mismatch_attachment_id,
-		'adapter-smoke-checksum-mismatch-' . substr( wp_generate_uuid4(), 0, 8 ),
-		'adapter-smoke-checksum-mismatch-actual-bytes',
+		maa_adapter_smoke_artifact_id( 'adapter-smoke-checksum-mismatch-' . wp_generate_uuid4() ),
+		maa_adapter_smoke_png_bytes(),
 		true
 	)
 );
 $checksum_mismatch_from_plan = is_array( $checksum_mismatch_payload['from_plan_request'] ?? null ) ? $checksum_mismatch_payload['from_plan_request'] : array();
 $checksum_mismatch_plan = is_array( $checksum_mismatch_from_plan['plan'] ?? null ) ? $checksum_mismatch_from_plan['plan'] : array();
 $checksum_mismatch_plan['write_actions'][1]['input']['derivative_artifact']['sha256'] = str_repeat( '0', 64 );
-$checksum_mismatch_plan['write_actions'][1]['input']['derivative_artifact']['checksum'] = 'sha256:' . str_repeat( '0', 64 );
 $checksum_mismatch_bridge = maa_adapter_smoke_rest(
 	'POST',
 	'/npcink-openclaw-adapter/v1/proposals/from-plan',
@@ -3324,9 +3397,13 @@ $sensitive_read_request    = maa_adapter_smoke_rest(
 		'redaction_level'         => 'strict',
 		'purpose'                 => 'Adapter smoke verifies Core sensitive read grant; authorization header: SHOULD_NOT_LEAK',
 		'caller'                  => array(
-			'via'       => 'npcink-openclaw-adapter',
-			'token'     => 'SHOULD_NOT_LEAK',
-			'ability_id' => $sensitive_read_ability_id,
+			'external_thread_id'        => 'adapter-sensitive-read-smoke',
+			'caller_type'               => 'forged-caller-type',
+			'via'                       => 'forged-via',
+			'token'                     => 'SHOULD_NOT_LEAK',
+			'ability_id'                => 'forged/ability',
+			'governance_source'         => 'forged-governance',
+			'signed_client_fingerprint' => 'sha256:' . str_repeat( 'b', 64 ),
 		),
 		'bounds'                  => array(
 			'max_rows'      => 10,
@@ -3340,6 +3417,11 @@ $maa_adapter_smoke_cleanup_read_request_ids[] = $sensitive_read_request_id;
 maa_adapter_smoke_assert( '' !== $sensitive_read_request_id, 'adapter creates Core sensitive read request' );
 maa_adapter_smoke_assert( 'pending' === (string) ( $sensitive_read_request['status'] ?? '' ), 'adapter sensitive read request starts pending' );
 maa_adapter_smoke_assert( false === strpos( (string) wp_json_encode( $sensitive_read_request ), 'SHOULD_NOT_LEAK' ), 'adapter sensitive read request response does not leak secret sentinel' );
+maa_adapter_smoke_assert( 'openclaw_adapter' === (string) ( $sensitive_read_request['caller']['caller_type'] ?? '' ), 'adapter sensitive read caller type cannot be forged' );
+maa_adapter_smoke_assert( 'npcink-ai-client-adapter' === (string) ( $sensitive_read_request['caller']['via'] ?? '' ), 'adapter sensitive read caller transport cannot be forged' );
+maa_adapter_smoke_assert( $sensitive_read_ability_id === (string) ( $sensitive_read_request['caller']['ability_id'] ?? '' ), 'adapter sensitive read caller ability cannot be forged' );
+maa_adapter_smoke_assert( 'npcink-governance-core' === (string) ( $sensitive_read_request['caller']['governance_source'] ?? '' ), 'adapter sensitive read caller governance source cannot be forged' );
+maa_adapter_smoke_assert( ! isset( $sensitive_read_request['caller']['signed_client_fingerprint'] ), 'unsigned WordPress REST caller cannot forge a signed client fingerprint' );
 
 $sensitive_read_list = maa_adapter_smoke_rest( 'GET', '/npcink-openclaw-adapter/v1/read-requests', array( 'status' => 'pending', 'limit' => 10 ) );
 $sensitive_read_listed = false;
@@ -3444,6 +3526,15 @@ $site_info = maa_adapter_smoke_rest(
 		'input'           => array(),
 		'proposal_id'     => 'proposal-log-context-smoke',
 		'correlation_id'  => 'correlation-log-context-smoke',
+		'log_context'     => array(
+			'external_thread_id'        => str_repeat( 'x', 500 ),
+			'governance_source'         => 'forged-governance',
+			'via'                      => 'forged-via',
+			'ability_id'               => 'forged/ability',
+			'signed_client_fingerprint' => 'sha256:' . str_repeat( 'c', 64 ),
+			'authorization'            => 'SHOULD_NOT_LEAK',
+			'ai_provider'              => 'forged-provider',
+		),
 	)
 );
 maa_adapter_smoke_assert( 'npcink-abilities-toolkit/site-info' === (string) ( $site_info['ability_id'] ?? '' ), 'adapter runs site-info through generic read ability route' );
@@ -3453,6 +3544,11 @@ maa_adapter_smoke_assert( 'proposal-log-context-smoke' === (string) ( $site_info
 maa_adapter_smoke_assert( 'correlation-log-context-smoke' === (string) ( $site_info['log_context']['correlation_id'] ?? '' ), 'adapter read log context carries correlation id' );
 maa_adapter_smoke_assert( '/npcink-openclaw-adapter/v1/run-read-ability' === (string) ( $site_info['log_context']['adapter_route'] ?? '' ), 'adapter read log context carries adapter_route' );
 maa_adapter_smoke_assert( 'npcink-governance-core' === (string) ( $site_info['log_context']['governance_source'] ?? '' ), 'adapter read log context carries governance_source' );
+maa_adapter_smoke_assert( 'npcink-ai-client-adapter' === (string) ( $site_info['log_context']['via'] ?? '' ), 'adapter read log context carries trusted transport provenance' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/site-info' === (string) ( $site_info['log_context']['ability_id'] ?? '' ), 'adapter read log context carries trusted ability id' );
+maa_adapter_smoke_assert( 200 === strlen( (string) ( $site_info['log_context']['external_thread_id'] ?? '' ) ), 'adapter read log context caps client strings' );
+maa_adapter_smoke_assert( ! isset( $site_info['log_context']['authorization'] ) && ! isset( $site_info['log_context']['ai_provider'] ) && ! isset( $site_info['log_context']['signed_client_fingerprint'] ), 'adapter read log context drops secret and non-allowlisted client fields' );
+maa_adapter_smoke_assert( false === strpos( (string) wp_json_encode( $site_info['log_context'] ), 'SHOULD_NOT_LEAK' ), 'adapter read log context excludes secret sentinel' );
 
 $media = maa_adapter_smoke_rest(
 	'POST',
@@ -5216,7 +5312,12 @@ $proposal = maa_adapter_smoke_rest(
 			'mode' => 'adapter_status_smoke',
 		),
 		'caller'     => array(
-			'external_thread_id' => 'adapter-status-smoke',
+			'external_thread_id'        => 'adapter-status-smoke',
+			'caller_type'               => 'forged-caller-type',
+			'via'                       => 'forged-via',
+			'ability_id'                => 'forged/ability',
+			'governance_source'         => 'forged-governance',
+			'signed_client_fingerprint' => 'sha256:' . str_repeat( 'd', 64 ),
 		),
 	)
 );
@@ -5225,6 +5326,9 @@ maa_adapter_smoke_assert( '' !== $proposal_id, 'adapter creates Core proposal fo
 maa_adapter_smoke_assert( 'pending' === (string) ( $proposal['status'] ?? '' ), 'adapter created proposal starts pending' );
 maa_adapter_smoke_assert( 'openclaw_adapter' === (string) ( $proposal['caller']['caller_type'] ?? '' ), 'adapter proposal caller marks OpenClaw adapter' );
 maa_adapter_smoke_assert( 'npcink-ai-client-adapter' === (string) ( $proposal['caller']['via'] ?? '' ), 'adapter proposal caller preserves adapter source' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/create-draft' === (string) ( $proposal['caller']['ability_id'] ?? '' ), 'adapter proposal caller ability cannot be forged' );
+maa_adapter_smoke_assert( 'npcink-governance-core' === (string) ( $proposal['caller']['governance_source'] ?? '' ), 'adapter proposal caller governance source cannot be forged' );
+maa_adapter_smoke_assert( ! isset( $proposal['caller']['signed_client_fingerprint'] ), 'unsigned WordPress REST proposal caller cannot forge a signed client fingerprint' );
 
 $proposal_list = maa_adapter_smoke_rest(
 	'GET',
@@ -5317,11 +5421,12 @@ maa_adapter_smoke_assert( in_array( 'commit:preflight', (array) ( $adapter_core_
 maa_adapter_smoke_assert( ! in_array( 'proposals:approve', (array) ( $adapter_core_app['scopes'] ?? array() ), true ), 'adapter Core app token does not include approval scope' );
 maa_adapter_smoke_assert( ! in_array( 'audit:read', (array) ( $adapter_core_app['scopes'] ?? array() ), true ), 'adapter Core app token does not include audit read scope' );
 
-$previous_adapter_core_app_token = get_option( 'npcink_openclaw_adapter_core_app_token', null );
-update_option( 'npcink_openclaw_adapter_core_app_token', $adapter_core_app_token, false );
+$previous_adapter_core_app_token = getenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
+putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN=' . $adapter_core_app_token );
 
 $app_token_health = maa_adapter_smoke_rest( 'GET', '/npcink-openclaw-adapter/v1/health' );
 maa_adapter_smoke_assert( true === (bool) ( $app_token_health['core_app_token_configured'] ?? false ), 'adapter health reports Core app token configured' );
+maa_adapter_smoke_assert( 'environment' === (string) ( $app_token_health['core_app_token_source'] ?? '' ), 'adapter health reports environment-only Core app token source' );
 maa_adapter_smoke_assert_payload_excludes_string( $app_token_health, $adapter_core_app_token, 'adapter health with Core app token' );
 $app_token_help = maa_adapter_smoke_rest( 'GET', '/npcink-openclaw-adapter/v1/help' );
 maa_adapter_smoke_assert( true === (bool) ( $app_token_help['core_app_token_configured'] ?? false ), 'adapter help reports Core app token configured' );
@@ -5406,10 +5511,10 @@ foreach ( (array) ( $app_token_audit['items'] ?? array() ) as $audit_item ) {
 maa_adapter_smoke_assert( $found_app_token_create_audit, 'Core audit stores Adapter app attribution for proposal creation' );
 maa_adapter_smoke_assert( $found_app_token_preflight_audit, 'Core audit stores Adapter app attribution for commit preflight' );
 
-if ( null === $previous_adapter_core_app_token ) {
-	delete_option( 'npcink_openclaw_adapter_core_app_token' );
+if ( false === $previous_adapter_core_app_token ) {
+	putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
 } else {
-	update_option( 'npcink_openclaw_adapter_core_app_token', $previous_adapter_core_app_token, false );
+	putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN=' . $previous_adapter_core_app_token );
 }
 
 $provider_smoke = maa_adapter_smoke_rest_result(

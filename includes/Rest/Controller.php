@@ -29,6 +29,8 @@ final class Controller {
 	const PREFLIGHT_HANDOFFS_OPTION = 'npcink_openclaw_adapter_preflight_handoffs';
 	const DEVICE_PAIRING_TTL       = 600;
 	const SIGNATURE_NONCE_TTL      = 300;
+	const SIGNATURE_NONCE_OPTION_PREFIX = 'npcink_openclaw_adapter_sig_nonce_';
+	const SIGNATURE_NONCE_CLEANUP_BATCH = 100;
 	const DEVICE_PAIRING_RATE_LIMIT_TTL = 60;
 	const DEVICE_PAIRING_POLL_RATE_LIMIT_TTL = 60;
 	const MAX_DEVICE_PAIRINGS          = 100;
@@ -45,12 +47,12 @@ final class Controller {
 	const MAX_UPSTREAM_ERROR_DETAIL_BYTES = 8192;
 	const CLIENT_KEY_LAST_USED_WRITE_TTL = 60;
 	const MAX_REST_BODY_BYTES         = 1048576;
-	const MAX_ACTION_INPUT_BYTES      = 1048576;
-	const MAX_BLOCK_ITEMS             = 300;
-	const MAX_OPERATION_ITEMS         = 300;
-	const MAX_TERM_ITEMS              = 100;
 	const MAX_PROPOSAL_LIST_LIMIT     = 100;
 	const MAX_LIGHT_POST_BODY_BYTES   = 4096;
+	const MAX_LOG_CONTEXT_FIELDS      = 32;
+	const MAX_LOG_CONTEXT_DEPTH       = 2;
+	const MAX_LOG_CONTEXT_STRING_BYTES = 200;
+	const MAX_LOG_CONTEXT_SERIALIZED_BYTES = 8192;
 	const ADAPTER_CONTRACT_VERSION    = '4';
 	const CLIENT_POLICY_VERSION       = '1';
 	const EXECUTION_PROFILE_REGISTRY_VERSION = '2';
@@ -87,6 +89,36 @@ final class Controller {
 	 * @var array<string,mixed>|null
 	 */
 	private $core_capabilities_cache = null;
+
+	/**
+	 * Adapter-owned execution input validator.
+	 *
+	 * @var Execution_Input_Validator
+	 */
+	private $execution_input_validator;
+
+	/**
+	 * Adapter-owned normalized execution runner.
+	 *
+	 * @var Execution_Action_Runner
+	 */
+	private $execution_action_runner;
+
+	/**
+	 * Creates the REST controller with the canonical execution profile rules.
+	 */
+	public function __construct() {
+		$this->execution_input_validator = new Execution_Input_Validator( self::execution_profiles() );
+		$this->execution_action_runner   = new Execution_Action_Runner(
+			self::execution_profiles(),
+			function ( array $context, string $method, string $route, array $params, bool $query_params, bool $json_body ) {
+				return $this->dispatch_upstream_with_runtime_context( $context, $method, $route, $params, $query_params, $json_body );
+			},
+			function ( string $ability_id, array $ability_input, array $ability_result, array $base_request_context ): array {
+				return $this->block_write_readback_verification( $ability_id, $ability_input, $ability_result, $base_request_context );
+			}
+		);
+	}
 
 	/**
 	 * Returns Adapter-owned execution profiles for abilities that may run after
@@ -1938,11 +1970,6 @@ final class Controller {
 			return false;
 		}
 
-		$nonce_key = 'npcink_openclaw_adapter_sig_nonce_' . md5( $key_id . '|' . $nonce );
-		if ( get_transient( $nonce_key ) ) {
-			return false;
-		}
-
 		$public_key = $this->base64url_decode( (string) ( $record['public_key'] ?? '' ) );
 		$signature_bytes = $this->base64url_decode( $signature );
 		$canonical = $this->signed_request_canonical_string( $request, $timestamp, $nonce, $content_sha256 );
@@ -1950,7 +1977,9 @@ final class Controller {
 			return false;
 		}
 
-		set_transient( $nonce_key, 1, self::SIGNATURE_NONCE_TTL );
+		if ( ! $this->claim_signature_nonce( $key_id, $nonce ) ) {
+			return false;
+		}
 		if ( $this->should_update_client_key_last_used( (string) ( $record['last_used_at'] ?? '' ) ) ) {
 			$record['last_used_at'] = gmdate( 'c' );
 			$keys[ $key_id ]        = $record;
@@ -1960,6 +1989,149 @@ final class Controller {
 		$this->current_signed_client_fingerprint = $this->sanitize_signed_client_fingerprint( (string) ( $record['fingerprint'] ?? '' ) );
 
 		return true;
+	}
+
+	/**
+	 * Atomically claims one verified signature nonce.
+	 *
+	 * The option name is unique in wp_options, so concurrent requests using the
+	 * same nonce cannot both succeed. Expired records are reclaimed with a
+	 * compare-and-delete query so an old cleanup cannot remove a newer claim.
+	 *
+	 * @param string $key_id Registered client key id.
+	 * @param string $nonce Signed request nonce.
+	 * @return bool
+	 */
+	private function claim_signature_nonce( string $key_id, string $nonce ): bool {
+		$nonce_key = self::SIGNATURE_NONCE_OPTION_PREFIX . hash( 'sha256', $key_id . '|' . $nonce );
+		$expires_at = time() + self::SIGNATURE_NONCE_TTL;
+
+		if ( $this->insert_signature_nonce_option( $nonce_key, $expires_at ) ) {
+			$this->maybe_cleanup_expired_signature_nonces();
+			return true;
+		}
+
+		$stored_expiry = $this->signature_nonce_option_expiry( $nonce_key );
+		if ( null === $stored_expiry || $stored_expiry >= time() ) {
+			return false;
+		}
+
+		if ( ! $this->delete_expired_signature_nonce_option( $nonce_key, $stored_expiry ) ) {
+			return false;
+		}
+
+		if ( ! $this->insert_signature_nonce_option( $nonce_key, $expires_at ) ) {
+			return false;
+		}
+
+		$this->maybe_cleanup_expired_signature_nonces();
+		return true;
+	}
+
+	/**
+	 * Inserts one nonce claim without WordPress' duplicate-update option path.
+	 *
+	 * WordPress 7 add_option() uses ON DUPLICATE KEY UPDATE, so it cannot be the
+	 * strict insert-only primitive required for replay protection.
+	 *
+	 * @param string $option_name Nonce option name.
+	 * @param int    $expires_at Expiry epoch.
+	 * @return bool
+	 */
+	private function insert_signature_nonce_option( string $option_name, int $expires_at ): bool {
+		global $wpdb;
+
+		$inserted = $wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, %s)",
+				$option_name,
+				maybe_serialize( $expires_at ),
+				'off'
+			)
+		);
+
+		if ( 1 !== (int) $inserted ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Reads one nonce expiry without entering the shared options cache.
+	 *
+	 * @param string $option_name Nonce option name.
+	 * @return int|null
+	 */
+	private function signature_nonce_option_expiry( string $option_name ): ?int {
+		global $wpdb;
+
+		$value = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+				$option_name
+			)
+		);
+
+		return is_numeric( $value ) ? (int) $value : null;
+	}
+
+	/**
+	 * Deletes one expired nonce only if its stored value is unchanged.
+	 *
+	 * @param string    $option_name Option name.
+	 * @param int|float|string $stored_expiry Expected stored expiry.
+	 * @return bool
+	 */
+	private function delete_expired_signature_nonce_option( string $option_name, $stored_expiry ): bool {
+		global $wpdb;
+
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
+				$option_name,
+				maybe_serialize( $stored_expiry )
+			)
+		);
+
+		if ( 1 !== (int) $deleted ) {
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Performs server-randomized, low-frequency, bounded nonce cleanup.
+	 *
+	 * @return void
+	 */
+	private function maybe_cleanup_expired_signature_nonces(): void {
+		if ( 1 !== wp_rand( 1, 64 ) ) {
+			return;
+		}
+
+		global $wpdb;
+		$like = $wpdb->esc_like( self::SIGNATURE_NONCE_OPTION_PREFIX ) . '%';
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s AND CAST(option_value AS UNSIGNED) < %d ORDER BY option_id ASC LIMIT %d",
+				$like,
+				time(),
+				self::SIGNATURE_NONCE_CLEANUP_BATCH
+			),
+			ARRAY_A
+		);
+
+		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
+			$option_name = is_array( $row ) ? (string) ( $row['option_name'] ?? '' ) : '';
+			$option_value = is_array( $row ) ? (string) ( $row['option_value'] ?? '' ) : '';
+			if ( '' === $option_name || 0 !== strpos( $option_name, self::SIGNATURE_NONCE_OPTION_PREFIX ) || ! is_numeric( $option_value ) || (int) $option_value >= time() ) {
+				continue;
+			}
+
+			$this->delete_expired_signature_nonce_option( $option_name, $option_value );
+		}
 	}
 
 	/**
@@ -2575,13 +2747,7 @@ final class Controller {
 			'purpose'                  => sanitize_textarea_field( (string) $request->get_param( 'purpose' ) ),
 			'redaction_level'          => sanitize_key( (string) $request->get_param( 'redaction_level' ) ),
 			'bounds'                   => $this->object_param( $request, 'bounds' ),
-			'caller'                   => array_merge(
-				$this->object_param( $request, 'caller' ),
-				array(
-					'via'        => 'npcink-ai-client-adapter',
-					'ability_id' => $ability_id,
-				)
-			),
+			'caller'                   => $this->proposal_caller_context( $request, $ability_id ),
 		);
 
 		return $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/read-requests', $payload, false, true );
@@ -2839,23 +3005,29 @@ final class Controller {
 			return null;
 		}
 
-		$artifact       = $this->media_optimization_derivative_artifact( $proposal );
-		$repairs        = $this->normalize_media_optimization_reference_repairs( $this->media_optimization_reference_repairs( $proposal ) );
-		$valid_actions  = $this->validate_plan_write_action_inputs( is_array( $proposal['input'] ?? null ) ? $proposal['input'] : array() );
-		$artifact_check = $this->media_optimization_artifact_expiry_check( $artifact );
-		$checks         = array(
-			'cloud_artifact_download_available' => array(
-				'ready'  => function_exists( 'npcink_cloud_addon_download_media_derivative_artifact' ),
-				'status' => function_exists( 'npcink_cloud_addon_download_media_derivative_artifact' ) ? 'available' : 'missing',
+		$artifact                = $this->media_optimization_derivative_artifact( $proposal );
+		$repairs                 = $this->normalize_media_optimization_reference_repairs( $this->media_optimization_reference_repairs( $proposal ) );
+		$valid_actions           = $this->validate_plan_write_action_inputs( is_array( $proposal['input'] ?? null ) ? $proposal['input'] : array() );
+		$artifact_check          = $this->media_optimization_artifact_expiry_check( $artifact );
+		$artifact_contract_valid = $this->media_derivative_artifact_contract_is_valid( $artifact );
+		$artifact_id             = is_string( $artifact['artifact_id'] ?? null ) ? $artifact['artifact_id'] : '';
+		$checks                  = array(
+			'cloud_artifact_receive_available' => array(
+				'ready'  => function_exists( 'npcink_cloud_addon_receive_media_derivative_artifact' ),
+				'status' => function_exists( 'npcink_cloud_addon_receive_media_derivative_artifact' ) ? 'available' : 'missing',
 			),
 			'cloud_addon_configured'            => array(
 				'ready'  => ! function_exists( 'npcink_cloud_addon_is_configured' ) || (bool) npcink_cloud_addon_is_configured(),
 				'status' => function_exists( 'npcink_cloud_addon_is_configured' ) ? ( (bool) npcink_cloud_addon_is_configured() ? 'configured' : 'not_configured' ) : 'unknown',
 			),
 			'artifact_present'                  => array(
-				'ready'       => ! empty( $artifact ),
-				'status'      => empty( $artifact ) ? 'missing' : 'present',
-				'artifact_id' => sanitize_text_field( (string) ( $artifact['artifact_id'] ?? ( $artifact['id'] ?? '' ) ) ),
+				'ready'       => 1 === preg_match( '/^art_[0-9a-f]{32}$/D', $artifact_id ),
+				'status'      => 1 === preg_match( '/^art_[0-9a-f]{32}$/D', $artifact_id ) ? 'present' : 'missing',
+				'artifact_id' => $artifact_id,
+			),
+			'artifact_contract_valid'           => array(
+				'ready'  => $artifact_contract_valid,
+				'status' => $artifact_contract_valid ? 'valid' : 'invalid',
 			),
 			'artifact_not_expired'              => $artifact_check,
 			'adapter_validator_aligned'         => array(
@@ -2890,8 +3062,8 @@ final class Controller {
 			'status'             => $ready ? 'ready' : 'blocked',
 			'first_failed_check' => $first_failed_check,
 			'checks'             => $checks,
-			'artifact'           => empty( $artifact ) ? null : array(
-				'artifact_id' => sanitize_text_field( (string) ( $artifact['artifact_id'] ?? ( $artifact['id'] ?? '' ) ) ),
+			'artifact'           => ! $artifact_contract_valid ? null : array(
+				'artifact_id' => $artifact_id,
 				'mime_type'   => sanitize_text_field( (string) ( $artifact['mime_type'] ?? '' ) ),
 				'expires_at'  => sanitize_text_field( (string) ( $artifact['expires_at'] ?? '' ) ),
 			),
@@ -3177,8 +3349,8 @@ final class Controller {
 			);
 		}
 
-		$expires = strtotime( $expires_at );
-		if ( false === $expires ) {
+		$expires = $this->media_derivative_expiry_timestamp( $expires_at );
+		if ( $expires <= 0 ) {
 			return array(
 				'ready'      => false,
 				'status'     => 'invalid_expires_at',
@@ -3191,6 +3363,130 @@ final class Controller {
 			'status'     => $expires > time() ? 'valid' : 'expired',
 			'expires_at' => $expires_at,
 		);
+	}
+
+	/**
+	 * Validates the exact local 11-field media derivative artifact contract.
+	 *
+	 * @param array<string,mixed> $artifact Artifact descriptor.
+	 * @return bool
+	 */
+	private function media_derivative_artifact_contract_is_valid( array $artifact ): bool {
+		$expected_keys = array(
+			'artifact_id',
+			'expires_at',
+			'mime_type',
+			'format',
+			'width',
+			'height',
+			'filesize_bytes',
+			'sha256',
+			'suggested_filename',
+			'filename_basis',
+			'processing_warnings',
+		);
+		$actual_keys = array_keys( $artifact );
+		sort( $actual_keys );
+		sort( $expected_keys );
+		if ( $actual_keys !== $expected_keys ) {
+			return false;
+		}
+
+		if ( ! is_string( $artifact['artifact_id'] ) || 1 !== preg_match( '/^art_[0-9a-f]{32}$/D', $artifact['artifact_id'] ) ) {
+			return false;
+		}
+		if ( ! is_string( $artifact['expires_at'] ) || $this->media_derivative_expiry_timestamp( $artifact['expires_at'] ) <= time() ) {
+			return false;
+		}
+
+		$format_by_mime = array(
+			'image/webp' => 'webp',
+			'image/avif' => 'avif',
+			'image/jpeg' => 'jpeg',
+			'image/png'  => 'png',
+		);
+		$mime_type = is_string( $artifact['mime_type'] ) ? $artifact['mime_type'] : '';
+		$format    = is_string( $artifact['format'] ) ? $artifact['format'] : '';
+		if ( ! isset( $format_by_mime[ $mime_type ] ) || $format_by_mime[ $mime_type ] !== $format ) {
+			return false;
+		}
+
+		if (
+			! is_int( $artifact['width'] )
+			|| ! is_int( $artifact['height'] )
+			|| $artifact['width'] < 1
+			|| $artifact['height'] < 1
+			|| $artifact['width'] > 8192
+			|| $artifact['height'] > 8192
+			|| $artifact['width'] * $artifact['height'] > 16777216
+			|| ! is_int( $artifact['filesize_bytes'] )
+			|| $artifact['filesize_bytes'] < 1
+			|| $artifact['filesize_bytes'] > 26214400
+			|| ! is_string( $artifact['sha256'] )
+			|| 1 !== preg_match( '/^[a-f0-9]{64}$/D', $artifact['sha256'] )
+		) {
+			return false;
+		}
+
+		$suggested_filename = is_string( $artifact['suggested_filename'] ) ? $artifact['suggested_filename'] : '';
+		if ( '' === $suggested_filename || strlen( $suggested_filename ) > 120 || sanitize_file_name( $suggested_filename ) !== $suggested_filename ) {
+			return false;
+		}
+
+		$filename_basis = is_array( $artifact['filename_basis'] ) ? $artifact['filename_basis'] : array();
+		$filename_basis_keys = array_keys( $filename_basis );
+		sort( $filename_basis_keys );
+		if (
+			array( 'final_sanitize_unique_required', 'owner', 'strategy' ) !== $filename_basis_keys
+			|| 'wordpress_write_ability_final' !== ( $filename_basis['owner'] ?? null )
+			|| 'format_checksum' !== ( $filename_basis['strategy'] ?? null )
+			|| true !== ( $filename_basis['final_sanitize_unique_required'] ?? null )
+		) {
+			return false;
+		}
+
+		$warnings = $artifact['processing_warnings'];
+		if ( ! is_array( $warnings ) || count( $warnings ) > 20 ) {
+			return false;
+		}
+		foreach ( $warnings as $warning ) {
+			if ( ! is_string( $warning ) || strlen( $warning ) > 200 || sanitize_text_field( $warning ) !== $warning ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	/**
+	 * Parses canonical UTC RFC3339 artifact expiry without date normalization.
+	 *
+	 * @param string $value Expiry.
+	 * @return int
+	 */
+	private function media_derivative_expiry_timestamp( string $value ): int {
+		$utc = new \DateTimeZone( 'UTC' );
+		$formats = array(
+			'!Y-m-d\TH:i:s\Z'   => 'Y-m-d\TH:i:s\Z',
+			'!Y-m-d\TH:i:sP'    => 'Y-m-d\TH:i:sP',
+			'!Y-m-d\TH:i:s.u\Z' => 'Y-m-d\TH:i:s.u\Z',
+			'!Y-m-d\TH:i:s.uP'  => 'Y-m-d\TH:i:s.uP',
+		);
+		foreach ( $formats as $parse_format => $roundtrip_format ) {
+			$parsed = \DateTimeImmutable::createFromFormat( $parse_format, $value, $utc );
+			$errors = \DateTimeImmutable::getLastErrors();
+			$has_errors = is_array( $errors ) && ( (int) ( $errors['warning_count'] ?? 0 ) > 0 || (int) ( $errors['error_count'] ?? 0 ) > 0 );
+			if (
+				$parsed instanceof \DateTimeImmutable
+				&& ! $has_errors
+				&& 0 === $parsed->getOffset()
+				&& $value === $parsed->format( $roundtrip_format )
+			) {
+				return $parsed->getTimestamp();
+			}
+		}
+
+		return 0;
 	}
 
 	/**
@@ -3292,7 +3588,7 @@ final class Controller {
 			return true;
 		}
 
-		return $this->validate_execute_action_input( 'proposal_create', $ability_id, $input, absint( $input['post_id'] ?? 0 ), $action_index, $allow_output_refs );
+		return $this->execution_input_validator->validate_execute_action_input( 'proposal_create', $ability_id, $input, absint( $input['post_id'] ?? 0 ), $action_index, $allow_output_refs );
 	}
 
 	/**
@@ -3374,7 +3670,7 @@ final class Controller {
 			}
 
 			$depends_on = is_array( $action['depends_on'] ?? null ) ? array_filter( $action['depends_on'] ) : array();
-			if ( ! empty( $depends_on ) || ! empty( $this->collect_output_references( $action['input'] ?? array() ) ) ) {
+			if ( ! empty( $depends_on ) || ! empty( $this->execution_input_validator->collect_output_references( $action['input'] ?? array() ) ) ) {
 				$plan['proposal_mode']  = 'batch';
 				$plan['batch_approval'] = true;
 				break;
@@ -3440,7 +3736,7 @@ final class Controller {
 			}
 
 			$input       = is_array( $raw_action['input'] ?? null ) ? $raw_action['input'] : array();
-			$valid_refs  = $this->validate_output_references( 'proposal_create', $input, $available_outputs, $index );
+			$valid_refs  = $this->execution_input_validator->validate_output_references( 'proposal_create', $input, $available_outputs, $index );
 			$valid_input = is_wp_error( $valid_refs ) ? $valid_refs : $this->validate_proposal_create_input( $target_ability_id, $input, true, $index );
 			if ( is_wp_error( $valid_input ) ) {
 				$error_data = $valid_input->get_error_data();
@@ -3855,613 +4151,6 @@ final class Controller {
 	}
 
 	/**
-	 * @param string $proposal_id Proposal id.
-	 * @param string $ability_id Ability id.
-	 * @return true|WP_Error
-	 */
-	private function validate_execute_ability( string $proposal_id, string $ability_id ) {
-		$profiles = self::execution_profiles();
-		if ( isset( $profiles[ $ability_id ] ) ) {
-			return true;
-		}
-
-			return new WP_Error(
-				'npcink_openclaw_adapter_execute_profile_unsupported',
-				__( 'This proposal ability is not implemented by Adapter execution profiles.', 'npcink-ai-client-adapter' ),
-			array(
-				'status'                      => 403,
-				'proposal_id'                 => $proposal_id,
-				'ability_id'                  => $ability_id,
-				'supported_execute_ability_ids' => self::supported_execute_ability_ids(),
-			)
-		);
-	}
-
-	/**
-	 * Bounds Adapter-owned execution input before validation or dispatch.
-	 *
-	 * @param string              $proposal_id Proposal id.
-	 * @param string              $ability_id Ability id.
-	 * @param array<string,mixed> $input Ability input.
-	 * @param int|null            $action_index Batch action index.
-	 * @return true|WP_Error
-	 */
-	private function validate_execute_action_input_size( string $proposal_id, string $ability_id, array $input, ?int $action_index = null ) {
-		$error_data = array(
-			'status'      => 413,
-			'proposal_id' => $proposal_id,
-			'ability_id'  => $ability_id,
-		);
-		if ( null !== $action_index ) {
-			$error_data['action_index']      = $action_index;
-			$error_data['target_ability_id'] = $ability_id;
-		}
-
-		$json  = wp_json_encode( $input );
-		$bytes = is_string( $json ) ? strlen( $json ) : 0;
-		if ( $bytes > self::MAX_ACTION_INPUT_BYTES ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_action_input_too_large',
-				__( 'Execution input exceeds the adapter action payload limit.', 'npcink-ai-client-adapter' ),
-				array_merge(
-					$error_data,
-					array(
-						'input_bytes' => $bytes,
-						'max_bytes'   => self::MAX_ACTION_INPUT_BYTES,
-					)
-				)
-			);
-		}
-
-		foreach (
-			array(
-				'blocks'     => self::MAX_BLOCK_ITEMS,
-				'operations' => self::MAX_OPERATION_ITEMS,
-				'term_ids'   => self::MAX_TERM_ITEMS,
-				'terms'      => self::MAX_TERM_ITEMS,
-			) as $field => $max_items
-		) {
-			if ( ! is_array( $input[ $field ] ?? null ) || count( $input[ $field ] ) <= $max_items ) {
-				continue;
-			}
-
-			return new WP_Error(
-				'npcink_openclaw_adapter_action_items_limit_exceeded',
-				__( 'Execution input includes too many items for one field.', 'npcink-ai-client-adapter' ),
-				array_merge(
-					$error_data,
-					array(
-						'field'      => $field,
-						'item_count' => count( $input[ $field ] ),
-						'max_items'  => $max_items,
-					)
-				)
-			);
-		}
-
-		return true;
-	}
-
-	/**
-	 * Validates the Adapter-owned execution input shape for one supported ability.
-	 *
-	 * @param string              $proposal_id Proposal id.
-	 * @param string              $ability_id Ability id.
-	 * @param array<string,mixed> $input Ability input.
-	 * @param int                 $post_id Post id when the ability targets an existing post.
-	 * @param int|null            $action_index Batch action index.
-	 * @param bool                $allow_output_refs Whether batch output references may satisfy id fields.
-	 * @param bool                $enforce_site_readiness Whether host policy must allow final execution.
-	 * @return true|WP_Error
-	 */
-	private function validate_execute_action_input( string $proposal_id, string $ability_id, array $input, int $post_id, ?int $action_index = null, bool $allow_output_refs = false, bool $enforce_site_readiness = false ) {
-		$error_data = array(
-			'status'      => 400,
-			'proposal_id' => $proposal_id,
-			'ability_id'  => $ability_id,
-		);
-		if ( null !== $action_index ) {
-			$error_data['action_index']      = $action_index;
-			$error_data['target_ability_id'] = $ability_id;
-		}
-
-		$profiles = self::execution_profiles();
-		$profile  = is_array( $profiles[ $ability_id ] ?? null ) ? $profiles[ $ability_id ] : array();
-
-		$bounded_input = $this->validate_execute_action_input_size( $proposal_id, $ability_id, $input, $action_index );
-		if ( is_wp_error( $bounded_input ) ) {
-			return $bounded_input;
-		}
-
-		$supported_input_fields = (array) ( $profile['supported_input_fields'] ?? array() );
-		if ( ! empty( $supported_input_fields ) ) {
-			foreach ( array_keys( $input ) as $field ) {
-				$field = (string) $field;
-				if ( in_array( $field, $supported_input_fields, true ) ) {
-					continue;
-				}
-
-					return new WP_Error(
-						'npcink_openclaw_adapter_ability_input_field_unsupported',
-						__( 'Proposal input includes a field outside this ability schema.', 'npcink-ai-client-adapter' ),
-					array_merge(
-						$error_data,
-						array(
-							'field'                => $field,
-							'supported_input_fields' => $supported_input_fields,
-						)
-					)
-				);
-			}
-		}
-
-		$post_id_rule = is_array( $profile['require_post_id'] ?? null ) ? $profile['require_post_id'] : array();
-		if ( ! empty( $post_id_rule ) && 0 === $post_id ) {
-			if ( $allow_output_refs && $this->is_output_reference( $input['post_id'] ?? null ) ) {
-				$post_id_rule = array();
-			}
-		}
-		if ( ! empty( $post_id_rule ) && 0 === $post_id ) {
-			return new WP_Error(
-				(string) ( $post_id_rule['code'] ?? 'npcink_openclaw_adapter_post_id_required' ),
-				(string) ( $post_id_rule['message'] ?? __( 'Execution input must include post_id.', 'npcink-ai-client-adapter' ) ),
-				$error_data
-			);
-		}
-
-		foreach ( (array) ( $profile['required_text_fields'] ?? array() ) as $field => $rule ) {
-			$rule = is_array( $rule ) ? $rule : array();
-			if ( '' !== trim( sanitize_text_field( (string) ( $input[ $field ] ?? '' ) ) ) ) {
-				continue;
-			}
-
-			return new WP_Error(
-				(string) ( $rule['code'] ?? 'npcink_openclaw_adapter_required_text_missing' ),
-				(string) ( $rule['message'] ?? __( 'Execution input is missing a required text field.', 'npcink-ai-client-adapter' ) ),
-				$error_data
-			);
-		}
-
-		foreach ( (array) ( $profile['required_slug_fields'] ?? array() ) as $field => $rule ) {
-			$rule = is_array( $rule ) ? $rule : array();
-			if ( '' !== sanitize_title( (string) ( $input[ $field ] ?? '' ) ) ) {
-				continue;
-			}
-
-			return new WP_Error(
-				(string) ( $rule['code'] ?? 'npcink_openclaw_adapter_required_slug_missing' ),
-				(string) ( $rule['message'] ?? __( 'Execution input is missing a required slug field.', 'npcink-ai-client-adapter' ) ),
-				$error_data
-			);
-		}
-
-		foreach ( (array) ( $profile['enum_fields'] ?? array() ) as $field => $rule ) {
-			if ( ! array_key_exists( $field, $input ) ) {
-				continue;
-			}
-
-			$rule    = is_array( $rule ) ? $rule : array();
-			$value   = sanitize_key( (string) $input[ $field ] );
-			$allowed = (array) ( $rule['allowed'] ?? array() );
-			if ( in_array( $value, $allowed, true ) ) {
-				continue;
-			}
-
-			return new WP_Error(
-				(string) ( $rule['code'] ?? 'npcink_openclaw_adapter_input_enum_invalid' ),
-				(string) ( $rule['message'] ?? __( 'Proposal input includes an invalid enum value.', 'npcink-ai-client-adapter' ) ),
-				array_merge(
-					$error_data,
-					array(
-						'field'          => (string) $field,
-						'value'          => $value,
-						'allowed_values' => $allowed,
-					),
-				)
-			);
-		}
-
-		$any_fields_rule = is_array( $profile['require_any_fields'] ?? null ) ? $profile['require_any_fields'] : array();
-		if ( ! empty( $any_fields_rule ) ) {
-			$has_any_field = false;
-			foreach ( (array) ( $any_fields_rule['fields'] ?? array() ) as $field ) {
-				if ( array_key_exists( $field, $input ) ) {
-					$has_any_field = true;
-					break;
-				}
-			}
-			if ( ! $has_any_field ) {
-				return new WP_Error(
-					(string) ( $any_fields_rule['code'] ?? 'npcink_openclaw_adapter_required_fields_missing' ),
-					(string) ( $any_fields_rule['message'] ?? __( 'Execution input is missing required fields.', 'npcink-ai-client-adapter' ) ),
-					$error_data
-				);
-			}
-		}
-
-		foreach ( (array) ( $profile['require_array_fields'] ?? array() ) as $field => $rule ) {
-			$rule  = is_array( $rule ) ? $rule : array();
-			$value = $input[ $field ] ?? null;
-			if ( is_array( $value ) && ! empty( $value ) ) {
-				continue;
-			}
-
-			return new WP_Error(
-				(string) ( $rule['code'] ?? 'npcink_openclaw_adapter_required_array_missing' ),
-				(string) ( $rule['message'] ?? __( 'Execution input is missing a required array field.', 'npcink-ai-client-adapter' ) ),
-				array_merge(
-					$error_data,
-					array(
-						'field' => (string) $field,
-					)
-				)
-			);
-		}
-
-		foreach ( (array) ( $profile['required_int_fields'] ?? array() ) as $field => $rule ) {
-			$rule = is_array( $rule ) ? $rule : array();
-			if ( 0 < absint( $input[ $field ] ?? 0 ) ) {
-				continue;
-			}
-			if ( $allow_output_refs && $this->is_output_reference( $input[ $field ] ?? null ) ) {
-				continue;
-			}
-
-			return new WP_Error(
-				(string) ( $rule['code'] ?? 'npcink_openclaw_adapter_required_int_missing' ),
-				(string) ( $rule['message'] ?? __( 'Execution input is missing a required id.', 'npcink-ai-client-adapter' ) ),
-				$error_data
-			);
-		}
-
-		if ( ! empty( $profile['validate_attachment_input'] ) ) {
-			$attachment_id = absint( $input['attachment_id'] ?? 0 );
-			$defer_attachment_check = $allow_output_refs && $this->is_output_reference( $input['attachment_id'] ?? null );
-			if ( ! $defer_attachment_check && function_exists( 'get_post_type' ) && 'attachment' !== get_post_type( $attachment_id ) ) {
-				$attachment_rule = is_array( $profile['validate_attachment_input'] ) ? $profile['validate_attachment_input'] : array();
-				return new WP_Error(
-					'npcink_openclaw_adapter_attachment_required',
-					(string) ( $attachment_rule['message'] ?? __( 'Execution input must target an existing attachment.', 'npcink-ai-client-adapter' ) ),
-					array_merge(
-						$error_data,
-						array(
-							'attachment_id' => $attachment_id,
-						)
-					)
-				);
-			}
-		}
-
-		if ( ! empty( $profile['validate_terms_input'] ) ) {
-			$taxonomy = sanitize_key( (string) ( $input['taxonomy'] ?? 'post_tag' ) );
-			if ( '' === $taxonomy || ! taxonomy_exists( $taxonomy ) ) {
-				return new WP_Error(
-					'npcink_openclaw_adapter_taxonomy_required',
-					__( 'set-post-terms execution input must include a valid taxonomy.', 'npcink-ai-client-adapter' ),
-					$error_data
-				);
-			}
-
-			$mode = sanitize_key( (string) ( $input['mode'] ?? 'replace' ) );
-			if ( ! in_array( $mode, array( 'replace', 'append', 'remove' ), true ) ) {
-				return new WP_Error(
-					'npcink_openclaw_adapter_term_mode_invalid',
-					__( 'set-post-terms execution mode must be replace, append, or remove.', 'npcink-ai-client-adapter' ),
-					$error_data
-				);
-			}
-
-			$term_ids = is_array( $input['term_ids'] ?? null ) ? array_filter( array_map( 'absint', $input['term_ids'] ) ) : array();
-			$terms    = is_array( $input['terms'] ?? null ) ? array_filter(
-				array_map(
-					static function ( $term ) {
-						return trim( sanitize_text_field( (string) $term ) );
-					},
-					$input['terms']
-				)
-			) : array();
-			if ( empty( $term_ids ) && empty( $terms ) ) {
-				return new WP_Error(
-					'npcink_openclaw_adapter_terms_required',
-					__( 'set-post-terms execution input must include term_ids or terms.', 'npcink-ai-client-adapter' ),
-					$error_data
-				);
-			}
-
-				if ( ! empty( $input['create_missing'] ) ) {
-					return new WP_Error(
-						'npcink_openclaw_adapter_create_missing_terms_unsupported',
-						__( 'set-post-terms execution does not implement creating missing terms.', 'npcink-ai-client-adapter' ),
-					$error_data
-				);
-			}
-		}
-
-		if ( ! empty( $profile['validate_delete_term_input'] ) ) {
-			$taxonomy = array_key_exists( 'taxonomy', $input ) ? sanitize_key( (string) $input['taxonomy'] ) : '';
-			if ( '' === $taxonomy || ! taxonomy_exists( $taxonomy ) ) {
-				return new WP_Error(
-					'npcink_openclaw_adapter_taxonomy_required',
-					__( 'delete-term execution input must include a valid taxonomy.', 'npcink-ai-client-adapter' ),
-					$error_data
-				);
-			}
-		}
-
-		$comment_body_rule = is_array( $profile['require_comment_body'] ?? null ) ? $profile['require_comment_body'] : array();
-		if ( ! empty( $comment_body_rule ) ) {
-			$content = (string) ( $input['content'] ?? '' );
-			if ( '' === trim( wp_strip_all_tags( $content ) ) ) {
-				return new WP_Error(
-					(string) ( $comment_body_rule['code'] ?? 'npcink_openclaw_adapter_comment_content_required' ),
-					(string) ( $comment_body_rule['message'] ?? __( 'Comment execution input must include content.', 'npcink-ai-client-adapter' ) ),
-					$error_data
-				);
-			}
-		}
-
-		$content_format_rule = is_array( $profile['content_formats'] ?? null ) ? $profile['content_formats'] : array();
-		if ( ! empty( $content_format_rule ) ) {
-			$content_format = sanitize_key( (string) ( $input['content_format'] ?? 'html' ) );
-			if ( ! in_array( $content_format, (array) ( $content_format_rule['allowed'] ?? array() ), true ) ) {
-				return new WP_Error(
-					(string) ( $content_format_rule['code'] ?? 'npcink_openclaw_adapter_content_format_invalid' ),
-					(string) ( $content_format_rule['message'] ?? __( 'Comment content_format is invalid.', 'npcink-ai-client-adapter' ) ),
-					$error_data
-				);
-			}
-		}
-
-		if ( $enforce_site_readiness ) {
-			$site_ready = $this->validate_execution_profile_site_readiness( $proposal_id, $ability_id, $input, $action_index );
-			if ( is_wp_error( $site_ready ) ) {
-				return $site_ready;
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Validates site-owned conditions for one final execution profile.
-	 *
-	 * @param string              $proposal_id Proposal id.
-	 * @param string              $ability_id Ability id.
-	 * @param array<string,mixed> $input Ability input.
-	 * @param int|null            $action_index Batch action index.
-	 * @return true|WP_Error
-	 */
-	private function validate_execution_profile_site_readiness( string $proposal_id, string $ability_id, array $input, ?int $action_index = null ) {
-		$profiles = self::execution_profiles();
-		$profile  = is_array( $profiles[ $ability_id ] ?? null ) ? $profiles[ $ability_id ] : array();
-		$policy   = is_array( $profile['site_readiness'] ?? null ) ? $profile['site_readiness'] : array();
-		if ( empty( $policy ) ) {
-			return true;
-		}
-
-		$filter            = sanitize_key( (string) ( $policy['filter'] ?? '' ) );
-		$target_type_field = sanitize_key( (string) ( $policy['target_type_field'] ?? 'target_type' ) );
-		$target_name_field = sanitize_key( (string) ( $policy['target_name_field'] ?? 'target_name' ) );
-		$target_type       = sanitize_key( (string) ( $input[ $target_type_field ] ?? '' ) );
-		$target_name       = sanitize_key( (string) ( $input[ $target_name_field ] ?? '' ) );
-		$allowed_targets   = array(
-			'option'    => array(),
-			'theme_mod' => array(),
-		);
-		if ( 'npcink_abilities_toolkit_patchable_setting_targets' === $filter && function_exists( 'apply_filters' ) ) {
-			$allowed_targets = apply_filters( 'npcink_abilities_toolkit_patchable_setting_targets', $allowed_targets, $target_type, $target_name );
-		}
-		$allowed_targets = is_array( $allowed_targets ) ? $allowed_targets : array();
-		$allowed_names   = isset( $allowed_targets[ $target_type ] ) && is_array( $allowed_targets[ $target_type ] )
-			? array_filter( array_map( 'sanitize_key', $allowed_targets[ $target_type ] ) )
-			: array();
-		if ( '' !== $target_name && in_array( $target_name, $allowed_names, true ) ) {
-			return true;
-		}
-
-		$error_data = array(
-			'status'                    => 409,
-			'proposal_id'               => $proposal_id,
-			'ability_id'                => $ability_id,
-			'target_type'               => $target_type,
-			'site_readiness_status'     => 'not_ready',
-			'site_policy_owner'         => sanitize_key( (string) ( $policy['policy_owner'] ?? 'wordpress_host' ) ),
-			'site_policy_filter'        => $filter,
-			'per_target_check_required' => true,
-			'target_name_exposed'       => false,
-			'operator_next_action'      => 'configure_reviewed_host_target_allowlist_and_create_a_new_proposal',
-		);
-		if ( null !== $action_index ) {
-			$error_data['action_index']      = $action_index;
-			$error_data['target_ability_id'] = $ability_id;
-		}
-
-		return new WP_Error(
-			(string) ( $policy['not_ready_code'] ?? 'npcink_openclaw_adapter_execution_profile_site_not_ready' ),
-			__( 'This execution profile is supported, but the WordPress host has not allowlisted this setting target.', 'npcink-ai-client-adapter' ),
-			$error_data
-		);
-	}
-
-	/**
-	 * Checks whether a value is an exact batch output reference.
-	 *
-	 * @param mixed $value Value.
-	 * @return bool
-	 */
-	private function is_output_reference( $value ): bool {
-		return is_string( $value ) && 1 === preg_match( '/^\$outputs\.[A-Za-z0-9_-]+\.[A-Za-z0-9_]+$/', $value );
-	}
-
-	/**
-	 * Collects exact batch output references from a value tree.
-	 *
-	 * @param mixed $value Value.
-	 * @return array<int,string>
-	 */
-	private function collect_output_references( $value ): array {
-		if ( $this->is_output_reference( $value ) ) {
-			return array( (string) $value );
-		}
-		if ( ! is_array( $value ) ) {
-			return array();
-		}
-
-		$references = array();
-		foreach ( $value as $child ) {
-			$references = array_merge( $references, $this->collect_output_references( $child ) );
-		}
-		return array_values( array_unique( $references ) );
-	}
-
-	/**
-	 * Finds a malformed output reference token in a value tree.
-	 *
-	 * @param mixed $value Value.
-	 * @return string
-	 */
-	private function invalid_output_reference_token( $value ): string {
-		if ( is_string( $value ) ) {
-			if ( false !== strpos( $value, '$outputs.' ) && ! $this->is_output_reference( $value ) ) {
-				return $value;
-			}
-			return '';
-		}
-		if ( ! is_array( $value ) ) {
-			return '';
-		}
-
-		foreach ( $value as $child ) {
-			$invalid = $this->invalid_output_reference_token( $child );
-			if ( '' !== $invalid ) {
-				return $invalid;
-			}
-		}
-		return '';
-	}
-
-	/**
-	 * Parses one exact batch output reference.
-	 *
-	 * @param string $reference Reference.
-	 * @return array{action_id:string,field:string}|null
-	 */
-	private function parse_output_reference( string $reference ): ?array {
-		if ( 1 !== preg_match( '/^\$outputs\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_]+)$/', $reference, $matches ) ) {
-			return null;
-		}
-
-		return array(
-			'action_id' => sanitize_key( $matches[1] ),
-			'field'     => sanitize_key( $matches[2] ),
-		);
-	}
-
-	/**
-	 * Validates that output references only point to prior actions.
-	 *
-	 * @param string              $proposal_id Proposal id.
-	 * @param array<string,mixed> $input Action input.
-	 * @param array<string,bool>  $available_outputs Prior action ids.
-	 * @param int                 $action_index Action index.
-	 * @return true|WP_Error
-	 */
-	private function validate_output_references( string $proposal_id, array $input, array $available_outputs, int $action_index ) {
-		$invalid_reference = $this->invalid_output_reference_token( $input );
-		if ( '' !== $invalid_reference ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_output_reference_invalid',
-				__( 'Batch output references must use $outputs.action_id.field as the whole value.', 'npcink-ai-client-adapter' ),
-				array(
-					'status'       => 400,
-					'proposal_id'  => $proposal_id,
-					'action_index' => $action_index,
-					'reference'    => $invalid_reference,
-				)
-			);
-		}
-
-		foreach ( $this->collect_output_references( $input ) as $reference ) {
-			$parsed = $this->parse_output_reference( $reference );
-			if ( null === $parsed || empty( $available_outputs[ $parsed['action_id'] ] ) ) {
-				return new WP_Error(
-					'npcink_openclaw_adapter_output_reference_unavailable',
-					__( 'Batch output references must point to an earlier action in the same proposal.', 'npcink-ai-client-adapter' ),
-					array(
-						'status'       => 400,
-						'proposal_id'  => $proposal_id,
-						'action_index' => $action_index,
-						'reference'    => $reference,
-					)
-				);
-			}
-		}
-
-		return true;
-	}
-
-	/**
-	 * Resolves exact batch output references in an input value tree.
-	 *
-	 * @param mixed               $value Value.
-	 * @param array<string,array<string,mixed>> $outputs Prior outputs keyed by action id.
-	 * @param string              $proposal_id Proposal id.
-	 * @param int                 $action_index Action index.
-	 * @return mixed|WP_Error
-	 */
-	private function resolve_output_references( $value, array $outputs, string $proposal_id, int $action_index ) {
-		if ( $this->is_output_reference( $value ) ) {
-			$parsed = $this->parse_output_reference( (string) $value );
-			if (
-				null === $parsed
-				|| ! array_key_exists( $parsed['action_id'], $outputs )
-				|| ! array_key_exists( $parsed['field'], $outputs[ $parsed['action_id'] ] )
-			) {
-				return new WP_Error(
-					'npcink_openclaw_adapter_output_reference_unresolved',
-					__( 'Batch output reference could not be resolved.', 'npcink-ai-client-adapter' ),
-					array(
-						'status'       => 409,
-						'proposal_id'  => $proposal_id,
-						'action_index' => $action_index,
-						'reference'    => (string) $value,
-					)
-				);
-			}
-
-			return $outputs[ $parsed['action_id'] ][ $parsed['field'] ];
-		}
-
-		$invalid_reference = $this->invalid_output_reference_token( $value );
-		if ( '' !== $invalid_reference ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_output_reference_invalid',
-				__( 'Batch output references must use $outputs.action_id.field as the whole value.', 'npcink-ai-client-adapter' ),
-				array(
-					'status'       => 400,
-					'proposal_id'  => $proposal_id,
-					'action_index' => $action_index,
-					'reference'    => $invalid_reference,
-				)
-			);
-		}
-
-		if ( ! is_array( $value ) ) {
-			return $value;
-		}
-
-		$resolved = array();
-		foreach ( $value as $key => $child ) {
-			$resolved_child = $this->resolve_output_references( $child, $outputs, $proposal_id, $action_index );
-			if ( is_wp_error( $resolved_child ) ) {
-				return $resolved_child;
-			}
-			$resolved[ $key ] = $resolved_child;
-		}
-		return $resolved;
-	}
-
-	/**
 	 * Builds a flat output map for later batch actions.
 	 *
 	 * @param array<string,mixed> $result Executed action result.
@@ -4543,7 +4232,7 @@ final class Controller {
 					);
 				}
 
-				$allowed = $this->validate_execute_ability( $proposal_id, $target_ability_id );
+				$allowed = $this->execution_input_validator->validate_execute_ability( $proposal_id, $target_ability_id );
 				if ( is_wp_error( $allowed ) ) {
 					$allowed->add_data(
 						array_merge(
@@ -4576,13 +4265,13 @@ final class Controller {
 				}
 
 				$action_input = is_array( $raw_action['input'] ?? null ) ? $raw_action['input'] : array();
-				$valid_refs   = $this->validate_output_references( $proposal_id, $action_input, $available_outputs, $index );
+				$valid_refs   = $this->execution_input_validator->validate_output_references( $proposal_id, $action_input, $available_outputs, $index );
 				if ( is_wp_error( $valid_refs ) ) {
 					return $valid_refs;
 				}
 
 				$post_id      = absint( $action_input['post_id'] ?? 0 );
-				$valid_input  = $this->validate_execute_action_input( $proposal_id, $target_ability_id, $action_input, $post_id, $index, true, true );
+				$valid_input  = $this->execution_input_validator->validate_execute_action_input( $proposal_id, $target_ability_id, $action_input, $post_id, $index, true, true );
 				if ( is_wp_error( $valid_input ) ) {
 					return $valid_input;
 				}
@@ -4656,8 +4345,8 @@ final class Controller {
 					'action_index'      => $index,
 					'ability_id'        => $target_ability_id,
 					'target_ability_id' => $target_ability_id,
-					'execution_profile' => $this->execution_profile_id_for_ability( $target_ability_id ),
-					'idempotency_key'   => $this->execution_action_idempotency_key( $proposal_id, $action_id, $action_input ),
+					'execution_profile' => $this->execution_action_runner->profile_id( $target_ability_id ),
+					'idempotency_key'   => $this->execution_action_runner->idempotency_key( $proposal_id, $action_id, $action_input ),
 					'post_id'           => $post_id,
 					'input'             => $action_input,
 					'execution_mode'    => 'batch_write_actions',
@@ -4668,12 +4357,12 @@ final class Controller {
 			return $actions;
 		}
 
-		$allowed = $this->validate_execute_ability( $proposal_id, $proposal_ability_id );
+		$allowed = $this->execution_input_validator->validate_execute_ability( $proposal_id, $proposal_ability_id );
 		if ( is_wp_error( $allowed ) ) {
 			return $allowed;
 		}
 
-		$valid_input = $this->validate_execute_action_input( $proposal_id, $proposal_ability_id, $input, $top_level_post_id, null, false, true );
+		$valid_input = $this->execution_input_validator->validate_execute_action_input( $proposal_id, $proposal_ability_id, $input, $top_level_post_id, null, false, true );
 		if ( is_wp_error( $valid_input ) ) {
 			return $valid_input;
 		}
@@ -4684,43 +4373,13 @@ final class Controller {
 				'action_index'      => 0,
 				'ability_id'        => $proposal_ability_id,
 				'target_ability_id' => $proposal_ability_id,
-				'execution_profile' => $this->execution_profile_id_for_ability( $proposal_ability_id ),
-				'idempotency_key'   => $this->execution_action_idempotency_key( $proposal_id, 'single-post', $input ),
+				'execution_profile' => $this->execution_action_runner->profile_id( $proposal_ability_id ),
+				'idempotency_key'   => $this->execution_action_runner->idempotency_key( $proposal_id, 'single-post', $input ),
 				'post_id'           => $top_level_post_id,
 				'input'             => $input,
 				'execution_mode'    => 'single_post',
 			),
 		);
-	}
-
-	/**
-	 * Returns the Adapter execution profile id for one final write ability.
-	 *
-	 * The V1 registry keys are the profile ids. Keeping this as a helper makes
-	 * the response contract explicit without introducing a second allowlist.
-	 *
-	 * @param string $ability_id Ability id.
-	 * @return string
-	 */
-	private function execution_profile_id_for_ability( string $ability_id ): string {
-		return sanitize_text_field( $ability_id );
-	}
-
-	/**
-	 * Returns or derives a bounded per-action execution idempotency key.
-	 *
-	 * @param string              $proposal_id Proposal id.
-	 * @param string              $action_id Action id.
-	 * @param array<string,mixed> $input Action input.
-	 * @return string
-	 */
-	private function execution_action_idempotency_key( string $proposal_id, string $action_id, array $input ): string {
-		$provided = sanitize_text_field( (string) ( $input['idempotency_key'] ?? '' ) );
-		if ( '' !== $provided ) {
-			return $provided;
-		}
-
-		return 'adapter-' . substr( hash( 'sha256', $proposal_id . '|' . $action_id ), 0, 24 );
 	}
 
 	/**
@@ -4748,107 +4407,6 @@ final class Controller {
 			'retryable'            => false,
 			'operator_next_action' => $partial_success ? 'review_partial_failure_and_create_revised_proposal' : ( $failed_count > 0 ? 'review_failed_execution_and_create_revised_proposal' : 'review_execution_result' ),
 		);
-	}
-
-	/**
-	 * Executes one normalized action through WordPress Abilities API.
-	 *
-	 * @param WP_REST_Request     $request Request.
-	 * @param string              $proposal_id Proposal id.
-	 * @param array<string,mixed> $action Normalized action.
-	 * @param array<string,mixed> $approval_context Core approval context.
-	 * @param string              $correlation_id Correlation id.
-	 * @param array<string,mixed> $base_request_context Base request context.
-	 * @return array<string,mixed>|WP_Error
-	 */
-	private function execute_normalized_action( WP_REST_Request $request, string $proposal_id, array $action, array $approval_context, string $correlation_id, array $base_request_context ) {
-		$ability_id = sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) );
-		$post_id    = absint( $action['post_id'] ?? 0 );
-		$profiles   = self::execution_profiles();
-		$profile    = is_array( $profiles[ $ability_id ] ?? null ) ? $profiles[ $ability_id ] : array();
-
-		$post_status_before = get_post_status( $post_id );
-		$post_status_before = false === $post_status_before ? '' : (string) $post_status_before;
-
-		$ability_input = is_array( $action['input'] ?? null ) ? $action['input'] : array();
-		$idempotency_key = sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) );
-		if ( '' === $idempotency_key ) {
-			$idempotency_key = $this->execution_action_idempotency_key( $proposal_id, sanitize_key( (string) ( $action['action_id'] ?? '' ) ), $ability_input );
-		}
-		if ( ! empty( $profile['force_post_input'] ) ) {
-			$ability_input = array(
-				'post_id' => $post_id,
-				'dry_run' => false,
-				'commit'  => true,
-			);
-		} else {
-			$ability_input['dry_run'] = false;
-			$ability_input['commit']  = true;
-		}
-		if ( ! isset( $ability_input['idempotency_key'] ) ) {
-			$ability_input['idempotency_key'] = $idempotency_key;
-		}
-
-		$route           = '/wp-abilities/v1/abilities/' . $ability_id . '/run';
-		$request_context = $base_request_context;
-		$request_context['ability_id'] = $ability_id;
-		$context         = array_merge(
-			$approval_context,
-			$request_context,
-			array(
-				'ability_id'        => $ability_id,
-				'target_ability_id' => sanitize_text_field( (string) ( $action['target_ability_id'] ?? $ability_id ) ),
-				'execution_profile' => sanitize_text_field( (string) ( $action['execution_profile'] ?? $this->execution_profile_id_for_ability( $ability_id ) ) ),
-				'idempotency_key'   => $idempotency_key,
-				'action_id'         => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-				'action_index'      => absint( $action['action_index'] ?? 0 ),
-				'proposal_id'       => $proposal_id,
-				'post_id'           => $post_id,
-				'correlation_id'    => $correlation_id,
-				'via'               => 'npcink-ai-client-adapter',
-			)
-		);
-
-		$response = $this->dispatch_upstream_with_runtime_context( $context, 'POST', $route, array( 'input' => $ability_input ), false, true );
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-
-		$result_data = $response->get_data();
-		if ( ! empty( $profile['post_id_from_result'] ) && is_array( $result_data ) ) {
-			$post_id = absint( $result_data['post_id'] ?? $post_id );
-		}
-		if ( is_array( $result_data ) ) {
-			$readback_verification = $this->block_write_readback_verification( $ability_id, $ability_input, $result_data, $base_request_context );
-			if ( ! empty( $readback_verification ) ) {
-				$result_data['verification'] = array_merge(
-					is_array( $result_data['verification'] ?? null ) ? $result_data['verification'] : array(),
-					$readback_verification
-				);
-			}
-		}
-
-		$post_status_after = get_post_status( $post_id );
-
-		$result = array(
-			'action_id'          => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-			'action_index'       => absint( $action['action_index'] ?? 0 ),
-			'target_ability_id'  => sanitize_text_field( (string) ( $action['target_ability_id'] ?? $ability_id ) ),
-			'ability_id'         => $ability_id,
-			'execution_profile'  => sanitize_text_field( (string) ( $action['execution_profile'] ?? $this->execution_profile_id_for_ability( $ability_id ) ) ),
-			'idempotency_key'    => $idempotency_key,
-			'post_id'            => $post_id,
-			'status'             => 'executed',
-			'post_status_before' => $post_status_before,
-			'post_status_after'  => false === $post_status_after ? '' : (string) $post_status_after,
-			'adapter_request_id' => (string) ( $context['adapter_request_id'] ?? '' ),
-			'result'             => $result_data,
-		);
-		if ( is_array( $action['media_alt_live_preflight'] ?? null ) ) {
-			$result['media_alt_live_preflight'] = $action['media_alt_live_preflight'];
-		}
-
-		return $result;
 	}
 
 	/**
@@ -5167,7 +4725,7 @@ final class Controller {
 		$outputs = array();
 		foreach ( $actions as $action ) {
 			$action_index = absint( $action['action_index'] ?? 0 );
-			$resolved_input = $this->resolve_output_references(
+			$resolved_input = $this->execution_input_validator->resolve_output_references(
 				is_array( $action['input'] ?? null ) ? $action['input'] : array(),
 				$outputs,
 				$proposal_id,
@@ -5213,7 +4771,7 @@ final class Controller {
 
 			$action['input']   = is_array( $resolved_input ) ? $resolved_input : array();
 			$action['post_id'] = absint( $action['input']['post_id'] ?? 0 );
-			$valid_input       = $this->validate_execute_action_input(
+			$valid_input       = $this->execution_input_validator->validate_execute_action_input(
 				$proposal_id,
 				sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) ),
 				$action['input'],
@@ -5285,7 +4843,7 @@ final class Controller {
 				$action['media_alt_live_preflight'] = $media_alt_live_preflight;
 			}
 
-			$result = $this->execute_normalized_action( $request, $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
+			$result = $this->execution_action_runner->execute( $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
 			if ( is_wp_error( $result ) ) {
 				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
 				$error_data = $result->get_error_data();
@@ -7291,7 +6849,6 @@ final class Controller {
 		$npcink_governance_core['correlation_id'] = $log_context['correlation_id'];
 		if ( ! empty( $grant_context ) ) {
 			$log_context['read_authorization_granted'] = true;
-			$log_context['read_authorization_context'] = $grant_context;
 			$log_context['redaction_level']            = sanitize_key( (string) ( $grant_context['redaction_level'] ?? 'strict' ) );
 			$log_context['read_authorization_bounds']  = is_array( $grant_context['bounds'] ?? null ) ? $grant_context['bounds'] : array();
 			$npcink_governance_core['read_request_id'] = sanitize_text_field( (string) ( $grant_context['request_id'] ?? '' ) );
@@ -7302,7 +6859,7 @@ final class Controller {
 		}
 		$log_context['npcink_governance_core']    = $npcink_governance_core;
 
-		return $this->sanitize_log_context( $log_context );
+		return $this->sanitize_log_context( $log_context, true );
 	}
 
 	/**
@@ -8175,18 +7732,13 @@ final class Controller {
 			return trim( (string) $env_token );
 		}
 
-		if ( 'option' !== $source ) {
-			return '';
-		}
-
-		$option = get_option( 'npcink_openclaw_adapter_core_app_token', '' );
-		return is_string( $option ) ? trim( $option ) : '';
+		return '';
 	}
 
 	/**
 	 * Returns the configured Core app token source without exposing the token.
 	 *
-	 * @return string constant|environment|option|none
+	 * @return string constant|environment|none
 	 */
 	private function core_app_token_source(): string {
 		if ( defined( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) && '' !== trim( (string) constant( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) ) ) {
@@ -8196,11 +7748,6 @@ final class Controller {
 		$env_token = getenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
 		if ( is_string( $env_token ) && '' !== trim( $env_token ) ) {
 			return 'environment';
-		}
-
-		$option = get_option( 'npcink_openclaw_adapter_core_app_token', '' );
-		if ( is_string( $option ) && '' !== trim( $option ) ) {
-			return 'option';
 		}
 
 		return 'none';
@@ -8243,11 +7790,11 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function request_log_context( WP_REST_Request $request, string $ability_id ): array {
-		$context = $this->object_param( $request, 'log_context' );
+		$context = $this->client_log_context( $request );
 
 		foreach ( array( 'proposal_id', 'correlation_id', 'external_thread_id', 'openclaw_thread_id', 'adapter_request_id', 'adapter_route' ) as $key ) {
 			$value = $request->get_param( $key );
-			if ( null !== $value && '' !== (string) $value ) {
+			if ( is_scalar( $value ) && '' !== (string) $value ) {
 				$context[ $key ] = $value;
 			}
 		}
@@ -8277,6 +7824,49 @@ final class Controller {
 	}
 
 	/**
+	 * Returns only client-writable request log annotations.
+	 *
+	 * Governance, ability, authorization, and transport provenance fields are
+	 * always derived by Adapter and cannot be supplied through log_context.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return array<string,mixed>
+	 */
+	private function client_log_context( WP_REST_Request $request ): array {
+		$input = $this->object_param( $request, 'log_context' );
+		$clean = array();
+
+		foreach ( $this->client_annotation_fields() as $key ) {
+			if ( ! isset( $input[ $key ] ) || ! is_scalar( $input[ $key ] ) ) {
+				continue;
+			}
+
+			$value = sanitize_text_field( wp_unslash( (string) $input[ $key ] ) );
+			if ( '' !== $value ) {
+				$clean[ $key ] = $value;
+			}
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Returns untrusted client fields that may be kept as annotations.
+	 *
+	 * @return array<int,string>
+	 */
+	private function client_annotation_fields(): array {
+		return array(
+			'proposal_id',
+			'correlation_id',
+			'external_thread_id',
+			'openclaw_thread_id',
+			'adapter_request_id',
+			'adapter_route',
+		);
+	}
+
+	/**
 	 * Returns caller metadata for Core proposal requests.
 	 *
 	 * @param WP_REST_Request $request Request.
@@ -8284,14 +7874,33 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function proposal_caller_context( WP_REST_Request $request, string $ability_id ): array {
-		return array_merge(
-			array(
-				'caller_type' => 'openclaw_adapter',
-				'via'         => 'npcink-ai-client-adapter',
-			),
-			$this->request_log_context( $request, $ability_id ),
-			$this->object_param( $request, 'caller' )
-		);
+		$caller      = array();
+		$log_context = $this->request_log_context( $request, $ability_id );
+		$input       = $this->object_param( $request, 'caller' );
+
+		foreach ( $this->client_annotation_fields() as $key ) {
+			$value = $input[ $key ] ?? ( $log_context[ $key ] ?? null );
+			if ( ! is_scalar( $value ) ) {
+				continue;
+			}
+
+			$value = sanitize_text_field( wp_unslash( (string) $value ) );
+			if ( '' !== $value ) {
+				$caller[ $key ] = $value;
+			}
+		}
+
+		$caller['caller_type']       = 'openclaw_adapter';
+		$caller['via']               = 'npcink-ai-client-adapter';
+		$caller['ability_id']        = sanitize_text_field( $ability_id );
+		$caller['governance_source'] = 'npcink-governance-core';
+
+		$fingerprint = $this->current_signed_client_fingerprint();
+		if ( '' !== $fingerprint ) {
+			$caller['signed_client_fingerprint'] = $fingerprint;
+		}
+
+		return $this->sanitize_log_context( $caller );
 	}
 
 	/**
@@ -8362,14 +7971,59 @@ final class Controller {
 	 * Sanitizes AI request log context.
 	 *
 	 * @param mixed $value Context value.
+	 * @param bool  $trusted_internal Whether Adapter-generated governance fields may be retained.
 	 * @return mixed
 	 */
-	private function sanitize_log_context( $value ) {
+	private function sanitize_log_context( $value, bool $trusted_internal = false ) {
+		$field_count = 0;
+		$clean       = $this->sanitize_log_context_value( $value, 0, $field_count, $trusted_internal );
+		if ( ! is_array( $clean ) ) {
+			return $clean;
+		}
+
+		while ( $this->serialized_log_context_bytes( $clean ) > self::MAX_LOG_CONTEXT_SERIALIZED_BYTES ) {
+			if ( ! $this->remove_last_log_context_field( $clean ) ) {
+				return array();
+			}
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Recursively sanitizes bounded log context.
+	 *
+	 * @param mixed $value Context value.
+	 * @param int   $depth Current array depth.
+	 * @param int   $field_count Global retained field count.
+	 * @param bool  $trusted_internal Whether Adapter-generated governance fields may be retained.
+	 * @return mixed
+	 */
+	private function sanitize_log_context_value( $value, int $depth, int &$field_count, bool $trusted_internal ) {
 		if ( is_array( $value ) ) {
+			if ( $depth > self::MAX_LOG_CONTEXT_DEPTH ) {
+				return array();
+			}
+
 			$clean = array();
 			foreach ( $value as $key => $item ) {
-				$clean[ sanitize_key( (string) $key ) ] = $this->sanitize_log_context( $item );
+				if ( $field_count >= self::MAX_LOG_CONTEXT_FIELDS ) {
+					break;
+				}
+
+				$clean_key = substr( sanitize_key( (string) $key ), 0, 64 );
+				if ( '' === $clean_key || $this->is_sensitive_log_context_key( $clean_key, $trusted_internal ) ) {
+					continue;
+				}
+
+				if ( is_array( $item ) && $depth >= self::MAX_LOG_CONTEXT_DEPTH ) {
+					continue;
+				}
+
+				++$field_count;
+				$clean[ $clean_key ] = $this->sanitize_log_context_value( $item, $depth + 1, $field_count, $trusted_internal );
 			}
+
 			return $clean;
 		}
 
@@ -8377,7 +8031,82 @@ final class Controller {
 			return $value;
 		}
 
-		return sanitize_text_field( wp_unslash( (string) $value ) );
+		$value = sanitize_text_field( wp_unslash( (string) $value ) );
+		if ( strlen( $value ) <= self::MAX_LOG_CONTEXT_STRING_BYTES ) {
+			return $value;
+		}
+
+		if ( function_exists( 'mb_strcut' ) ) {
+			return mb_strcut( $value, 0, self::MAX_LOG_CONTEXT_STRING_BYTES, 'UTF-8' );
+		}
+
+		return substr( $value, 0, self::MAX_LOG_CONTEXT_STRING_BYTES );
+	}
+
+	/**
+	 * Returns whether a log context key may hold secret-bearing material.
+	 *
+	 * @param string $key Sanitized key.
+	 * @param bool   $trusted_internal Whether Adapter-generated governance fields may be retained.
+	 * @return bool
+	 */
+	private function is_sensitive_log_context_key( string $key, bool $trusted_internal ): bool {
+		if (
+			$trusted_internal
+			&& in_array(
+				$key,
+				array(
+					'read_authorization_granted',
+					'read_authorization_bounds',
+					'core_authorization_truth',
+				),
+				true
+			)
+		) {
+			return false;
+		}
+
+		return 1 === preg_match( '/password|passwd|token|secret|authorization|cookie|nonce|signature|private[-_]?key|api[-_]?key|credential/i', $key );
+	}
+
+	/**
+	 * Returns serialized log context size.
+	 *
+	 * @param array<string,mixed> $value Log context.
+	 * @return int
+	 */
+	private function serialized_log_context_bytes( array $value ): int {
+		$encoded = wp_json_encode( $value );
+		return is_string( $encoded ) ? strlen( $encoded ) : PHP_INT_MAX;
+	}
+
+	/**
+	 * Removes the final retained field from a nested context.
+	 *
+	 * @param array<string,mixed> $value Log context mutated in place.
+	 * @return bool
+	 */
+	private function remove_last_log_context_field( array &$value ): bool {
+		$keys = array_keys( $value );
+		for ( $index = count( $keys ) - 1; $index >= 0; --$index ) {
+			$key = $keys[ $index ];
+			if ( is_array( $value[ $key ] ) && ! empty( $value[ $key ] ) ) {
+				$child = $value[ $key ];
+				if ( $this->remove_last_log_context_field( $child ) ) {
+					if ( empty( $child ) ) {
+						unset( $value[ $key ] );
+					} else {
+						$value[ $key ] = $child;
+					}
+					return true;
+				}
+			}
+
+			unset( $value[ $key ] );
+			return true;
+		}
+
+		return false;
 	}
 
 	/**

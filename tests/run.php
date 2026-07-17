@@ -363,7 +363,35 @@ maa_adapter_assert( ! file_exists( $root . '/npcink-openclaw-adapter.php' ), 'Le
 $controller = maa_adapter_read( $root . '/includes/Rest/Controller.php' );
 $supported_plan_abilities = maa_adapter_read( $root . '/includes/Rest/Supported_Plan_Abilities.php' );
 $execution_profile_registry = maa_adapter_read( $root . '/includes/Rest/Execution_Profile_Registry.php' );
-$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry;
+$execution_input_validator = maa_adapter_read( $root . '/includes/Rest/Execution_Input_Validator.php' );
+$execution_action_runner = maa_adapter_read( $root . '/includes/Rest/Execution_Action_Runner.php' );
+$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry . "\n" . $execution_input_validator . "\n" . $execution_action_runner;
+maa_adapter_assert( false !== strpos( $controller, 'npcink_cloud_addon_receive_media_derivative_artifact' ), 'Media optimization readiness consumes the verified Cloud Addon receive seam.' );
+maa_adapter_assert( false === strpos( $controller, 'npcink_cloud_addon_download_media_derivative_artifact' ), 'Media optimization readiness removes the legacy Cloud Addon download seam.' );
+maa_adapter_assert( false !== strpos( $controller, 'cloud_artifact_receive_available' ), 'Media optimization readiness names the current receive check.' );
+maa_adapter_assert( false === strpos( $controller, 'cloud_artifact_download_available' ), 'Media optimization readiness removes the legacy download check name.' );
+maa_adapter_assert( false !== strpos( $controller, 'media_derivative_artifact_contract_is_valid' ), 'Media optimization readiness validates the exact local11 artifact contract.' );
+maa_adapter_assert( false !== strpos( $controller, 'artifact_contract_valid' ), 'Media optimization readiness exposes exact artifact contract status.' );
+maa_adapter_assert( false === strpos( $controller, "\$artifact['id']" ), 'Media optimization readiness removes the legacy artifact id alias.' );
+$media_expiry_check_start = strpos( $controller, 'private function media_optimization_artifact_expiry_check' );
+$media_expiry_check_end   = strpos( $controller, 'private function media_derivative_artifact_contract_is_valid' );
+$media_expiry_check       = false !== $media_expiry_check_start && false !== $media_expiry_check_end
+	? substr( $controller, $media_expiry_check_start, $media_expiry_check_end - $media_expiry_check_start )
+	: '';
+maa_adapter_assert( '' !== $media_expiry_check && false === strpos( $media_expiry_check, 'strtotime(' ), 'Media optimization readiness removes permissive artifact expiry parsing.' );
+maa_adapter_assert( false !== strpos( $controller, 'media_derivative_expiry_timestamp' ) && false !== strpos( $controller, '0 === $parsed->getOffset()' ), 'Media optimization readiness requires canonical UTC RFC3339 expiry.' );
+maa_adapter_assert( false !== strpos( $execution_input_validator, 'final class Execution_Input_Validator' ), 'Execution input validator exists.' );
+maa_adapter_assert( false !== strpos( $controller, 'new Execution_Input_Validator( self::execution_profiles() )' ), 'Controller delegates execution input rules to the canonical validator.' );
+maa_adapter_assert( false === strpos( $controller, 'private function validate_execute_action_input(' ), 'Controller no longer owns execution input validation implementation.' );
+maa_adapter_assert( false === strpos( $controller, 'private function resolve_output_references(' ), 'Controller no longer owns output reference resolution implementation.' );
+maa_adapter_assert( false !== strpos( $execution_action_runner, 'final class Execution_Action_Runner' ), 'Execution action runner exists.' );
+maa_adapter_assert( false !== strpos( $controller, 'new Execution_Action_Runner(' ), 'Controller injects controlled execution seams into the action runner.' );
+maa_adapter_assert( false === strpos( $controller, 'private function execute_normalized_action(' ), 'Controller no longer owns normalized action execution.' );
+maa_adapter_assert( false === strpos( $controller, 'private function execution_profile_id_for_ability(' ), 'Controller no longer owns execution profile id normalization.' );
+maa_adapter_assert( false === strpos( $controller, 'private function execution_action_idempotency_key(' ), 'Controller no longer owns action idempotency derivation.' );
+foreach ( array( 'rest_do_request', 'register_rest_route', 'get_option', 'update_option' ) as $forbidden_runner_dependency ) {
+	maa_adapter_assert( false === strpos( $execution_action_runner, $forbidden_runner_dependency ), 'Execution action runner excludes forbidden dependency: ' . $forbidden_runner_dependency );
+}
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'final class Supported_Plan_Abilities' ), 'Supported plan ability registry exists.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function ids' ), 'Supported plan ability exposes ids.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function contains' ), 'Supported plan ability exposes membership checks.' );
@@ -377,7 +405,7 @@ maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink_abili
 maa_adapter_assert( false !== strpos( $controller, 'npcink_openclaw_adapter_execution_profile_readiness.v1' ), 'Adapter exposes conditional execution profile readiness metadata.' );
 maa_adapter_assert( false !== strpos( $controller_contract, 'npcink_openclaw_adapter_setting_target_not_ready' ), 'Adapter uses a stable not-ready error for unallowlisted setting targets.' );
 maa_adapter_assert( false !== strpos( $controller, "'target_names_exposed'      => false" ), 'Adapter readiness metadata does not expose setting target names.' );
-maa_adapter_assert( false !== strpos( $controller, 'configure_reviewed_host_target_allowlist_and_create_a_new_proposal' ), 'Adapter returns bounded operator guidance for setting target readiness failures.' );
+maa_adapter_assert( false !== strpos( $execution_input_validator, 'configure_reviewed_host_target_allowlist_and_create_a_new_proposal' ), 'Adapter returns bounded operator guidance for setting target readiness failures.' );
 maa_adapter_assert( false !== strpos( $controller, 'media_alt_live_preflight' ) && false !== strpos( $controller, 'adapter_toolkit_dry_run_before_commit' ), 'Adapter performs the Core-required Toolkit live ALT dry-run before final commit.' );
 maa_adapter_assert( false !== strpos( $controller_contract, 'expected_current_alt' ) && false !== strpos( $controller_contract, 'operator_visual_review_confirmed' ), 'Adapter execution schema preserves missing-ALT drift and visual-review guards.' );
 foreach ( array( 'apply_filters', 'do_action', 'add_filter', 'add_action', 'get_option', 'update_option', 'wp_remote_', '$wpdb', 'register_post_type' ) as $dynamic_extension_signal ) {
@@ -680,7 +708,7 @@ foreach (
 			'npcink_cloud_addon_get_media_derivative_run_result',
 			'npcink_cloud_addon_public_media_derivative_cloud_projection',
 			'npcink_cloud_addon_build_media_derivative_optimization_payload',
-			'npcink_cloud_addon_download_media_derivative_artifact',
+			'npcink_cloud_addon_receive_media_derivative_artifact',
 			'npcink_governance_core_build_media_derivative_ability_input',
 		"'crop'",
 		"'watermark_enabled'",
@@ -852,11 +880,8 @@ foreach (
 			'execution_input_contract',
 			'partial_success',
 			'selected_batch_execution_summary',
-			'execution_profile_id_for_ability',
-			'execution_action_idempotency_key',
 			'batch_write_actions',
 			'normalize_execution_actions',
-			'execute_normalized_action',
 			'npcink_openclaw_adapter_execute_profile_unsupported',
 			'npcink_openclaw_adapter_execution_input_ambiguous',
 			'npcink_openclaw_adapter_write_action_invalid',
@@ -979,8 +1004,9 @@ foreach (
 			'proposal_review_summary',
 			'preflight_already_issued',
 			'already_executed',
-			'cloud_artifact_download_available',
+			'cloud_artifact_receive_available',
 			'artifact_not_expired',
+			'artifact_contract_valid',
 			'adapter_validator_aligned',
 			'content_reference_scan_completed',
 			'normalize_media_optimization_reference_repairs',
@@ -1053,8 +1079,8 @@ foreach (
 		"current_user_can( 'manage_options' )",
 		'/npcink-governance-core/v1/capabilities',
 		'/npcink-governance-core/v1/proposals',
-		"caller_type' => 'openclaw_adapter'",
-		"'via'         => 'npcink-ai-client-adapter'",
+		"'caller_type']       = 'openclaw_adapter'",
+		"'via']               = 'npcink-ai-client-adapter'",
 		'/wp-abilities/v1/abilities/',
 		'governance_mode',
 		'direct_read',
@@ -1127,7 +1153,6 @@ foreach (
 			'GET /proposals/{proposal_id}',
 			'approve-and-execute',
 			'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN',
-		'npcink_openclaw_adapter_core_app_token',
 			'x-npcink-governance-core-app-token',
 			'core_capabilities_data',
 			'public_upstream_error_data',
@@ -1273,7 +1298,37 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	$client_key_auth = substr( $controller, (int) strpos( $controller, 'private function authenticate_signed_request' ), 2600 );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'should_update_client_key_last_used' ), 'Signed request auth throttles last-used option writes.' );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'current_signed_client_fingerprint' ), 'Signed request auth records the current client fingerprint.' );
+	maa_adapter_assert( false !== strpos( $client_key_auth, 'claim_signature_nonce( $key_id, $nonce )' ), 'Signed request auth atomically claims a nonce only after signature verification.' );
+	maa_adapter_assert( false === strpos( $client_key_auth, 'get_transient( $nonce_key )' ) && false === strpos( $client_key_auth, 'set_transient( $nonce_key' ), 'Signed request auth removes the non-atomic transient nonce check.' );
+	$nonce_claim = substr( $controller, (int) strpos( $controller, 'private function claim_signature_nonce' ), 5200 );
+	maa_adapter_assert( false !== strpos( $nonce_claim, 'insert_signature_nonce_option( $nonce_key, $expires_at )' ), 'Signature nonce claim uses an insert-only options primitive.' );
+	maa_adapter_assert( false !== strpos( $nonce_claim, 'delete_expired_signature_nonce_option' ), 'Expired nonce reclaim uses conditional deletion.' );
+	maa_adapter_assert( false !== strpos( $nonce_claim, 'SIGNATURE_NONCE_CLEANUP_BATCH' ), 'Signature nonce cleanup remains bounded.' );
+	$nonce_insert = substr( $controller, (int) strpos( $controller, 'private function insert_signature_nonce_option' ), 1500 );
+	maa_adapter_assert( false !== strpos( $nonce_insert, 'INSERT IGNORE INTO' ) && false !== strpos( $nonce_insert, "'off'" ), 'Signature nonce claim is strict insert-only and non-autoloaded.' );
+	maa_adapter_assert( false === strpos( $nonce_insert, "wp_cache_delete( 'notoptions'" ), 'Signature nonce insertion does not flush the global missing-option cache.' );
+	$nonce_expiry = substr( $controller, (int) strpos( $controller, 'private function signature_nonce_option_expiry' ), 900 );
+	maa_adapter_assert( false !== strpos( $nonce_expiry, 'SELECT option_value FROM' ) && false === strpos( $nonce_expiry, 'get_option(' ), 'Signature nonce expiry reads bypass the shared options cache.' );
+	maa_adapter_assert( false !== strpos( $nonce_claim, 'wp_rand( 1, 64 )' ), 'Signature nonce cleanup sampling is not controlled by client nonce values.' );
 	maa_adapter_assert( false === strpos( $controller, 'dbDelta(' ) && false === strpos( $controller, 'CREATE TABLE' ), 'Adapter controller does not create custom WordPress tables.' );
+	$core_token_source = substr( $controller, (int) strpos( $controller, 'private function core_app_token_source' ), 900 );
+	maa_adapter_assert( false !== strpos( $core_token_source, 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) && false !== strpos( $core_token_source, "return 'environment';" ), 'Core app token source is restricted to constant or environment configuration.' );
+	maa_adapter_assert( false === strpos( $core_token_source, 'get_option(' ), 'Core app token source does not read plaintext WordPress options.' );
+	$caller_context = substr( $controller, (int) strpos( $controller, 'private function proposal_caller_context' ), 1900 );
+	foreach ( array( 'caller_type', 'via', 'ability_id', 'governance_source', 'signed_client_fingerprint' ) as $trusted_caller_field ) {
+		maa_adapter_assert( false !== strpos( $caller_context, $trusted_caller_field ), 'Adapter derives trusted caller field: ' . $trusted_caller_field );
+	}
+	maa_adapter_assert( false !== strpos( $caller_context, 'current_signed_client_fingerprint()' ), 'Proposal caller binds the authenticated signed client fingerprint.' );
+	$read_request_create = substr( $controller, (int) strpos( $controller, 'public function create_read_request' ), 1900 );
+	maa_adapter_assert( false !== strpos( $read_request_create, 'proposal_caller_context( $request, $ability_id )' ), 'Sensitive read requests reuse the trusted caller builder.' );
+	$client_log_context = substr( $controller, (int) strpos( $controller, 'private function client_log_context' ), 1700 );
+	foreach ( array( 'proposal_id', 'correlation_id', 'external_thread_id', 'openclaw_thread_id', 'adapter_request_id', 'adapter_route' ) as $client_annotation_field ) {
+		maa_adapter_assert( false !== strpos( $client_log_context, "'" . $client_annotation_field . "'" ), 'Client log context allowlist retains annotation field: ' . $client_annotation_field );
+	}
+	$log_context_sanitizer = substr( $controller, (int) strpos( $controller, 'private function sanitize_log_context' ), 6200 );
+	foreach ( array( 'MAX_LOG_CONTEXT_FIELDS', 'MAX_LOG_CONTEXT_DEPTH', 'MAX_LOG_CONTEXT_STRING_BYTES', 'MAX_LOG_CONTEXT_SERIALIZED_BYTES', 'is_sensitive_log_context_key' ) as $log_context_guard ) {
+		maa_adapter_assert( false !== strpos( $log_context_sanitizer, $log_context_guard ), 'Log context sanitizer enforces guard: ' . $log_context_guard );
+	}
 	foreach (
 		array(
 			"const EXECUTION_RECORDS_OPTION  = 'npcink_openclaw_adapter_execution_records'",
@@ -1845,7 +1900,6 @@ foreach (
 		'npcink-abilities-toolkit/trash-comment',
 			'npcink-abilities-toolkit/approve-comment',
 			'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN',
-			'npcink_openclaw_adapter_core_app_token',
 			'approval_surface=npcink_governance_core_admin',
 		'POST /wp-json/npcink-openclaw-adapter/v1/run-read-ability',
 		'proposals:read',
@@ -2372,7 +2426,6 @@ foreach (
 		'proposals:read',
 			'audit_timeline',
 			'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN',
-				'npcink_openclaw_adapter_core_app_token',
 				'approve-and-execute',
 				'npcink_openclaw_adapter_execute_profile_unsupported',
 			'approval_surface=npcink_governance_core_admin',
@@ -2541,7 +2594,6 @@ foreach (
 		'proposal_id',
 		'correlation_id',
 		'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN',
-		'npcink_openclaw_adapter_core_app_token',
 		'Read-Only Planning Contract',
 		'npcink-abilities-toolkit/build-content-inventory-fix-plan',
 		'npcink-abilities-toolkit/build-nonproduction-content-cleanup-plan',
@@ -3034,6 +3086,12 @@ foreach (
 }
 
 $smoke_wp = maa_adapter_read( $root . '/tests/smoke-wp.php' );
+maa_adapter_assert( false !== strpos( $smoke_wp, 'function npcink_cloud_addon_receive_media_derivative_artifact' ), 'WordPress smoke provides the verified Cloud Addon receive fixture.' );
+maa_adapter_assert( false === strpos( $smoke_wp, 'npcink_abilities_toolkit_cloud_media_derivative_artifact_download' ), 'WordPress smoke removes the legacy Toolkit artifact download filter.' );
+maa_adapter_assert( false !== strpos( $smoke_wp, 'media_artifact_verified_transfer.v1' ), 'WordPress smoke fixture carries exact verified transfer evidence.' );
+maa_adapter_assert( false !== strpos( $smoke_wp, 'media_artifact_delivery_ack.v1' ), 'WordPress smoke fixture carries the transfer-only delivery ACK.' );
+maa_adapter_assert( false !== strpos( $smoke_wp, "'artifact_expires_at'   => \$artifact_expiry" ) && false !== strpos( $smoke_wp, "'expires_at'        => \$artifact_expiry" ), 'WordPress smoke receive fixture preserves the reviewed local11 artifact expiry.' );
+maa_adapter_assert( false === strpos( $smoke_wp, 'shortened_expiry' ), 'WordPress smoke removes the obsolete five-minute ACK retention fixture.' );
 foreach (
 	array(
 		'/npcink-openclaw-adapter/v1/health',

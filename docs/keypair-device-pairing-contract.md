@@ -175,6 +175,15 @@ Adapter verifies:
 - Ed25519 signature is valid;
 - scopes allow the route.
 
+Nonce replay protection is claimed only after the Ed25519 signature verifies.
+Adapter uses one non-autoloaded WordPress option per key/nonce digest and a
+strict insert-only database operation; the unique option name is the atomic
+claim, so concurrent requests cannot both accept the same nonce. Each claim
+stores its expiry, expired claims are reclaimed with compare-and-delete
+semantics, and cleanup is server-randomized, low-frequency, and bounded.
+Adapter does not use a read-then-write transient nonce check or WordPress 7's
+duplicate-update `add_option()` path for the claim.
+
 ## Local Request Wrapper
 
 OpenClaw-style clients can use the npm CLI after pairing:
