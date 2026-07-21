@@ -1,4 +1,5 @@
 .git
+.github
 .distignore
 .gitignore
 .DS_Store
