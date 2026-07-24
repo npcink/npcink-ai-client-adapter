@@ -2228,6 +2228,21 @@ foreach (
 }
 
 $composer = maa_adapter_read( $root . '/composer.json' );
+$pr_template = maa_adapter_read( $root . '/.github/pull_request_template.md' );
+$pr_publisher = maa_adapter_read( $root . '/scripts/publish-pr.sh' );
+maa_adapter_assert(
+	false !== strpos( $composer, '"pr:publish": "bash scripts/publish-pr.sh"' )
+	&& false !== strpos( $pr_template, '## Scope' )
+	&& false !== strpos( $pr_template, '## Adapter Boundary' )
+	&& false !== strpos( $pr_template, '## Verification' )
+	&& false !== strpos( $pr_template, '## Risk' )
+	&& false !== strpos( $pr_publisher, 'git status --porcelain' )
+	&& false !== strpos( $pr_publisher, 'git merge-base --is-ancestor "origin/${base_branch}" HEAD' )
+	&& false !== strpos( $pr_publisher, '--body-file "${body_path}"' )
+	&& false !== strpos( $pr_publisher, '--auto --squash --match-head-commit "${head_sha}"' )
+	&& false === strpos( $pr_publisher, '--delete-branch' ),
+	'PR publisher validates the checked-in body contract and preserves protected multi-worktree merging.'
+);
 foreach (
 	array(
 		'"license": "GPL-2.0-or-later"',
