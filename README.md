@@ -1029,6 +1029,19 @@ This plugin must not become:
 
 ## Development
 
+Complete a copy of `.github/pull_request_template.md`, then publish a clean
+topic branch with:
+
+```bash
+composer pr:publish -- \
+  --title "fix: describe the focused change" \
+  --body-file /absolute/path/to/completed-pr-body.md
+```
+
+The publisher validates `Scope`, `Boundary`, `Verification`, and `Risk`,
+requires the latest `origin/master`, and requests protected squash auto-merge
+without deleting branches from multi-worktree repositories.
+
 Run static checks:
 
 ```bash
