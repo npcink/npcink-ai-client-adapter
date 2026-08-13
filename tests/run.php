@@ -1762,7 +1762,8 @@ foreach (
 	array(
 			'Adapter is not the WordPress-to-Cloud connector',
 			'Cloud Addon is the WordPress-side Cloud connector',
-			'npcink_cloud_addon_runtime_client()',
+			'npcink_cloud_addon_get_connection_state()',
+			'scenario-specific Cloud Addon helpers',
 			'npcink_cloud_addon_is_configured()',
 			'proposal-specific readiness checks and approved local adoption only',
 			'Cloud Addon and Cloud tooling own run creation',
