@@ -45,8 +45,8 @@ local capability and callback source.
 Adapter may add bounded Cloud Addon integration code for:
 
 - detecting whether `npcink-cloud-addon` is active;
-- calling `npcink_cloud_addon_runtime_client()` or a more specific public
-  helper exposed by the addon;
+- calling `npcink_cloud_addon_get_connection_state()` for readiness and a
+  scenario-specific public helper exposed by the addon;
 - returning bounded Cloud Addon readiness or proposal-specific projections to
   OpenClaw when a governed user action explicitly needs Cloud evidence;
 - carrying `proposal_id`, `correlation_id`, `external_thread_id`, and
@@ -116,7 +116,9 @@ Adapter may consume only the Cloud Addon public seam. The Adapter-safe seam is
 limited to readiness, diagnostics, proposal evidence, and approved execution
 support. Current Adapter-safe examples include:
 
-- `npcink_cloud_addon_runtime_client()`;
+- `npcink_cloud_addon_get_connection_state()`;
+- scenario-specific Cloud Addon helpers for the bounded operation being
+  projected (for example, runtime detail, feedback, or media transport);
 - `npcink_cloud_addon_is_configured()`;
 - `npcink_cloud_addon_receive_media_derivative_artifact()` for
   proposal-specific readiness checks and approved local adoption only. The
@@ -165,7 +167,7 @@ Do not add these to Adapter:
 
 2. Add Cloud-backed OpenClaw behavior only through Cloud Addon:
    - collect local context through existing Abilities routes;
-   - call a Cloud Addon helper or runtime client supported method;
+   - call the matching Cloud Addon scenario helper;
    - return Cloud `run_id`, status, result, or proposal input as a projection;
    - do not write WordPress.
 
