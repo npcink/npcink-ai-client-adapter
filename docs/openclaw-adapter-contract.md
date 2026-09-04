@@ -144,9 +144,13 @@ For `direct_read_sensitive` rows or any row with
 `redaction_required=true`, Adapter applies bounded recursive redaction before
 returning `result`. It redacts values under sensitive keys such as passwords,
 secrets, tokens, authorization headers, cookies, nonces, email fields, and API
-or private keys. This is a product-surface redaction layer; Core remains the
-capability guidance source and WordPress Abilities API remains the canonical
-ability execution surface.
+or private keys. The only `authorization` result field retained is a bounded
+Core-ready plan envelope containing exactly
+`classification=core_proposal_required` and
+`authority=npcink-governance-core`; extra fields or any other values remain
+redacted. This is a product-surface redaction layer; Core remains the capability
+guidance source and WordPress Abilities API remains the canonical ability
+execution surface.
 
 If Core marks a capability as requiring explicit sensitive read authorization,
 Adapter must fail closed unless the caller supplies an approved Core read

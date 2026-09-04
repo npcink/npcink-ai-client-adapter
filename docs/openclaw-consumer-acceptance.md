@@ -213,9 +213,12 @@ Run this order for a local acceptance pass:
    `write_actions`, `preview`, `risk`, `requires_approval`,
    `commit_execution=false`, and `dry_run=true`, and does not treat
    `write_actions` or destructive candidates as executed work. Confirm the
-   read envelope carries `read_policy=direct_read_internal`,
-   `sensitivity=internal`, `redaction_applied=false`, a non-empty
-   `correlation_id`, and `commit_execution=false`.
+   content-inventory plan read uses an approved Core read request because it
+   may inspect unpublished content. Confirm its envelope carries
+   `read_policy=core_read_authorization_required`, `sensitivity=sensitive`,
+   `read_authorization_granted=true`, `redaction_required=true`,
+   `redaction_applied=true`, a non-empty `correlation_id`, and
+   `commit_execution=false`.
    For the SEO/AEO/GEO suggestion recipe, run
    `npcink-toolbox/build-content-discoverability-brief` through
    `POST /run-read-ability`; confirm the result has

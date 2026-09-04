@@ -7210,10 +7210,16 @@ final class Controller {
 			return $value;
 		}
 
+		$denied_fields = array_map( 'strtolower', $denied_fields );
 		$clean = array();
 		foreach ( $value as $key => $item ) {
 			$key_string = is_string( $key ) ? $key : (string) $key;
-			if ( in_array( $key_string, $denied_fields, true ) || $this->is_sensitive_read_key( $key_string ) ) {
+			$key_normalized = strtolower( $key_string );
+			if ( 'authorization' === $key_normalized && ! in_array( $key_normalized, $denied_fields, true ) && $this->is_safe_governance_authorization_envelope( $item ) ) {
+				$clean[ $key ] = $item;
+				continue;
+			}
+			if ( in_array( $key_normalized, $denied_fields, true ) || $this->is_sensitive_read_key( $key_string ) ) {
 				$clean[ $key ] = '[REDACTED]';
 				++$count;
 				continue;
@@ -7223,6 +7229,21 @@ final class Controller {
 		}
 
 		return $clean;
+	}
+
+	/**
+	 * Identifies the bounded non-secret authorization envelope used by Core-ready plans.
+	 *
+	 * @param mixed $value Candidate value.
+	 * @return bool
+	 */
+	private function is_safe_governance_authorization_envelope( $value ): bool {
+		if ( ! is_array( $value ) || array() !== array_diff( array_keys( $value ), array( 'classification', 'authority' ) ) ) {
+			return false;
+		}
+
+		return 'core_proposal_required' === ( $value['classification'] ?? null )
+			&& 'npcink-governance-core' === ( $value['authority'] ?? null );
 	}
 
 	/**

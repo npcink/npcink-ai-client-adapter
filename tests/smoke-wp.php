@@ -112,7 +112,7 @@ function maa_adapter_smoke_rest( string $method, string $route, array $params = 
 					'data_classes'            => array( 'site_content' ),
 					'redaction_level'         => 'strict',
 					'purpose'                 => 'Adapter local smoke read authorization',
-					'bounds'                  => array( 'max_rows' => 10, 'tail_lines' => 5 ),
+					'bounds'                  => array( 'max_rows' => 100, 'tail_lines' => 5 ),
 				)
 			);
 			$request_data = is_array( $read_request['data'] ) ? $read_request['data'] : array();
@@ -124,7 +124,7 @@ function maa_adapter_smoke_rest( string $method, string $route, array $params = 
 				array(
 					'note'            => 'Adapter local smoke approval',
 					'redaction_level' => 'strict',
-					'max_rows'        => 10,
+					'max_rows'        => 100,
 					'tail_lines'      => 5,
 				)
 			);
@@ -1758,9 +1758,11 @@ maa_adapter_smoke_assert( true === (bool) ( $content_plan['requires_approval'] ?
 maa_adapter_smoke_assert( false === (bool) ( $content_plan['commit_execution'] ?? true ), 'adapter plan read preserves commit_execution=false' );
 maa_adapter_smoke_assert( true === (bool) ( $content_plan['dry_run'] ?? false ), 'adapter plan read preserves dry_run=true' );
 maa_adapter_smoke_assert( false === (bool) ( $content_plan_response['commit_execution'] ?? true ), 'adapter plan wrapper does not report execution' );
-maa_adapter_smoke_assert( 'direct_read_internal' === (string) ( $content_plan_response['read_policy'] ?? '' ), 'adapter plan read carries the expected read policy' );
-maa_adapter_smoke_assert( 'internal' === (string) ( $content_plan_response['sensitivity'] ?? '' ), 'adapter plan read carries the expected sensitivity' );
-maa_adapter_smoke_assert( false === (bool) ( $content_plan_response['redaction_required'] ?? true ), 'adapter plan read carries the expected redaction posture' );
+maa_adapter_smoke_assert( 'core_read_authorization_required' === (string) ( $content_plan_response['read_policy'] ?? '' ), 'adapter plan read carries the expected read policy' );
+maa_adapter_smoke_assert( 'sensitive' === (string) ( $content_plan_response['sensitivity'] ?? '' ), 'adapter plan read carries the expected sensitivity' );
+maa_adapter_smoke_assert( true === (bool) ( $content_plan_response['read_authorization_granted'] ?? false ), 'adapter plan read records the Core read grant' );
+maa_adapter_smoke_assert( true === (bool) ( $content_plan_response['redaction_required'] ?? false ), 'adapter plan read carries the expected redaction posture' );
+maa_adapter_smoke_assert( true === (bool) ( $content_plan_response['redaction_applied'] ?? false ), 'adapter plan read applies bounded redaction' );
 
 $article_optimization_title = 'Adapter Article Optimization Candidate ' . maa_adapter_smoke_run_id();
 $article_optimization_post_id = wp_insert_post(
@@ -3404,7 +3406,7 @@ $site_summary = maa_adapter_smoke_rest(
 );
 maa_adapter_smoke_assert( 'npcink-abilities-toolkit/build-content-inventory-fix-plan' === (string) ( $site_summary['ability_id'] ?? '' ), 'adapter runs a direct-read planning ability' );
 maa_adapter_smoke_assert( is_array( $site_summary['result'] ?? null ), 'planning read returns a result object' );
-	maa_adapter_smoke_assert( 'direct_read_internal' === (string) ( $site_summary['read_policy'] ?? '' ), 'planning read carries internal read policy' );
+maa_adapter_smoke_assert( 'core_read_authorization_required' === (string) ( $site_summary['read_policy'] ?? '' ), 'planning read preserves Core read authorization policy' );
 maa_adapter_smoke_assert( '' !== (string) ( $site_summary['correlation_id'] ?? '' ), 'adapter read response carries generated correlation id' );
 
 $discoverability_brief_response = maa_adapter_smoke_rest(
