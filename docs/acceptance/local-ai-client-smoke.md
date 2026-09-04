@@ -23,7 +23,8 @@ This verifies:
 - `GET /health`.
 - `GET /connection/manifest`.
 - `GET /help`.
-- Public read execution through Adapter.
+- Direct read execution through Adapter for a currently allowlisted planning
+  ability. Sensitive reads must use the Core read-request flow.
 
 ## Fixture Proposal
 
@@ -69,6 +70,12 @@ git diff --check
 
 The fixture checks are separate from the default release baseline because the
 commit-enabled path intentionally performs a local WordPress write.
+
+For a local administrator-only runtime pass that provisions temporary Core
+read requests, set `MAA_ADAPTER_SMOKE_CREATE_READ_GRANTS=1` when running
+`composer smoke:wp`. Core still redacts sensitive plan output; if a redacted
+plan is submitted to `proposals/from-plan`, Adapter must reject it rather than
+turning redaction into executable proposal input.
 
 ## Expected Boundary
 

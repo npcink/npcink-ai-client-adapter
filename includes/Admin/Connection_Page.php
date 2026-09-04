@@ -541,7 +541,7 @@ final class Connection_Page {
 			);
 		}
 
-		if ( ! empty( $health['core_capabilities'] ) && ! empty( $health['abilities_catalog'] ) ) {
+		if ( ! empty( $health['core_capabilities'] ) && ! empty( $health['abilities_catalog'] ) && ! empty( $health['dependency_contracts_ready'] ) ) {
 			return array(
 				'level' => 'ok',
 				'label' => __( 'Ready', 'npcink-ai-client-adapter' ),

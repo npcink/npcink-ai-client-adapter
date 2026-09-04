@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NODE_BIN="${NODE_BIN:-node}"
 PROFILE="${MAA_ADAPTER_ACCEPTANCE_PROFILE:-local}"
-PUBLIC_READ_ABILITY="${MAA_ADAPTER_ACCEPTANCE_PUBLIC_READ_ABILITY:-npcink-abilities-toolkit/site-info}"
+PUBLIC_READ_ABILITY="${MAA_ADAPTER_ACCEPTANCE_PUBLIC_READ_ABILITY:-npcink-abilities-toolkit/build-content-inventory-fix-plan}"
+# Sensitive reads such as npcink-abilities-toolkit/site-info require a Core grant.
 SENSITIVE_READ_ABILITY="${MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_ABILITY:-}"
 SENSITIVE_READ_INPUT="${MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_INPUT:-}"
 SENSITIVE_READ_REQUEST_ID="${MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_REQUEST_ID:-}"

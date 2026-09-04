@@ -2,7 +2,7 @@
 Contributors: muze233
 Tags: ai, governance, automation, rest-api
 Requires at least: 7.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
 Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
 Stable tag: 0.3.2

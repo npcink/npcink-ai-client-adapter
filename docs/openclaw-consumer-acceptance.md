@@ -231,8 +231,9 @@ Run this order for a local acceptance pass:
    `write_posture=suggestion_only`, `provider_execution=none`,
    `direct_wordpress_write=false`, and
    `final_write_path=core_proposal_required`.
-   For a public read such as `/site-summary`, confirm
-   `read_policy=direct_read_public`.
+   For a sensitive read such as `site-info`, confirm the adapter returns
+   `npcink_openclaw_adapter_core_read_authorization_required` until Core grants
+   an approved read request.
    For a diagnostics read such as `/wp-diagnostics-summary`, confirm
    `read_policy=direct_read_sensitive`, `redaction_required=true`, and
    `redaction_applied=true`.

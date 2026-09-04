@@ -235,17 +235,17 @@ equivalent Ed25519 signing implementation instead.
 4. Call `GET /capabilities`.
 5. Use the returned Core guidance as the only governance truth.
 
-## Read Shortcuts
+## Read Abilities
 
-Shortcut routes forward GET query parameters as ability input. Use only inputs
-accepted by the underlying ability schema. For term details, use the `id` field
-returned by term list routes; the adapter infers `taxonomy` from the term id
-when possible, and also accepts `term_id` as an alias for `id`. Pass `taxonomy`
-when the caller already knows it.
+Use the generic `POST /run-read-ability` route. Sensitive abilities such as
+`site-info` require an approved Core read request; they must not be accessed by
+shortcut URLs or direct WordPress internals.
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/site-info"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/build-content-inventory-fix-plan","input":{"per_page":1,"max_actions":1}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 ```bash
@@ -351,12 +351,16 @@ Display `error_log.tail_entries` and `contents` only when
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/current-user-permissions"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/wp-ops-diagnostics-detail","input":{"include_active_plugins":false,"include_inactive_plugins":false,"include_plugin_updates":false,"include_must_use_plugins":false,"include_dropins":false,"include_log_contents":false}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/database-info"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/wp-diagnostics-summary","input":{}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 All P0/P1/P2 diagnostics detail shortcuts call
@@ -370,27 +374,37 @@ Content context reads:
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/posts?author_id=1&orderby=modified&order=desc"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/list-posts","input":{"author_id":1,"orderby":"modified","order":"desc"}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/terms?taxonomy=category&include_sample_posts=1&sample_post_limit=3"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/list-terms","input":{"taxonomy":"category","include_sample_posts":true,"sample_post_limit":3}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/menu?location=primary"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/get-menu","input":{"location":"primary"}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/media?per_page=1"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/list-media","input":{"per_page":1}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/pages?per_page=1"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/list-pages","input":{"per_page":1}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 If a route returns `npcink_openclaw_adapter_proposal_required`, stop and use the
@@ -512,7 +526,9 @@ Adapter on later read or execution requests:
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/site-info?proposal_id=PROPOSAL_ID&correlation_id=CORRELATION_ID"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/site-info","input":{},"log_context":{"proposal_id":"PROPOSAL_ID","correlation_id":"CORRELATION_ID"}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
 For `POST /run-read-ability`, send the same values in a top-level
