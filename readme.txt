@@ -5,7 +5,7 @@ Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.0
 Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,12 @@ Adapter health and help routes can report dependency status. Routes that require
 3. WordPress Application Password fallback connection flow for clients that use a dedicated secret field or credential vault.
 
 == Changelog ==
+
+= 0.3.3 =
+
+* Require Core read authorization for content inventory planning that may inspect unpublished content.
+* Preserve only the exact non-secret Core proposal authorization envelope during bounded result redaction.
+* Align local client acceptance and current documentation with the fail-closed read-request flow.
 
 = 0.3.2 =
 
