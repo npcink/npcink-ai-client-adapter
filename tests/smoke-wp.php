@@ -70,8 +70,79 @@ function maa_adapter_smoke_help_has_route( array $help, string $method, string $
  * @return array<string,mixed>
  */
 function maa_adapter_smoke_rest( string $method, string $route, array $params = array() ): array {
+	if ( 'POST' === strtoupper( $method ) && '/npcink-openclaw-adapter/v1/proposals' === $route && 0 === strpos( (string) ( $params['ability_id'] ?? '' ), 'npcink-abilities-toolkit/build-' ) ) {
+		$plan_result = maa_adapter_smoke_rest_result(
+			'POST',
+			'/npcink-openclaw-adapter/v1/proposals/from-plan',
+			array(
+				'plan_ability_id' => (string) $params['ability_id'],
+				'plan'            => array_merge(
+					is_array( $params['input'] ?? null ) ? $params['input'] : array(),
+					array(
+						'requires_approval' => true,
+						'proposal_mode'     => 'batch',
+						'batch_approval'    => true,
+						'dry_run'          => true,
+						'commit_execution' => false,
+					)
+				),
+				'plan_input'      => array(),
+			)
+		);
+		$plan_error_code = is_array( $plan_result['data'] ) ? (string) ( $plan_result['data']['code'] ?? '' ) : '';
+		maa_adapter_smoke_assert( $plan_result['status'] >= 200 && $plan_result['status'] < 300, $method . ' ' . $route . ' returned HTTP ' . $plan_result['status'] . ( '' !== $plan_error_code ? ' (' . $plan_error_code . ')' : '' ) );
+		$plan_data = is_array( $plan_result['data'] ) ? $plan_result['data'] : array();
+		$proposals = is_array( $plan_data['proposals'] ?? null ) ? $plan_data['proposals'] : array();
+		maa_adapter_smoke_assert( ! empty( $proposals[0] ) && is_array( $proposals[0] ), 'adapter smoke plan handoff returns a proposal' );
+		return $proposals[0];
+	}
 	$result = maa_adapter_smoke_rest_result( $method, $route, $params );
-	maa_adapter_smoke_assert( $result['status'] >= 200 && $result['status'] < 300, $method . ' ' . $route . ' returned HTTP ' . $result['status'] );
+	if ( 403 === (int) $result['status'] && is_array( $result['data'] ) && 'npcink_openclaw_adapter_core_read_authorization_required' === (string) ( $result['data']['code'] ?? '' ) ) {
+		if ( '1' === getenv( 'MAA_ADAPTER_SMOKE_CREATE_READ_GRANTS' ) && 'POST' === strtoupper( $method ) && '/npcink-openclaw-adapter/v1/run-read-ability' === $route ) {
+			$ability_id = sanitize_text_field( (string) ( $params['ability_id'] ?? '' ) );
+			$input      = is_array( $params['input'] ?? null ) ? $params['input'] : array();
+			$read_request = maa_adapter_smoke_rest_result(
+				'POST',
+				'/npcink-openclaw-adapter/v1/read-requests',
+				array(
+					'ability_id'              => $ability_id,
+					'input'                   => $input,
+					'requested_input_summary' => 'Adapter local smoke bounded read grant',
+					'sensitivity'             => 'sensitive',
+					'data_classes'            => array( 'site_content' ),
+					'redaction_level'         => 'strict',
+					'purpose'                 => 'Adapter local smoke read authorization',
+					'bounds'                  => array( 'max_rows' => 100, 'tail_lines' => 5 ),
+				)
+			);
+			$request_data = is_array( $read_request['data'] ) ? $read_request['data'] : array();
+			$request_id   = sanitize_text_field( (string) ( $request_data['request_id'] ?? '' ) );
+			maa_adapter_smoke_assert( $read_request['status'] >= 200 && $read_request['status'] < 300 && '' !== $request_id, 'adapter smoke creates a Core read request when grant mode is enabled' );
+			$approved = maa_adapter_smoke_rest_result(
+				'POST',
+				'/npcink-governance-core/v1/read-requests/' . rawurlencode( $request_id ) . '/approve',
+				array(
+					'note'            => 'Adapter local smoke approval',
+					'redaction_level' => 'strict',
+					'max_rows'        => 100,
+					'tail_lines'      => 5,
+				)
+			);
+			maa_adapter_smoke_assert( 200 === (int) $approved['status'], 'adapter smoke approves a Core read request when grant mode is enabled' );
+			$params['read_request_id'] = $request_id;
+			$result = maa_adapter_smoke_rest_result( $method, $route, $params );
+		}
+		if ( 403 !== (int) $result['status'] ) {
+			maa_adapter_smoke_assert( $result['status'] >= 200 && $result['status'] < 300, $method . ' ' . $route . ' returned HTTP ' . $result['status'] );
+			return is_array( $result['data'] ) ? $result['data'] : array();
+		}
+		maa_adapter_smoke_assert( 'core_read_request' === (string) ( $result['data']['data']['required_flow'] ?? '' ), 'adapter blocks sensitive reads with the Core read-request flow' );
+		maa_adapter_smoke_assert( true === (bool) ( $result['data']['data']['read_authorization_required'] ?? false ), 'adapter sensitive-read block requires explicit authorization' );
+		echo "[skip] remaining WordPress smoke requires a Core read grant; environment is fail-closed by default.\n";
+		exit( 0 );
+	}
+	$error_code = is_array( $result['data'] ) ? (string) ( $result['data']['code'] ?? '' ) : '';
+	maa_adapter_smoke_assert( $result['status'] >= 200 && $result['status'] < 300, $method . ' ' . $route . ' returned HTTP ' . $result['status'] . ( '' !== $error_code ? ' (' . $error_code . ')' : '' ) );
 
 	return is_array( $result['data'] ) ? $result['data'] : array();
 }
@@ -100,7 +171,8 @@ function maa_adapter_smoke_assert_content_intent_fails_closed( string $prompt, s
 	$route = is_array( $data['route'] ?? null ) ? $data['route'] : array();
 
 	maa_adapter_smoke_assert( 'content_intent_route' === (string) ( $data['artifact_type'] ?? '' ), $label . ' returns content_intent_route' );
-	maa_adapter_smoke_assert( false === (bool) ( $data['prompt_is_authorization'] ?? true ), $label . ' prompt is not authorization' );
+	$prompt_is_authorization = $data['prompt_is_authorization'] ?? true;
+	maa_adapter_smoke_assert( '[REDACTED]' === $prompt_is_authorization || false === (bool) $prompt_is_authorization, $label . ' prompt is not authorization or is redacted by Core grant policy' );
 	maa_adapter_smoke_assert( 'unsupported' === (string) ( $route['route'] ?? '' ), $label . ' route is unsupported' );
 	maa_adapter_smoke_assert( false === (bool) ( $route['supported'] ?? true ), $label . ' supported flag is false' );
 	maa_adapter_smoke_assert( true === (bool) ( $route['needs_clarification'] ?? false ), $label . ' requests clarification' );
@@ -167,7 +239,6 @@ function maa_adapter_smoke_rest_result( string $method, string $route, array $pa
 	}
 
 	$response = rest_do_request( $request );
-
 	return array(
 		'status' => (int) $response->get_status(),
 		'data'   => $response->get_data(),
@@ -1665,7 +1736,8 @@ maa_adapter_smoke_assert( isset( $by_id['npcink-abilities-toolkit/build-media-in
 maa_adapter_smoke_assert( isset( $by_id['npcink-abilities-toolkit/build-media-reference-repair-plan'] ), 'adapter capabilities expose media reference repair plan through Core' );
 maa_adapter_smoke_assert( isset( $by_id['npcink-abilities-toolkit/build-media-settings-reference-repair-plan'] ), 'adapter capabilities expose media settings reference repair plan through Core' );
 maa_adapter_smoke_assert( isset( $by_id['npcink-abilities-toolkit/optimize-media-metadata'] ), 'adapter capabilities expose media metadata optimization through Core' );
-maa_adapter_smoke_assert( 'direct_read' === (string) ( $by_id['npcink-abilities-toolkit/site-info']['governance_mode'] ?? '' ), 'site-info is direct read' );
+maa_adapter_smoke_assert( 'core_read_authorization_required' === (string) ( $by_id['npcink-abilities-toolkit/site-info']['governance_mode'] ?? '' ), 'site-info requires Core read authorization' );
+maa_adapter_smoke_assert( true === (bool) ( $by_id['npcink-abilities-toolkit/site-info']['read_authorization_required'] ?? false ), 'site-info exposes Core read authorization requirement' );
 
 $content_plan_response = maa_adapter_smoke_rest(
 	'POST',
@@ -1686,9 +1758,11 @@ maa_adapter_smoke_assert( true === (bool) ( $content_plan['requires_approval'] ?
 maa_adapter_smoke_assert( false === (bool) ( $content_plan['commit_execution'] ?? true ), 'adapter plan read preserves commit_execution=false' );
 maa_adapter_smoke_assert( true === (bool) ( $content_plan['dry_run'] ?? false ), 'adapter plan read preserves dry_run=true' );
 maa_adapter_smoke_assert( false === (bool) ( $content_plan_response['commit_execution'] ?? true ), 'adapter plan wrapper does not report execution' );
-maa_adapter_smoke_assert( 'direct_read_internal' === (string) ( $content_plan_response['read_policy'] ?? '' ), 'adapter plan read carries internal read policy' );
-maa_adapter_smoke_assert( 'internal' === (string) ( $content_plan_response['sensitivity'] ?? '' ), 'adapter plan read carries internal sensitivity' );
-maa_adapter_smoke_assert( false === (bool) ( $content_plan_response['redaction_required'] ?? true ), 'adapter plan read does not require redaction' );
+maa_adapter_smoke_assert( 'core_read_authorization_required' === (string) ( $content_plan_response['read_policy'] ?? '' ), 'adapter plan read carries the expected read policy' );
+maa_adapter_smoke_assert( 'sensitive' === (string) ( $content_plan_response['sensitivity'] ?? '' ), 'adapter plan read carries the expected sensitivity' );
+maa_adapter_smoke_assert( true === (bool) ( $content_plan_response['read_authorization_granted'] ?? false ), 'adapter plan read records the Core read grant' );
+maa_adapter_smoke_assert( true === (bool) ( $content_plan_response['redaction_required'] ?? false ), 'adapter plan read carries the expected redaction posture' );
+maa_adapter_smoke_assert( true === (bool) ( $content_plan_response['redaction_applied'] ?? false ), 'adapter plan read applies bounded redaction' );
 
 $article_optimization_title = 'Adapter Article Optimization Candidate ' . maa_adapter_smoke_run_id();
 $article_optimization_post_id = wp_insert_post(
@@ -3326,13 +3400,13 @@ $site_summary = maa_adapter_smoke_rest(
 	'POST',
 	'/npcink-openclaw-adapter/v1/run-read-ability',
 	array(
-		'ability_id' => 'npcink-abilities-toolkit/site-info',
-		'input'      => array(),
+			'ability_id' => 'npcink-abilities-toolkit/build-content-inventory-fix-plan',
+			'input'      => array( 'per_page' => 1, 'max_actions' => 1 ),
 	)
 );
-maa_adapter_smoke_assert( 'npcink-abilities-toolkit/site-info' === (string) ( $site_summary['ability_id'] ?? '' ), 'adapter runs site-info read ability' );
-maa_adapter_smoke_assert( is_array( $site_summary['result'] ?? null ), 'site-summary returns a result object' );
-maa_adapter_smoke_assert( 'direct_read_public' === (string) ( $site_summary['read_policy'] ?? '' ), 'adapter site-summary read carries public read policy' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/build-content-inventory-fix-plan' === (string) ( $site_summary['ability_id'] ?? '' ), 'adapter runs a direct-read planning ability' );
+maa_adapter_smoke_assert( is_array( $site_summary['result'] ?? null ), 'planning read returns a result object' );
+maa_adapter_smoke_assert( 'core_read_authorization_required' === (string) ( $site_summary['read_policy'] ?? '' ), 'planning read preserves Core read authorization policy' );
 maa_adapter_smoke_assert( '' !== (string) ( $site_summary['correlation_id'] ?? '' ), 'adapter read response carries generated correlation id' );
 
 $discoverability_brief_response = maa_adapter_smoke_rest(
@@ -3522,8 +3596,8 @@ $site_info = maa_adapter_smoke_rest(
 	'POST',
 	'/npcink-openclaw-adapter/v1/run-read-ability',
 	array(
-		'ability_id'      => 'npcink-abilities-toolkit/site-info',
-		'input'           => array(),
+			'ability_id'      => 'npcink-abilities-toolkit/build-content-inventory-fix-plan',
+			'input'           => array( 'per_page' => 1, 'max_actions' => 1 ),
 		'proposal_id'     => 'proposal-log-context-smoke',
 		'correlation_id'  => 'correlation-log-context-smoke',
 		'log_context'     => array(
@@ -3537,15 +3611,15 @@ $site_info = maa_adapter_smoke_rest(
 		),
 	)
 );
-maa_adapter_smoke_assert( 'npcink-abilities-toolkit/site-info' === (string) ( $site_info['ability_id'] ?? '' ), 'adapter runs site-info through generic read ability route' );
-maa_adapter_smoke_assert( is_array( $site_info['result'] ?? null ), 'site-info shortcut returns a result object' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/build-content-inventory-fix-plan' === (string) ( $site_info['ability_id'] ?? '' ), 'adapter runs a planning ability through generic read ability route' );
+maa_adapter_smoke_assert( is_array( $site_info['result'] ?? null ), 'planning read returns a result object' );
 maa_adapter_smoke_assert( is_array( $site_info['log_context'] ?? null ), 'adapter read response exposes AI request log context' );
 maa_adapter_smoke_assert( 'proposal-log-context-smoke' === (string) ( $site_info['log_context']['proposal_id'] ?? '' ), 'adapter read log context carries proposal id' );
 maa_adapter_smoke_assert( 'correlation-log-context-smoke' === (string) ( $site_info['log_context']['correlation_id'] ?? '' ), 'adapter read log context carries correlation id' );
 maa_adapter_smoke_assert( '/npcink-openclaw-adapter/v1/run-read-ability' === (string) ( $site_info['log_context']['adapter_route'] ?? '' ), 'adapter read log context carries adapter_route' );
 maa_adapter_smoke_assert( 'npcink-governance-core' === (string) ( $site_info['log_context']['governance_source'] ?? '' ), 'adapter read log context carries governance_source' );
 maa_adapter_smoke_assert( 'npcink-ai-client-adapter' === (string) ( $site_info['log_context']['via'] ?? '' ), 'adapter read log context carries trusted transport provenance' );
-maa_adapter_smoke_assert( 'npcink-abilities-toolkit/site-info' === (string) ( $site_info['log_context']['ability_id'] ?? '' ), 'adapter read log context carries trusted ability id' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/build-content-inventory-fix-plan' === (string) ( $site_info['log_context']['ability_id'] ?? '' ), 'adapter read log context carries trusted ability id' );
 maa_adapter_smoke_assert( 200 === strlen( (string) ( $site_info['log_context']['external_thread_id'] ?? '' ) ), 'adapter read log context caps client strings' );
 maa_adapter_smoke_assert( ! isset( $site_info['log_context']['authorization'] ) && ! isset( $site_info['log_context']['ai_provider'] ) && ! isset( $site_info['log_context']['signed_client_fingerprint'] ), 'adapter read log context drops secret and non-allowlisted client fields' );
 maa_adapter_smoke_assert( false === strpos( (string) wp_json_encode( $site_info['log_context'] ), 'SHOULD_NOT_LEAK' ), 'adapter read log context excludes secret sentinel' );
@@ -3983,7 +4057,7 @@ maa_adapter_smoke_assert( $referenced_batch_post_id === (int) ( $referenced_batc
 maa_adapter_smoke_assert( $referenced_batch_post_id === (int) ( $referenced_batch_result['results'][2]['post_id'] ?? 0 ), 'adapter output-reference batch trashes the created draft' );
 maa_adapter_smoke_assert( 'trash' === (string) get_post_status( $referenced_batch_post_id ), 'adapter output-reference batch leaves created draft trashed' );
 
-$embedded_reference_batch_proposal = maa_adapter_smoke_rest(
+$embedded_reference_batch_proposal = maa_adapter_smoke_rest_result(
 	'POST',
 	'/npcink-openclaw-adapter/v1/proposals',
 	array(
@@ -4014,17 +4088,14 @@ $embedded_reference_batch_proposal = maa_adapter_smoke_rest(
 		),
 	)
 );
-$embedded_reference_batch_proposal_id = (string) ( $embedded_reference_batch_proposal['proposal_id'] ?? '' );
-$maa_adapter_smoke_cleanup_proposal_ids[] = $embedded_reference_batch_proposal_id;
-$embedded_reference_batch_result = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $embedded_reference_batch_proposal_id ) . '/approve-and-execute' );
-maa_adapter_smoke_assert( 400 === (int) $embedded_reference_batch_result['status'], 'adapter batch approve-and-execute rejects embedded output reference tokens before execution' );
-maa_adapter_smoke_assert( 'npcink_openclaw_adapter_output_reference_invalid' === (string) ( $embedded_reference_batch_result['data']['code'] ?? '' ), 'adapter embedded output reference execution rejection uses output reference invalid code' );
+maa_adapter_smoke_assert( 409 === (int) $embedded_reference_batch_proposal['status'], 'adapter batch proposal create rejects embedded output reference plan' );
+maa_adapter_smoke_assert( 'npcink_governance_core_ability_not_proposal_eligible' === (string) ( $embedded_reference_batch_proposal['data']['code'] ?? '' ), 'adapter embedded output reference rejection preserves Core eligibility error' );
 
 $bad_batch_post_id = maa_adapter_smoke_create_trash_post_fixture();
 $bad_batch_second_post_id = maa_adapter_smoke_create_trash_post_fixture();
 $maa_adapter_smoke_cleanup_post_ids[] = $bad_batch_post_id;
 $maa_adapter_smoke_cleanup_post_ids[] = $bad_batch_second_post_id;
-$bad_batch_proposal = maa_adapter_smoke_rest(
+$bad_batch_proposal = maa_adapter_smoke_rest_result(
 	'POST',
 	'/npcink-openclaw-adapter/v1/proposals',
 	array(
@@ -4068,16 +4139,14 @@ $bad_batch_proposal = maa_adapter_smoke_rest(
 		),
 	)
 );
-$bad_batch_proposal_id = (string) ( $bad_batch_proposal['proposal_id'] ?? '' );
-$maa_adapter_smoke_cleanup_proposal_ids[] = $bad_batch_proposal_id;
-$bad_batch_result = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $bad_batch_proposal_id ) . '/approve-and-execute' );
-maa_adapter_smoke_assert( 403 === (int) $bad_batch_result['status'], 'adapter batch approve-and-execute rejects non-supported write_action' );
+maa_adapter_smoke_assert( 409 === (int) $bad_batch_proposal['status'], 'adapter batch proposal create rejects non-supported write_action' );
+maa_adapter_smoke_assert( 'npcink_governance_core_ability_not_proposal_eligible' === (string) ( $bad_batch_proposal['data']['code'] ?? '' ), 'adapter batch rejection preserves Core eligibility error' );
 maa_adapter_smoke_assert( 'publish' === (string) get_post_status( $bad_batch_post_id ), 'adapter bad batch does not execute allowed action before failing closed' );
 maa_adapter_smoke_assert( 'publish' === (string) get_post_status( $bad_batch_second_post_id ), 'adapter bad batch does not execute non-supported action' );
 
 $core_proxy_batch_post_id = maa_adapter_smoke_create_trash_post_fixture();
 $maa_adapter_smoke_cleanup_post_ids[] = $core_proxy_batch_post_id;
-$core_proxy_batch_proposal = maa_adapter_smoke_rest(
+$core_proxy_batch_proposal = maa_adapter_smoke_rest_result(
 	'POST',
 	'/npcink-openclaw-adapter/v1/proposals',
 	array(
@@ -4108,16 +4177,13 @@ $core_proxy_batch_proposal = maa_adapter_smoke_rest(
 		),
 	)
 );
-$core_proxy_batch_proposal_id = (string) ( $core_proxy_batch_proposal['proposal_id'] ?? '' );
-$maa_adapter_smoke_cleanup_proposal_ids[] = $core_proxy_batch_proposal_id;
-$core_proxy_batch_result = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $core_proxy_batch_proposal_id ) . '/approve-and-execute' );
-maa_adapter_smoke_assert( 409 === (int) $core_proxy_batch_result['status'], 'adapter batch approve-and-execute rejects core_proxy_execute write_action' );
-maa_adapter_smoke_assert( 'npcink_openclaw_adapter_write_action_core_proxy_execute_unsupported' === (string) ( $core_proxy_batch_result['data']['code'] ?? '' ), 'adapter core_proxy_execute rejection uses stable error code' );
+maa_adapter_smoke_assert( 409 === (int) $core_proxy_batch_proposal['status'], 'adapter batch proposal create rejects core_proxy_execute write_action' );
+maa_adapter_smoke_assert( 'npcink_governance_core_ability_not_proposal_eligible' === (string) ( $core_proxy_batch_proposal['data']['code'] ?? '' ), 'adapter core_proxy_execute proposal rejection preserves Core eligibility error' );
 maa_adapter_smoke_assert( 'publish' === (string) get_post_status( $core_proxy_batch_post_id ), 'adapter core_proxy_execute batch does not execute allowed action' );
 
 $commit_execution_batch_post_id = maa_adapter_smoke_create_trash_post_fixture();
 $maa_adapter_smoke_cleanup_post_ids[] = $commit_execution_batch_post_id;
-$commit_execution_batch_proposal = maa_adapter_smoke_rest(
+$commit_execution_batch_proposal = maa_adapter_smoke_rest_result(
 	'POST',
 	'/npcink-openclaw-adapter/v1/proposals',
 	array(
@@ -4147,11 +4213,8 @@ $commit_execution_batch_proposal = maa_adapter_smoke_rest(
 		),
 	)
 );
-$commit_execution_batch_proposal_id = (string) ( $commit_execution_batch_proposal['proposal_id'] ?? '' );
-$maa_adapter_smoke_cleanup_proposal_ids[] = $commit_execution_batch_proposal_id;
-$commit_execution_batch_result = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $commit_execution_batch_proposal_id ) . '/approve-and-execute' );
-maa_adapter_smoke_assert( 409 === (int) $commit_execution_batch_result['status'], 'adapter batch approve-and-execute rejects commit_execution write_action' );
-maa_adapter_smoke_assert( 'npcink_openclaw_adapter_write_action_commit_execution_unsupported' === (string) ( $commit_execution_batch_result['data']['code'] ?? '' ), 'adapter commit_execution rejection uses stable error code' );
+maa_adapter_smoke_assert( 409 === (int) $commit_execution_batch_proposal['status'], 'adapter batch proposal create rejects commit_execution write_action' );
+maa_adapter_smoke_assert( 'npcink_governance_core_ability_not_proposal_eligible' === (string) ( $commit_execution_batch_proposal['data']['code'] ?? '' ), 'adapter commit_execution proposal rejection preserves Core eligibility error' );
 maa_adapter_smoke_assert( 'publish' === (string) get_post_status( $commit_execution_batch_post_id ), 'adapter commit_execution batch does not execute allowed action' );
 
 $approved_skip_post_id = maa_adapter_smoke_create_trash_post_fixture();

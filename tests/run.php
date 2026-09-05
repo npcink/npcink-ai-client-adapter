@@ -1098,6 +1098,9 @@ foreach (
 		'redaction_summary',
 		'read_governance_context',
 		'apply_read_redaction',
+		'is_safe_governance_authorization_envelope',
+		"'core_proposal_required'",
+		"'npcink-governance-core'",
 		'is_sensitive_read_key',
 		'read_context',
 		'proposal_required',
@@ -1378,8 +1381,9 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	$plan_batch_metadata = substr( $controller, (int) strpos( $controller, 'private function normalize_plan_batch_metadata' ), 1400 );
 maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['proposal_mode']  = 'batch';" ), 'Adapter makes dependent plan batches explicit before Core from-plan forwarding.' );
 maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['batch_approval'] = true;" ), 'Adapter makes dependent plan batch approval explicit before Core from-plan forwarding.' );
-$plan_write_input_validation = substr( $controller, (int) strpos( $controller, 'private function validate_plan_write_action_inputs' ), 2600 );
-maa_adapter_assert( false !== strpos( $plan_write_input_validation, "\$proposal_ready = array_key_exists( 'proposal_ready', \$raw_action )" ) && false !== strpos( $plan_write_input_validation, "\$requires_input = array_values( array_map( 'sanitize_key', (array) ( \$raw_action['requires_input'] ?? array() ) ) )" ) && false !== strpos( $plan_write_input_validation, 'if ( ! $proposal_ready && ! empty( $requires_input ) )' ), 'Adapter forwards requires-input blocked plan actions to Core instead of requiring executable proposal input locally.' );
+maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['atomicity'] = 'non_atomic';" ) && false !== strpos( $plan_batch_metadata, "\$plan['partial_success_possible'] = true;" ), 'Adapter declares batch execution as non-atomic with possible partial success.' );
+$plan_write_input_validation = substr( $controller, (int) strpos( $controller, 'private function validate_plan_write_action_inputs' ), 3000 );
+maa_adapter_assert( false !== strpos( $plan_write_input_validation, "\$proposal_ready = array_key_exists( 'proposal_ready', \$raw_action )" ) && false !== strpos( $plan_write_input_validation, "\$requires_input = array_values( array_map( 'sanitize_key', (array) ( \$raw_action['requires_input'] ?? array() ) ) )" ) && false !== strpos( $plan_write_input_validation, "'npcink_openclaw_adapter_plan_action_input_invalid'" ), 'Adapter rejects malformed and requires-input plan actions before Core proposal forwarding.' );
 maa_adapter_assert( false !== strpos( $controller, 'min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint' ), 'Adapter list routes clamp caller supplied limits.' );
 maa_adapter_assert( false === strpos( $controller, 'HTTP_USER_AGENT' ), 'Public pairing rate limit is not weakened by caller-controlled user agents.' );
 maa_adapter_assert( false !== strpos( $controller, "approve_device_pairing( string \$user_code, string \$admin_label = '' )" ), 'Controller accepts an administrator label during device pairing approval.' );
@@ -1438,6 +1442,7 @@ $connection_page = maa_adapter_read( $root . '/includes/Admin/Connection_Page.ph
 $admin_css       = maa_adapter_read( $root . '/assets/admin.css' );
 $admin_js        = maa_adapter_read( $root . '/assets/admin.js' );
 maa_adapter_assert( false !== strpos( $connection_page, "const PARENT_MENU_SLUG = 'npcink-ai';" ), 'Connection page targets the shared Npcink AI parent menu slug.' );
+maa_adapter_assert( false !== strpos( $connection_page, "! empty( \$health['dependency_contracts_ready'] )" ), 'Connection page requires dependency contracts before showing Ready.' );
 foreach (
 	array(
 		'Npcink AI Client Adapter',
@@ -1993,17 +1998,6 @@ foreach ( $execution_profile_ids as $execution_profile_id ) {
 foreach (
 	array(
 		'GET shortcut query parameters are forwarded',
-		'GET /wp-json/npcink-openclaw-adapter/v1/site-info',
-		'GET /wp-json/npcink-openclaw-adapter/v1/site-summary',
-		'GET /wp-json/npcink-openclaw-adapter/v1/active-plugins-detail',
-		'GET /wp-json/npcink-openclaw-adapter/v1/plugin-conflict-diagnostics',
-		'GET /wp-json/npcink-openclaw-adapter/v1/current-user-permissions',
-		'GET /wp-json/npcink-openclaw-adapter/v1/database-info',
-		'GET /wp-json/npcink-openclaw-adapter/v1/recent-error-log-tail',
-		'GET /wp-json/npcink-openclaw-adapter/v1/content-discoverability-validation',
-		'GET /wp-json/npcink-openclaw-adapter/v1/content-discoverability-context',
-		'GET /wp-json/npcink-openclaw-adapter/v1/content-discoverability-brief',
-		'GET /wp-json/npcink-openclaw-adapter/v1/article-writing-pack',
 		'Content shortcuts pass query parameters',
 		'a `Proposal status` lookup',
 		'open the matching Core approval detail',
@@ -2177,16 +2171,18 @@ foreach (
 	array(
 		'=== Npcink AI Client Adapter ===',
 		'Requires at least: 7.0',
-		'Tested up to: 7.0',
+		'Tested up to: 7.1',
 		'Requires PHP: 8.0',
 		'Requires Plugins: npcink-abilities-toolkit, npcink-governance-core',
-		'Stable tag: 0.3.2',
+		'Stable tag: 0.3.3',
 		'License: GPL-2.0-or-later',
 		'structured missing dependency error',
 		'machine-readable `client_policy`',
 		'local CLI also redacts profile paths',
 		'Npcink Governance Core remains the governance backend',
 		'npcink-abilities-toolkit/trash-post',
+		'= 0.3.3 =',
+		'Require Core read authorization for content inventory planning that may inspect unpublished content',
 		'= 0.3.2 =',
 		'= 0.3.1 =',
 		'= 0.3.0 =',
@@ -2231,6 +2227,8 @@ foreach (
 $composer = maa_adapter_read( $root . '/composer.json' );
 $pr_template = maa_adapter_read( $root . '/.github/pull_request_template.md' );
 $pr_publisher = maa_adapter_read( $root . '/scripts/publish-pr.sh' );
+$plugin_check_release = maa_adapter_read( $root . '/scripts/plugin-check-release.sh' );
+$uninstall = maa_adapter_read( $root . '/uninstall.php' );
 maa_adapter_assert(
 	false !== strpos( $composer, '"pr:publish": "bash scripts/publish-pr.sh"' )
 	&& false !== strpos( $pr_template, '## Scope' )
@@ -2258,14 +2256,32 @@ foreach (
 		'"dev:article-template-visual": "bash tests/dev-article-template-visual.sh"',
 		'"dev:block-theme-template-visual": "bash tests/dev-block-theme-template-visual.sh"',
 		'"eval:project:quality": "sh scripts/eval-lab.sh task=project_quality_gate',
-		'Local Sites/magick-ai/app/public',
-		'command -v wp',
-		'php-8.5.3+1',
-		'--exclude-directories=tests,.git,vendor,node_modules,build,sj',
-		'--exclude-files=.gitignore,.distignore,AGENTS.md,composer.json',
 	) as $required
 ) {
 	maa_adapter_assert( false !== strpos( $composer, $required ), 'composer.json contains required text: ' . $required );
+}
+foreach (
+	array(
+		'npcink_openclaw_adapter_device_pairings',
+		'npcink_openclaw_adapter_client_keys',
+		'npcink_openclaw_adapter_execution_records',
+		'npcink_openclaw_adapter_preflight_handoffs',
+		'npcink_openclaw_adapter_uninstall_current_site',
+		'get_sites',
+	) as $required
+) {
+	maa_adapter_assert( false !== strpos( $uninstall, $required ), 'uninstall cleanup contains required text: ' . $required );
+}
+maa_adapter_assert( false === strpos( $uninstall, 'npcink_governance_core' ), 'uninstall cleanup does not delete Core-owned state.' );
+foreach (
+	array(
+		'WP_PATH',
+		'WP_CLI',
+		'--exclude-directories=tests,.git,.github,vendor,node_modules,build,sj,scripts',
+		'Plugin Check reported one or more ERROR findings.',
+	) as $required
+) {
+	maa_adapter_assert( false !== strpos( $plugin_check_release, $required ), 'release Plugin Check script contains required text: ' . $required );
 }
 maa_adapter_assert( false === strpos( $composer, '@eval:lab' ) && false === strpos( $composer, '@eval:project:quality' ), 'Default Adapter test and release scripts do not require eval-lab.' );
 
@@ -2319,6 +2335,8 @@ foreach (
 		'GET /connection/manifest',
 		'GET /help',
 		'npcink-abilities-toolkit/site-info',
+		'npcink_openclaw_adapter_core_read_authorization_required',
+		'default read ability failed closed pending a Core read grant',
 		'MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_REQUEST_ID',
 		'--intent=preflight',
 		'MAA_ADAPTER_ACCEPTANCE_ALLOW_COMMIT',
@@ -2457,22 +2475,12 @@ foreach (
 		'Adapter does not expose a provider/model smoke endpoint',
 		'Core Governance Audit is the governance log',
 		'AI Request Logs are the provider request log',
-			'/site-info',
-			'/active-plugins-detail',
-			'/plugin-conflict-diagnostics',
-			'/recent-error-log',
-			'/recent-error-log-tail',
-			'/current-user-permissions',
-			'/database-info',
-			'/posts?author_id=1',
-			'/terms?taxonomy=category&include_sample_posts=1',
-			'/menu?location=primary',
-		'/media?per_page=1',
-		'/content-inventory-fix-plan?per_page=1&max_actions=1',
+			'Use the generic `POST /run-read-ability` route',
+			'Sensitive abilities such as',
 		'npcink-abilities-toolkit/build-content-inventory-fix-plan',
 		'write_actions',
 		'not as completed writes',
-		'/pages?per_page=1',
+		'npcink-abilities-toolkit/list-pages',
 		'wp-diagnostics-summary` to decide whether plugin details',
 		'include_inactive_plugins=true',
 		'Default inactive plugin rows are not missing',
@@ -3132,7 +3140,8 @@ foreach (
 		'adapter content metadata apply batch assigns reviewed tag',
 		'adapter plan-to-proposal rejects duplicate action ids before Core forwarding',
 		'adapter plan-to-proposal rejects embedded output reference tokens before Core forwarding',
-		'adapter batch approve-and-execute rejects embedded output reference tokens before execution',
+		'adapter batch proposal create rejects embedded output reference plan',
+		'adapter embedded output reference rejection preserves Core eligibility error',
 		'maa_adapter_smoke_assert_gutenberg_images_are_complete',
 		'maa_adapter_smoke_assert_gutenberg_content_quality',
 		'adapter pattern page execution verifies post-block readback',
@@ -3232,13 +3241,13 @@ foreach (
 		'adapter batch approve-and-execute succeeds with output references',
 		'adapter output-reference batch updates the created draft',
 		'adapter output-reference batch leaves created draft trashed',
-		'adapter batch approve-and-execute rejects non-supported write_action',
+		'adapter batch proposal create rejects non-supported write_action',
 		'adapter bad batch does not execute allowed action before failing closed',
-		'adapter batch approve-and-execute rejects core_proxy_execute write_action',
-		'npcink_openclaw_adapter_write_action_core_proxy_execute_unsupported',
+		'adapter batch proposal create rejects core_proxy_execute write_action',
+		'adapter core_proxy_execute proposal rejection preserves Core eligibility error',
 		'adapter core_proxy_execute batch does not execute allowed action',
-		'adapter batch approve-and-execute rejects commit_execution write_action',
-		'npcink_openclaw_adapter_write_action_commit_execution_unsupported',
+		'adapter batch proposal create rejects commit_execution write_action',
+		'adapter commit_execution proposal rejection preserves Core eligibility error',
 		'adapter commit_execution batch does not execute allowed action',
 		'adapter approve-and-execute succeeds for already approved proposal',
 		'adapter approve-and-execute records approved status before execution',
@@ -3304,7 +3313,7 @@ foreach (
 		'adapter plan read preserves write_actions',
 		'adapter plan read preserves preview',
 		'adapter plan read preserves commit_execution=false',
-		'adapter plan read carries internal read policy',
+		'adapter plan read carries the expected read policy',
 		'adapter diagnostic shortcut route is removed',
 		'adapter read response carries generated correlation id',
 		'adapter media plan preserves skipped destructive candidates field',
@@ -3452,7 +3461,8 @@ foreach (
 		'core_proxy_execute=false',
 		'commit_execution=false',
 		'publish_allowed=false',
-		'partial_success=false',
+		'atomicity=non_atomic',
+		'partial_success_possible=true',
 		'fail closed',
 		'not make Adapter the article generator',
 	) as $required
@@ -3555,7 +3565,8 @@ foreach (
 		'core_proxy_execute=false',
 		'commit_execution=false',
 		'publish_allowed=false',
-		'partial_success=false',
+		'atomicity=non_atomic',
+		'partial_success_possible=true',
 	) as $required
 ) {
 	maa_adapter_assert( false !== strpos( $article_media_batch_recipe, $required ), 'Article media batch recipe contains required text: ' . $required );

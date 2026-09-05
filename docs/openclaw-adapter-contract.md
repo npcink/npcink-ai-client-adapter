@@ -118,6 +118,10 @@ The adapter executes those reads through:
 ```
 
 The read path does not execute abilities marked `proposal_required`.
+When Core reports `read_policy=core_read_authorization_required` or
+`read_authorization_required=true`, Adapter returns
+`npcink_openclaw_adapter_core_read_authorization_required` and requires the
+caller to complete Core's read-request/grant flow first.
 
 Every successful read response is an Adapter read envelope. It includes:
 
@@ -140,9 +144,13 @@ For `direct_read_sensitive` rows or any row with
 `redaction_required=true`, Adapter applies bounded recursive redaction before
 returning `result`. It redacts values under sensitive keys such as passwords,
 secrets, tokens, authorization headers, cookies, nonces, email fields, and API
-or private keys. This is a product-surface redaction layer; Core remains the
-capability guidance source and WordPress Abilities API remains the canonical
-ability execution surface.
+or private keys. The only `authorization` result field retained is a bounded
+Core-ready plan envelope containing exactly
+`classification=core_proposal_required` and
+`authority=npcink-governance-core`; extra fields or any other values remain
+redacted. This is a product-surface redaction layer; Core remains the capability
+guidance source and WordPress Abilities API remains the canonical ability
+execution surface.
 
 If Core marks a capability as requiring explicit sensitive read authorization,
 Adapter must fail closed unless the caller supplies an approved Core read
@@ -351,9 +359,10 @@ reviewed 2-5 article draft batches:
 - artifact type: `article_batch_write_plan`
 - proposal mode: `batch`
 
-The batch recipe must keep `batch_approval=true`, `partial_success=false`,
-`core_proxy_execute=false`, `commit_execution=false`, `draft_only=true`, and
-`publish_allowed=false`.
+The batch recipe must keep `batch_approval=true`, declare
+`atomicity=non_atomic` and `partial_success_possible=true` (execution can
+stop after earlier actions have succeeded), `core_proxy_execute=false`,
+`commit_execution=false`, `draft_only=true`, and `publish_allowed=false`.
 
 `GET /help` also includes `openclaw_recipes.article_media_batch_plan` for
 reviewed article drafts with selected image-source candidates:
@@ -370,7 +379,8 @@ reviewed article drafts with selected image-source candidates:
 - proposal mode: `batch`
 
 The article media batch recipe must preserve image-source attribution and keep
-`batch_approval=true`, `partial_success=false`, `core_proxy_execute=false`,
+`batch_approval=true`, declare `atomicity=non_atomic` and
+`partial_success_possible=true`, `core_proxy_execute=false`,
 `commit_execution=false`, `draft_only=true`, and `publish_allowed=false`.
 
 `GET /help` also includes `openclaw_recipes.content_intent_router` for routing
@@ -1036,57 +1046,12 @@ Connection:
 - `GET /wp-json/npcink-openclaw-adapter/v1/help`
 - `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/media-optimization-readiness`
 
-Read shortcuts:
-
-- `GET /wp-json/npcink-openclaw-adapter/v1/site-info`
-- `GET /wp-json/npcink-openclaw-adapter/v1/site-summary`
-- `GET /wp-json/npcink-openclaw-adapter/v1/wp-diagnostics-summary`
-- `GET /wp-json/npcink-openclaw-adapter/v1/wp-ops-diagnostics-detail`
-- `GET /wp-json/npcink-openclaw-adapter/v1/active-plugins-detail`
-- `GET /wp-json/npcink-openclaw-adapter/v1/plugin-conflict-diagnostics`
-- `GET /wp-json/npcink-openclaw-adapter/v1/recent-error-log`
-- `GET /wp-json/npcink-openclaw-adapter/v1/recent-error-log-tail`
-- `GET /wp-json/npcink-openclaw-adapter/v1/current-user-permissions`
-- `GET /wp-json/npcink-openclaw-adapter/v1/php-extensions`
-- `GET /wp-json/npcink-openclaw-adapter/v1/object-cache-status`
-- `GET /wp-json/npcink-openclaw-adapter/v1/database-info`
-- `GET /wp-json/npcink-openclaw-adapter/v1/rewrite-rules-status`
-- `GET /wp-json/npcink-openclaw-adapter/v1/cron-events-detail`
-- `GET /wp-json/npcink-openclaw-adapter/v1/ssl-https-status`
-- `GET /wp-json/npcink-openclaw-adapter/v1/custom-post-types`
-Direct reads must use:
+Direct reads must use the generic route:
 
 - `POST /wp-json/npcink-openclaw-adapter/v1/run-read-ability`
 
 Adapter does not expose direct-read shortcut routes or workflow recipe shortcut
 routes. The caller supplies the allowlisted `ability_id` and bounded input.
-- `GET /wp-json/npcink-openclaw-adapter/v1/categories`
-- `GET /wp-json/npcink-openclaw-adapter/v1/tags`
-- `GET /wp-json/npcink-openclaw-adapter/v1/term?id={terms.result.items[].id}`
-- `GET /wp-json/npcink-openclaw-adapter/v1/comments`
-- `GET /wp-json/npcink-openclaw-adapter/v1/users`
-- `GET /wp-json/npcink-openclaw-adapter/v1/menu`
-- `GET /wp-json/npcink-openclaw-adapter/v1/internal-link-targets`
-- `GET /wp-json/npcink-openclaw-adapter/v1/post-stats`
-- `GET /wp-json/npcink-openclaw-adapter/v1/post-revisions`
-- `GET /wp-json/npcink-openclaw-adapter/v1/post-meta`
-- `GET /wp-json/npcink-openclaw-adapter/v1/post-blocks`
-- `GET /wp-json/npcink-openclaw-adapter/v1/pages`
-- `GET /wp-json/npcink-openclaw-adapter/v1/page`
-- `GET /wp-json/npcink-openclaw-adapter/v1/page-structure`
-- `GET /wp-json/npcink-openclaw-adapter/v1/pages-tree`
-- `GET /wp-json/npcink-openclaw-adapter/v1/content-inventory-health`
-- `GET /wp-json/npcink-openclaw-adapter/v1/content-inventory-fix-plan`
-- `GET /wp-json/npcink-openclaw-adapter/v1/nonproduction-content-cleanup-plan`
-- `GET /wp-json/npcink-openclaw-adapter/v1/site-operations-dashboard`
-- `GET /wp-json/npcink-openclaw-adapter/v1/publishing-calendar-context`
-- `GET /wp-json/npcink-openclaw-adapter/v1/media-inventory-health`
-- `GET /wp-json/npcink-openclaw-adapter/v1/media-inventory-fix-plan`
-- `GET /wp-json/npcink-openclaw-adapter/v1/taxonomy-inventory-health`
-
-Generic read:
-
-- `POST /wp-json/npcink-openclaw-adapter/v1/run-read-ability`
 
 Diagnostics shortcuts must remain aliases over `npcink-abilities-toolkit`
 direct-read abilities. Adapter must not collect plugin details, error-log

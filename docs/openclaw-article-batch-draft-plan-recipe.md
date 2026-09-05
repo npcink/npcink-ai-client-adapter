@@ -180,7 +180,8 @@ POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-exe
 - `core_proxy_execute=false`
 - `commit_execution=false`
 - `publish_allowed=false`
-- `partial_success=false`
+- `atomicity=non_atomic`
+- `partial_success_possible=true`
 
 If any action is malformed, non-supported, not proposal-ready, still needs
 input, or requests `commit_execution=true`, Adapter must fail closed before
