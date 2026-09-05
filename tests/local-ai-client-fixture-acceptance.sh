@@ -57,7 +57,12 @@ assert_json_field_present() {
 run_cli_json() {
 	local output_file="$1"
 	shift
-	"${CLI[@]}" "$@" >"$output_file"
+	if ! "${CLI[@]}" "$@" >"$output_file"; then
+		if [[ -s "$output_file" ]]; then
+			cat "$output_file" >&2
+		fi
+		fail "Adapter CLI command failed: $*"
+	fi
 }
 
 ensure_wp_cli() {

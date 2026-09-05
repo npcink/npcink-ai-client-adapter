@@ -3012,6 +3012,8 @@ foreach (
 		'Adapter CLI fixture draft proposal',
 		'npcink-abilities-toolkit/create-draft',
 		'POST /proposals --body-file',
+		'Adapter CLI command failed:',
+		'cat "$output_file" >&2',
 		'GET "/proposals/$proposal_id"',
 		'approve-and-execute',
 		'--intent=commit',
