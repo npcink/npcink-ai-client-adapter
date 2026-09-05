@@ -115,7 +115,7 @@ trap restore_original_plugin EXIT
 
 run_wp core is-installed >/dev/null
 
-RESTORE_STATUS="$(run_wp plugin status "$PLUGIN_SLUG" --field=status 2>/dev/null || true)"
+RESTORE_STATUS="$(run_wp plugin list --name="$PLUGIN_SLUG" --field=status --skip-update-check 2>/dev/null || true)"
 if [[ -L "$PLUGIN_DIR" ]]; then
 	RESTORE_KIND="symlink"
 	RESTORE_TARGET="$(readlink "$PLUGIN_DIR")"

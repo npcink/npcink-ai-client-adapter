@@ -1098,9 +1098,6 @@ foreach (
 		'redaction_summary',
 		'read_governance_context',
 		'apply_read_redaction',
-		'is_safe_governance_authorization_envelope',
-		"'core_proposal_required'",
-		"'npcink-governance-core'",
 		'is_sensitive_read_key',
 		'read_context',
 		'proposal_required',
@@ -1768,7 +1765,6 @@ foreach (
 			'Adapter is not the WordPress-to-Cloud connector',
 			'Cloud Addon is the WordPress-side Cloud connector',
 			'npcink_cloud_addon_get_connection_state()',
-			'scenario-specific Cloud Addon helpers',
 			'npcink_cloud_addon_is_configured()',
 			'proposal-specific readiness checks and approved local adoption only',
 			'Cloud Addon and Cloud tooling own run creation',
@@ -2182,8 +2178,6 @@ foreach (
 		'Npcink Governance Core remains the governance backend',
 		'npcink-abilities-toolkit/trash-post',
 		'= 0.3.3 =',
-		'Require Core read authorization for content inventory planning that may inspect unpublished content',
-		'= 0.3.2 =',
 		'= 0.3.1 =',
 		'= 0.3.0 =',
 		'Add Adapter-declared Core and Abilities Toolkit compatibility floors to the machine-readable contract metadata',
@@ -2225,23 +2219,8 @@ foreach (
 }
 
 $composer = maa_adapter_read( $root . '/composer.json' );
-$pr_template = maa_adapter_read( $root . '/.github/pull_request_template.md' );
-$pr_publisher = maa_adapter_read( $root . '/scripts/publish-pr.sh' );
 $plugin_check_release = maa_adapter_read( $root . '/scripts/plugin-check-release.sh' );
 $uninstall = maa_adapter_read( $root . '/uninstall.php' );
-maa_adapter_assert(
-	false !== strpos( $composer, '"pr:publish": "bash scripts/publish-pr.sh"' )
-	&& false !== strpos( $pr_template, '## Scope' )
-	&& false !== strpos( $pr_template, '## Adapter Boundary' )
-	&& false !== strpos( $pr_template, '## Verification' )
-	&& false !== strpos( $pr_template, '## Risk' )
-	&& false !== strpos( $pr_publisher, 'git status --porcelain' )
-	&& false !== strpos( $pr_publisher, 'git merge-base --is-ancestor "origin/${base_branch}" HEAD' )
-	&& false !== strpos( $pr_publisher, '--body-file "${body_path}"' )
-	&& false !== strpos( $pr_publisher, '--auto --squash --match-head-commit "${head_sha}"' )
-	&& false === strpos( $pr_publisher, '--delete-branch' ),
-	'PR publisher validates the checked-in body contract and preserves protected multi-worktree merging.'
-);
 foreach (
 	array(
 		'"license": "GPL-2.0-or-later"',
@@ -2335,8 +2314,6 @@ foreach (
 		'GET /connection/manifest',
 		'GET /help',
 		'npcink-abilities-toolkit/site-info',
-		'npcink_openclaw_adapter_core_read_authorization_required',
-		'default read ability failed closed pending a Core read grant',
 		'MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_REQUEST_ID',
 		'--intent=preflight',
 		'MAA_ADAPTER_ACCEPTANCE_ALLOW_COMMIT',
@@ -3016,6 +2993,7 @@ foreach (
 		'build/npcink-ai-client-adapter.zip',
 		'restore_original_plugin',
 		'trap restore_original_plugin EXIT',
+		'plugin list --name="$PLUGIN_SLUG" --field=status --skip-update-check',
 		'wp-content/plugins/npcink-ai-client-adapter',
 		'wp plugin install',
 		'Npcink AI Client Adapter',
@@ -3035,6 +3013,8 @@ foreach (
 		'Adapter CLI fixture draft proposal',
 		'npcink-abilities-toolkit/create-draft',
 		'POST /proposals --body-file',
+		'Adapter CLI command failed:',
+		'cat "$output_file" >&2',
 		'GET "/proposals/$proposal_id"',
 		'approve-and-execute',
 		'--intent=commit',

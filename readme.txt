@@ -84,9 +84,8 @@ Adapter health and help routes can report dependency status. Routes that require
 
 = 0.3.3 =
 
-* Require Core read authorization for content inventory planning that may inspect unpublished content.
-* Preserve only the exact non-secret Core proposal authorization envelope during bounded result redaction.
-* Align local client acceptance and current documentation with the fail-closed read-request flow.
+* Harden release packaging, uninstall cleanup, and batch execution contract checks.
+* Preserve actionable, redacted CLI output when the signed local acceptance fixture fails.
 
 = 0.3.2 =
 
