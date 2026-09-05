@@ -238,31 +238,34 @@ equivalent Ed25519 signing implementation instead.
 ## Read Abilities
 
 Use the generic `POST /run-read-ability` route. Sensitive abilities such as
-`site-info` require an approved Core read request; they must not be accessed by
-shortcut URLs or direct WordPress internals.
+`site-info` and content inventory planning require an approved Core read
+request; they must not be accessed by shortcut URLs or direct WordPress
+internals. Create a request bound to the exact ability input first:
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
   -H "Content-Type: application/json" \
-  -d '{"ability_id":"npcink-abilities-toolkit/build-content-inventory-fix-plan","input":{"per_page":1,"max_actions":1}}' \
+  -d '{"ability_id":"npcink-abilities-toolkit/build-content-inventory-fix-plan","input":{"per_page":1,"max_actions":1},"requested_input_summary":"Bounded content inventory plan","data_classes":["site_content"],"purpose":"Review content inventory fixes","redaction_level":"strict","bounds":{"max_rows":10}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/read-requests"
+```
+
+An administrator must approve that request in Core. Check its status, then
+repeat the exact ability input with the approved request id:
+
+```bash
+curl -sS --user "1:<openclaw-secret-field-value>" \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/read-requests/READ_REQUEST_ID"
+```
+
+```bash
+curl -sS --user "1:<openclaw-secret-field-value>" \
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/build-content-inventory-fix-plan","input":{"per_page":1,"max_actions":1},"read_request_id":"READ_REQUEST_ID"}' \
   "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
-```bash
-curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/term?id=1"
-```
-
-Planning shortcuts return plan data only. Treat `write_actions` and `preview`
-as proposal input, not as completed writes:
-
-```bash
-curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/content-inventory-fix-plan?per_page=1&max_actions=1"
-```
-
-Send the returned plan to Core through Adapter when a proposal should be
-created:
+Treat returned `write_actions` and `preview` as proposal input, not as completed writes.
+Send the plan to Core through Adapter when a proposal should be created:
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \

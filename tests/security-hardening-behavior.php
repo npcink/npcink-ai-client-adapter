@@ -191,6 +191,56 @@ $fingerprint_property->setAccessible( true );
 $trusted_fingerprint = 'sha256:' . str_repeat( 'a', 64 );
 $fingerprint_property->setValue( $controller, $trusted_fingerprint );
 
+$safe_authorization = array(
+	'classification' => 'core_proposal_required',
+	'authority'      => 'npcink-governance-core',
+);
+maa_security_assert(
+	true === maa_security_invoke( $controller, 'is_safe_governance_authorization_envelope', array( $safe_authorization ) ),
+	'Exact Core proposal authorization envelope is safe to retain.'
+);
+
+$authorization_redaction_count = 0;
+$authorization_redaction_args  = array(
+	array(
+		'safe_plan'             => array( 'authorization' => $safe_authorization ),
+		'extra_field_case'      => array(
+			'authorization' => array_merge( $safe_authorization, array( 'token' => 'hidden' ) ),
+		),
+		'wrong_classification'  => array(
+			'authorization' => array(
+				'classification' => 'direct_write_allowed',
+				'authority'      => 'npcink-governance-core',
+			),
+		),
+		'wrong_authority'       => array(
+			'authorization' => array(
+				'classification' => 'core_proposal_required',
+				'authority'      => 'untrusted-client',
+			),
+		),
+		'authorization_header' => 'Bearer should-not-survive',
+	),
+	&$authorization_redaction_count,
+);
+$authorization_redacted = maa_security_invoke( $controller, 'redact_read_value', $authorization_redaction_args );
+maa_security_assert( $safe_authorization === ( $authorization_redacted['safe_plan']['authorization'] ?? null ), 'Exact Core proposal authorization envelope survives read redaction.' );
+maa_security_assert( '[REDACTED]' === ( $authorization_redacted['extra_field_case']['authorization'] ?? null ), 'Authorization envelope with an extra secret field is fully redacted.' );
+maa_security_assert( '[REDACTED]' === ( $authorization_redacted['wrong_classification']['authorization'] ?? null ), 'Authorization envelope with another classification is fully redacted.' );
+maa_security_assert( '[REDACTED]' === ( $authorization_redacted['wrong_authority']['authorization'] ?? null ), 'Authorization envelope with another authority is fully redacted.' );
+maa_security_assert( '[REDACTED]' === ( $authorization_redacted['authorization_header'] ?? null ), 'Ordinary authorization values remain redacted.' );
+maa_security_assert( 4 === $authorization_redaction_count, 'Authorization redaction count includes every rejected authorization value.' );
+
+$denied_authorization_count = 0;
+$denied_authorization_args  = array(
+	array( 'authorization' => $safe_authorization ),
+	&$denied_authorization_count,
+	array( 'Authorization' ),
+);
+$denied_authorization = maa_security_invoke( $controller, 'redact_read_value', $denied_authorization_args );
+maa_security_assert( '[REDACTED]' === ( $denied_authorization['authorization'] ?? null ), 'Core denied fields override the safe governance authorization exception regardless of case.' );
+maa_security_assert( 1 === $denied_authorization_count, 'Core-denied governance authorization is counted as redacted.' );
+
 $valid_media_artifact = maa_security_media_derivative_artifact();
 maa_security_assert(
 	true === maa_security_invoke( $controller, 'media_derivative_artifact_contract_is_valid', array( $valid_media_artifact ) ),
