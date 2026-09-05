@@ -2993,6 +2993,7 @@ foreach (
 		'build/npcink-ai-client-adapter.zip',
 		'restore_original_plugin',
 		'trap restore_original_plugin EXIT',
+		'plugin list --name="$PLUGIN_SLUG" --field=status --skip-update-check',
 		'wp-content/plugins/npcink-ai-client-adapter',
 		'wp plugin install',
 		'Npcink AI Client Adapter',
