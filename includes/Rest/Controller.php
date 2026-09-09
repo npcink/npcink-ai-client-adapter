@@ -2041,6 +2041,7 @@ final class Controller {
 	private function insert_signature_nonce_option( string $option_name, int $expires_at ): bool {
 		global $wpdb;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- INSERT IGNORE is the atomic replay-protection claim primitive.
 		$inserted = $wpdb->query(
 			$wpdb->prepare(
 				"INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, %s)",
@@ -2066,6 +2067,7 @@ final class Controller {
 	private function signature_nonce_option_expiry( string $option_name ): ?int {
 		global $wpdb;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Read bypasses the options cache to preserve nonce claim semantics.
 		$value = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
@@ -2086,6 +2088,7 @@ final class Controller {
 	private function delete_expired_signature_nonce_option( string $option_name, $stored_expiry ): bool {
 		global $wpdb;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Conditional delete prevents removing a concurrently refreshed nonce.
 		$deleted = $wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
@@ -2113,6 +2116,7 @@ final class Controller {
 
 		global $wpdb;
 		$like = $wpdb->esc_like( self::SIGNATURE_NONCE_OPTION_PREFIX ) . '%';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Bounded cleanup reads nonce rows for replay protection maintenance.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s AND CAST(option_value AS UNSIGNED) < %d ORDER BY option_id ASC LIMIT %d",
@@ -3663,6 +3667,10 @@ final class Controller {
 		$is_envelope = is_array( $plan_payload['data'] ?? null );
 		$plan        = $is_envelope ? (array) $plan_payload['data'] : $plan_payload;
 		$actions     = is_array( $plan['write_actions'] ?? null ) ? array_values( $plan['write_actions'] ) : array();
+		if ( count( $actions ) > 1 ) {
+			$plan['atomicity'] = 'non_atomic';
+			$plan['partial_success_possible'] = true;
+		}
 
 		foreach ( $actions as $action ) {
 			if ( ! is_array( $action ) ) {
@@ -3673,6 +3681,8 @@ final class Controller {
 			if ( ! empty( $depends_on ) || ! empty( $this->execution_input_validator->collect_output_references( $action['input'] ?? array() ) ) ) {
 				$plan['proposal_mode']  = 'batch';
 				$plan['batch_approval'] = true;
+				$plan['atomicity']      = 'non_atomic';
+				$plan['partial_success_possible'] = true;
 				break;
 			}
 		}
@@ -3706,11 +3716,21 @@ final class Controller {
 		$available_outputs = array();
 		foreach ( $write_actions as $index => $raw_action ) {
 			if ( ! is_array( $raw_action ) ) {
+				$blocked_items[] = array(
+					'index'      => $index,
+					'block_code' => 'npcink_openclaw_adapter_plan_action_input_invalid',
+					'reason'     => __( 'Each write_actions item must be an object.', 'npcink-ai-client-adapter' ),
+				);
 				continue;
 			}
 
 			$target_ability_id = sanitize_text_field( (string) ( $raw_action['target_ability_id'] ?? '' ) );
 			if ( '' === $target_ability_id ) {
+				$blocked_items[] = array(
+					'index'      => $index,
+					'block_code' => 'npcink_openclaw_adapter_plan_action_input_invalid',
+					'reason'     => __( 'Each write_actions item must declare target_ability_id.', 'npcink-ai-client-adapter' ),
+				);
 				continue;
 			}
 
@@ -3732,6 +3752,14 @@ final class Controller {
 			$proposal_ready = array_key_exists( 'proposal_ready', $raw_action ) ? (bool) $raw_action['proposal_ready'] : true;
 			$requires_input = array_values( array_map( 'sanitize_key', (array) ( $raw_action['requires_input'] ?? array() ) ) );
 			if ( ! $proposal_ready && ! empty( $requires_input ) ) {
+				$blocked_items[] = array(
+					'index'             => $index,
+					'action_id'         => $action_id,
+					'target_ability_id' => $target_ability_id,
+					'block_code'        => 'npcink_openclaw_adapter_plan_action_input_invalid',
+					'reason'            => __( 'This action requires additional input before proposal creation.', 'npcink-ai-client-adapter' ),
+					'requires_input'    => $requires_input,
+				);
 				continue;
 			}
 
@@ -7182,10 +7210,16 @@ final class Controller {
 			return $value;
 		}
 
+		$denied_fields = array_map( 'strtolower', $denied_fields );
 		$clean = array();
 		foreach ( $value as $key => $item ) {
 			$key_string = is_string( $key ) ? $key : (string) $key;
-			if ( in_array( $key_string, $denied_fields, true ) || $this->is_sensitive_read_key( $key_string ) ) {
+			$key_normalized = strtolower( $key_string );
+			if ( 'authorization' === $key_normalized && ! in_array( $key_normalized, $denied_fields, true ) && $this->is_safe_governance_authorization_envelope( $item ) ) {
+				$clean[ $key ] = $item;
+				continue;
+			}
+			if ( in_array( $key_normalized, $denied_fields, true ) || $this->is_sensitive_read_key( $key_string ) ) {
 				$clean[ $key ] = '[REDACTED]';
 				++$count;
 				continue;
@@ -7195,6 +7229,21 @@ final class Controller {
 		}
 
 		return $clean;
+	}
+
+	/**
+	 * Identifies the bounded non-secret authorization envelope used by Core-ready plans.
+	 *
+	 * @param mixed $value Candidate value.
+	 * @return bool
+	 */
+	private function is_safe_governance_authorization_envelope( $value ): bool {
+		if ( ! is_array( $value ) || array() !== array_diff( array_keys( $value ), array( 'classification', 'authority' ) ) ) {
+			return false;
+		}
+
+		return 'core_proposal_required' === ( $value['classification'] ?? null )
+			&& 'npcink-governance-core' === ( $value['authority'] ?? null );
 	}
 
 	/**

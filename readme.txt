@@ -2,10 +2,10 @@
 Contributors: muze233
 Tags: ai, governance, automation, rest-api
 Requires at least: 7.0
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
 Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
-Stable tag: 0.3.2
+Stable tag: 0.3.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ Adapter health and help routes can report dependency status. Routes that require
 3. WordPress Application Password fallback connection flow for clients that use a dedicated secret field or credential vault.
 
 == Changelog ==
+
+= 0.3.3 =
+
+* Harden release packaging, uninstall cleanup, and batch execution contract checks.
+* Preserve actionable, redacted CLI output when the signed local acceptance fixture fails.
 
 = 0.3.2 =
 

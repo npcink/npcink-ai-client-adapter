@@ -23,7 +23,18 @@ The default check runs:
 - `GET /health`;
 - `GET /connection/manifest`;
 - `GET /help`;
-- public `read-ability` for `npcink-abilities-toolkit/site-info`.
+- a fail-closed `read-ability` probe for
+  `npcink-abilities-toolkit/build-content-inventory-fix-plan`.
+
+Sensitive abilities such as `npcink-abilities-toolkit/site-info` and content
+inventory planning are not executed without a grant in the default
+non-destructive check. They require the Core read-request approval flow
+described below.
+
+The full WordPress smoke can provision temporary administrator-approved read
+requests with `MAA_ADAPTER_SMOKE_CREATE_READ_GRANTS=1`. A sensitive plan that
+is redacted by Core is intentionally not eligible for proposal handoff until
+the cross-repo plan contract defines a non-sensitive handoff representation.
 
 ## Fixture Proposal Check
 

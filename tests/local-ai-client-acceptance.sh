@@ -4,7 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 NODE_BIN="${NODE_BIN:-node}"
 PROFILE="${MAA_ADAPTER_ACCEPTANCE_PROFILE:-local}"
-PUBLIC_READ_ABILITY="${MAA_ADAPTER_ACCEPTANCE_PUBLIC_READ_ABILITY:-npcink-abilities-toolkit/site-info}"
+PUBLIC_READ_ABILITY="${MAA_ADAPTER_ACCEPTANCE_PUBLIC_READ_ABILITY:-npcink-abilities-toolkit/build-content-inventory-fix-plan}"
+# Sensitive reads such as npcink-abilities-toolkit/site-info require a Core grant.
 SENSITIVE_READ_ABILITY="${MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_ABILITY:-}"
 SENSITIVE_READ_INPUT="${MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_INPUT:-}"
 SENSITIVE_READ_REQUEST_ID="${MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_REQUEST_ID:-}"
@@ -24,6 +25,7 @@ cleanup() {
 trap cleanup EXIT
 
 public_input="$tmp_dir/public-read-input.json"
+public_output="$tmp_dir/public-read-output.json"
 printf '{}\n' > "$public_input"
 
 echo "[accept] checking CLI syntax"
@@ -41,8 +43,17 @@ echo "[accept] reading /connection/manifest"
 echo "[accept] reading /help"
 "${CLI[@]}" request "${COMMON_ARGS[@]}" GET /help
 
-echo "[accept] running public read ability: $PUBLIC_READ_ABILITY"
-"${CLI[@]}" read-ability "${COMMON_ARGS[@]}" --ability-id="$PUBLIC_READ_ABILITY" --input-file="$public_input"
+echo "[accept] probing default read ability: $PUBLIC_READ_ABILITY"
+if "${CLI[@]}" read-ability "${COMMON_ARGS[@]}" --ability-id="$PUBLIC_READ_ABILITY" --input-file="$public_input" >"$public_output" 2>&1; then
+	cat "$public_output"
+else
+	public_status=$?
+	cat "$public_output"
+	if ! grep -q 'npcink_openclaw_adapter_core_read_authorization_required' "$public_output"; then
+		exit "$public_status"
+	fi
+	echo "[accept] default read ability failed closed pending a Core read grant"
+fi
 
 if [[ -n "$SENSITIVE_READ_ABILITY" && -n "$SENSITIVE_READ_INPUT" ]]; then
 	echo "[accept] creating sensitive read request: $SENSITIVE_READ_ABILITY"
