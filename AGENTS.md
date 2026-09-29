@@ -76,6 +76,12 @@ Adapter, and Adapter does not own their callbacks.
   it with `WP_CLI_MYSQL_SOCKET` or the equivalent PHP
   `mysqli.default_socket` setting.
 - Run `composer test:all` before committing.
+- Run the advisory AI review gate before publishing, and treat findings as a
+  second opinion (fix real defects or record why they are acceptable):
+  `ocr review --from origin/master --to HEAD`. Follows AI Code Review Standard
+  v1 in `npcink-workflow-toolbox` `docs/platform/ai-code-review-standard-v1.md`;
+  the CI workflow posting the same review on pull requests is advisory and
+  never a required check.
 - For multi-repo milestones, run the central matrix from
   `/Users/muze/gitee/npcink-workflow-toolbox` instead of copying the script into Adapter:
   `composer quality:matrix` for status and `composer quality:matrix:run` before
