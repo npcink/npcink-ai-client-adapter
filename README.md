@@ -9,6 +9,15 @@ It gives OpenClaw-compatible and similar AI clients one WordPress REST namespace
 - create Core proposals for write or destructive operations;
 - forward one user-triggered approve-and-execute request to Core.
 
+Adapter is the governed channel, not the connector: connection to WordPress
+is being standardized by WordPress itself, so Adapter's product is the
+approval gate. Every write requires a Core proposal, human approval,
+commit-preflight, and an allowlisted execution profile, with audit
+correlation. Boundary semantics for each authentication mode are owned by
+[Adapter Threat Model](docs/threat-model.md); product direction and phased
+roadmap live in
+[Adapter Positioning Notes - 2026-09](docs/adapter-positioning-notes-2026-09.md).
+
 The product contract is generic AI-client integration with OpenClaw as the
 first and priority channel implementation. The existing
 `npcink-openclaw-adapter/v1` namespace remains a compatibility contract; it
@@ -48,6 +57,13 @@ behavior for the Core/Toolkit/Product reuse chain.
 See [Adapter Onboarding Reference Notes - 2026-07](docs/adapter-onboarding-reference-notes-2026-07.md)
 before turning webhook or automation plugin inspiration into Adapter
 connection, payload, or failure-feedback changes.
+See [Adapter Threat Model](docs/threat-model.md) for the boundary class of
+each authentication mode (enforced key-pair versus conventional Application
+Password) and the explicit security non-claims.
+See [Adapter Positioning Notes - 2026-09](docs/adapter-positioning-notes-2026-09.md)
+for the product positioning, the 2026-09 ecosystem snapshot, product
+principles, and the phased roadmap; treat the no-approval-free-write-path
+principle there as Adapter channel policy.
 
 Batch plan execution is intentionally narrow. Adapter can execute
 `input.write_actions[]` only after Core approval and commit-preflight, and only
@@ -488,7 +504,15 @@ CLI output is redacted by default for local profile paths, key ids, connection
 ids, public/private keys, signatures, authorization headers, cookies, tokens,
 passwords, and secrets. Adapter also returns a machine-readable `client_policy`
 on `/connection/manifest`, `/health`, and `/help`; local AI clients should read
-that policy before selecting routes.
+that policy before selecting routes. The policy includes
+`boundary_enforcement`, which classifies the active connection:
+`class=enforced` with `auth_mode=ed25519_key_pair_signed` means Adapter routes
+are the only reachable WordPress path for that client, while
+`class=conventional` with `auth_mode=wordpress_native` means the client holds
+a WordPress-native credential that can also reach `wp/v2` directly, so the
+approval gate is voluntary for that client. The recommended credential is
+`ed25519_key_pair_device_pairing`; see
+[Adapter Threat Model](docs/threat-model.md) for the boundary semantics.
 The user-facing local client entrypoint is the published npm CLI. The repository
 does not keep root-level `tools/` compatibility wrappers; use the package
 directly:

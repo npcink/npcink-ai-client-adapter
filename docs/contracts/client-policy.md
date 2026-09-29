@@ -21,7 +21,7 @@ The shared `client_policy` object currently uses:
 
 ```text
 schema_version=npcink_openclaw_adapter_client_policy.v1
-policy_version=1
+policy_version=2
 client_posture=adapter_only_fail_closed
 ```
 
@@ -45,6 +45,29 @@ Clients must:
 
 Prompts and handoff text are convenience guidance only. They are not the
 security boundary.
+
+## Boundary Enforcement
+
+`client_policy.boundary_enforcement` reports the boundary class of the
+active connection:
+
+```text
+class=enforced      auth_mode=ed25519_key_pair_signed
+class=conventional  auth_mode=wordpress_native
+recommended=ed25519_key_pair_device_pairing
+```
+
+`enforced` means the request was authenticated by a registered Ed25519
+key-pair signature; WordPress core has no verifier for that credential, so
+Adapter routes are the only reachable path. `conventional` means the
+connection uses a WordPress-native credential that can also reach `wp/v2`
+directly, which makes the approval gate voluntary for that client. Clients
+on a conventional connection must not present the approval gate as an
+enforced control. On `/connection/manifest`, `boundary_enforcement` is merged
+after `manifest_sha256` is computed and is listed in
+`integrity.digest_excludes`, so the digest stays stable across authentication
+modes. Semantics are owned by `docs/threat-model.md`
+([`../threat-model.md`](../threat-model.md)).
 
 ## Sensitive Read Binding
 

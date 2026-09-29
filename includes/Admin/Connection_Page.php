@@ -213,7 +213,7 @@ final class Connection_Page {
 						<summary>
 							<span class="maa-disclosure-copy">
 								<strong><?php echo esc_html__( 'Fallback: WordPress Application Password connection', 'npcink-ai-client-adapter' ); ?></strong>
-								<span class="description"><?php echo esc_html__( 'Use only when the client has a dedicated secret field.', 'npcink-ai-client-adapter' ); ?></span>
+								<span class="description"><?php echo esc_html__( 'Use only when the client has a dedicated secret field. This is a conventional boundary: the password can reach WordPress REST directly, so the approval gate is voluntary for that client.', 'npcink-ai-client-adapter' ); ?></span>
 							</span>
 							<span class="maa-disclosure-icon" aria-hidden="true"></span>
 						</summary>
@@ -234,7 +234,7 @@ final class Connection_Page {
 							<div class="maa-option">
 								<label>
 									<input type="checkbox" name="<?php echo esc_attr( self::APPLICATION_PASSWORD_FALLBACK_CONFIRM_FIELD ); ?>" value="1" required />
-									<span><?php echo esc_html__( 'I understand this fallback creates a WordPress Application Password and the signed key-pair connection is preferred.', 'npcink-ai-client-adapter' ); ?></span>
+									<span><?php echo esc_html__( 'I understand this fallback creates a WordPress Application Password and the signed key-pair connection is preferred because only a paired key is an enforced boundary.', 'npcink-ai-client-adapter' ); ?></span>
 								</label>
 							</div>
 							<p class="maa-form-actions">

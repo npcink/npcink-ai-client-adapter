@@ -49,8 +49,9 @@ before selecting routes. The current schema is:
 ```json
 {
   "schema_version": "npcink_openclaw_adapter_client_policy.v1",
-  "policy_version": "1",
+  "policy_version": "2",
   "client_posture": "adapter_only_fail_closed",
+  "boundary_enforcement": {},
   "forbidden_outputs": [],
   "forbidden_local_access": [],
   "allowed_transport": {},
@@ -59,6 +60,15 @@ before selecting routes. The current schema is:
   "recommended_cli": {}
 }
 ```
+
+`boundary_enforcement` classifies the active connection:
+`class=enforced` with `auth_mode=ed25519_key_pair_signed` means Adapter
+routes are the only reachable WordPress path for that client;
+`class=conventional` with `auth_mode=wordpress_native` means the client
+holds a WordPress-native credential that can also reach `wp/v2` directly,
+so the approval gate is voluntary for that client. The recommended
+credential is `ed25519_key_pair_device_pairing`; see
+[`threat-model.md`](threat-model.md) for the boundary semantics.
 
 `GET /connection/manifest`, `GET /health`, and `GET /help` also expose a
 separate `contract` object. Clients may cache or compare
