@@ -7,6 +7,14 @@ They are not ability definitions. Ability definitions and callbacks remain in
 `npcink-abilities-toolkit`; approval, audit, and commit-preflight truth remain
 in `npcink-governance-core`.
 
+The final Toolkit-side commit gate that authorizes the upstream WordPress
+write is documented host-agnostically in the
+[Host Approval Contract](https://github.com/npcink/npcink-abilities-toolkit/blob/master/docs/host-approval-contract.md)
+(`npcink-abilities-toolkit`, `docs/host-approval-contract.md`). Adapter is the
+first implementer of that contract's runtime channel; third-party hosts may
+implement the toolkit-prefixed
+`npcink_abilities_toolkit_write_commit_allowed` filter instead.
+
 ## Profile Rule
 
 Adapter may execute a write only when all of these are true:
