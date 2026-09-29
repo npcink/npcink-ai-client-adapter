@@ -183,7 +183,138 @@ existing_pr="$(
 )"
 [ -z "${existing_pr}" ] || fail "an open pull request already exists: ${existing_pr}"
 
-retry_network git push -u origin "${branch}"
+# Direct git pushes can fail for a long time on some paths to github.com
+# while api.github.com stays reachable, and some local proxy nodes answer
+# git requests from cache, reporting success without transferring. Verify
+# the remote ref after pushing; if it did not land, replay the unpushed
+# commits through the Git Data API with their exact author, committer, and
+# timestamps so the API-created commits reproduce the local SHAs and the
+# head-matched squash merge still applies.
+github_repo="$(python3 - <<'PY'
+import re, subprocess
+url = subprocess.check_output(["git", "remote", "get-url", "origin"], text=True).strip()
+match = re.search(r"[:/]([^/:]+)/([^/]+?)(?:\.git)?$", url)
+print(f"{match.group(1)}/{match.group(2)}")
+PY
+)"
+push_and_verify() {
+	retry_network git push -u origin "${branch}"
+	local remote_sha
+	remote_sha="$(gh api "repos/${github_repo}/git/refs/heads/${branch}" --jq '.object.sha' 2>/dev/null || true)"
+	[ "$remote_sha" = "$head_sha" ] && return 0
+
+	echo '[pr-publish] direct push did not land; falling back to the Git Data API' >&2
+	fallback_result="$(python3 - "${github_repo}" "${branch}" <<'PY'
+import base64, json, subprocess, sys
+
+repo, branch = sys.argv[1], sys.argv[2]
+
+def gh(path, payload=None, method=None):
+	command = ["gh", "api"]
+	if method:
+		command += ["-X", method]
+	command.append(path)
+	if payload is not None:
+		command += ["--input", "-"]
+	completed = subprocess.run(
+		command,
+		input=None if payload is None else json.dumps(payload).encode(),
+		capture_output=True,
+	)
+	if completed.returncode != 0:
+		raise RuntimeError(completed.stderr.decode(errors="replace").strip())
+	return json.loads(completed.stdout.decode())
+
+def git(*arguments):
+	return subprocess.check_output(["git", *arguments], text=True)
+
+def git_bytes(*arguments):
+	return subprocess.check_output(["git", *arguments])
+
+head = git("rev-parse", "HEAD").strip()
+remote_sha = gh(f"repos/{repo}/git/refs/heads/{branch}")["object"]["sha"]
+if remote_sha == head:
+	print("already-synced")
+	sys.exit(0)
+
+unpushed = git("rev-list", "--reverse", f"{remote_sha}..{head}").split()
+if not unpushed:
+	print("diverged")
+	sys.exit(3)
+
+parent = remote_sha
+for commit in unpushed:
+	entries = []
+	for line in git("diff-tree", "--no-commit-id", "--name-status", "-r", commit).splitlines():
+		status, _, path = line.partition("\t")
+		if not path or status.startswith("D"):
+			continue
+		blob_local = git("rev-parse", f"{commit}:{path}").strip()
+		mode = git("ls-tree", commit, "--", path).split()[0]
+		if mode not in ("100644", "100755"):
+			raise SystemExit(f"unsupported file mode {mode} for {path}")
+		try:
+			gh(f"repos/{repo}/git/blobs/{blob_local}")
+			blob_sha = blob_local
+		except RuntimeError:
+			raw = git_bytes("cat-file", "blob", blob_local)
+			created = gh(
+				f"repos/{repo}/git/blobs",
+				{"content": base64.b64encode(raw).decode(), "encoding": "base64"},
+				method="POST",
+			)
+			blob_sha = created["sha"]
+		entries.append({"path": path, "mode": mode, "type": "blob", "sha": blob_sha})
+
+	tree_base = gh(f"repos/{repo}/commits/{parent}")["commit"]["tree"]["sha"]
+	tree = gh(
+		f"repos/{repo}/git/trees",
+		{"base_tree": tree_base, "tree": entries},
+		method="POST",
+	)
+
+	def fmt(placeholder):
+		return git("log", "-1", f"--format={placeholder}", commit).rstrip("\n")
+
+	created = gh(
+		f"repos/{repo}/git/commits",
+		{
+			"message": fmt("%B"),
+			"tree": tree["sha"],
+			"parents": [parent],
+			"author": {"name": fmt("%an"), "email": fmt("%ae"), "date": fmt("%aI")},
+			"committer": {"name": fmt("%cn"), "email": fmt("%ce"), "date": fmt("%cI")},
+		},
+		method="POST",
+	)
+	parent = created["sha"]
+
+gh(f"repos/{repo}/git/refs/heads/{branch}", {"sha": parent}, method="PATCH")
+final = gh(f"repos/{repo}/git/refs/heads/{branch}")["object"]["sha"]
+print(("replayed-identical" if final == head else "sha-mismatch") + " " + final)
+PY
+	)" || fail 'Git Data API fallback failed'
+	case "$fallback_result" in
+		replayed-identical\ *)
+			echo '[pr-publish] fallback: commits replayed through the Git Data API with matching SHAs'
+			;;
+		already-synced)
+			;;
+		sha-mismatch\ *)
+			fail "the API replay landed ${fallback_result#sha-mismatch } instead of ${head_sha}; the branch was updated, but reconcile locally (git pull --rebase) before publishing"
+			;;
+		diverged)
+			fail 'local and remote histories diverged; the API fallback cannot fast-forward'
+			;;
+		*)
+			fail "unexpected fallback result: ${fallback_result}"
+			;;
+	esac
+	remote_sha="$(gh api "repos/${github_repo}/git/refs/heads/${branch}" --jq '.object.sha' 2>/dev/null || true)"
+	[ "$remote_sha" = "$head_sha" ] || fail 'the fallback could not update the remote branch'
+}
+
+push_and_verify
 pr_url="$(
 	retry_network gh pr create \
 		--base "${base_branch}" \
