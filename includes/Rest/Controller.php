@@ -2252,12 +2252,30 @@ final class Controller {
 				'NPCINK-AI-CLIENT-ADAPTER-V1',
 				strtoupper( $request->get_method() ),
 				$request->get_route(),
-				$this->canonical_json( $request->get_query_params() ),
+				$this->canonical_json( $this->raw_query_params() ),
 				$timestamp,
 				$nonce,
 				$content_sha256,
 			)
 		);
+	}
+
+	/**
+	 * Returns raw query parameters for signature canonicalization.
+	 *
+	 * The canonical query JSON must reflect the wire values the client signed.
+	 * WP_REST_Request::get_query_params() is mutated by declared-argument
+	 * sanitization before the permission callback runs (for example
+	 * "limit=3" becomes the integer 3), so verification against it fails for
+	 * any signed request with query parameters. $_GET holds the undecorated
+	 * wire strings the signer canonicalized.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private function raw_query_params(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- the Ed25519 request signature is the authentication mechanism here; this is not a form nonce check.
+		return isset( $_GET ) && is_array( $_GET ) ? wp_unslash( $_GET ) : array();
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	}
 
 	/**
