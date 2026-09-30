@@ -27,7 +27,7 @@ final class Connection_Page {
 	const PAIR_ACTION      = 'npcink_openclaw_adapter_pairing_decision';
 	const REVOKE_KEY_ACTION = 'npcink_openclaw_adapter_revoke_client_key';
 	const DATETIME_DISPLAY_FORMAT = 'Y-m-d H:i:s';
-	const LOCAL_CLI_PACKAGE = '@npcink/openclaw-adapter-cli@0.2.0';
+	const LOCAL_CLI_PACKAGE = '@npcink/openclaw-adapter-cli@0.3.0';
 	const APPLICATION_PASSWORD_FALLBACK_CONFIRM_FIELD = 'confirm_application_password_fallback';
 
 	/**
@@ -176,6 +176,29 @@ final class Connection_Page {
 					<p>
 						<strong><?php echo esc_html__( 'Suite dependencies need attention.', 'npcink-ai-client-adapter' ); ?></strong>
 						<?php echo esc_html( implode( ', ', array_map( 'sanitize_text_field', $health['missing_dependencies'] ) ) ); ?>
+					</p>
+				</div>
+			<?php endif; ?>
+
+			<?php
+			$this->render_readiness_checklist( $health, $key_records, $active_key_count );
+			$application_password_count = $active_key_count > 0 ? $this->current_user_application_password_count() : 0;
+			?>
+			<?php if ( $application_password_count > 0 ) : ?>
+				<div class="notice notice-info maa-boundary-hygiene">
+					<p>
+						<strong><?php echo esc_html__( 'Boundary hygiene.', 'npcink-ai-client-adapter' ); ?></strong>
+						<?php
+						echo esc_html(
+							sprintf(
+								/* translators: %d: number of active application passwords. */
+								_n( 'You have %d active WordPress Application Password while paired device keys are available.', 'You have %d active WordPress Application Passwords while paired device keys are available.', $application_password_count, 'npcink-ai-client-adapter' ),
+								$application_password_count
+							)
+						);
+						?>
+						<?php echo esc_html__( 'Application Password connections are conventional boundaries; review and revoke unused ones.', 'npcink-ai-client-adapter' ); ?>
+						<a href="<?php echo esc_url( get_edit_profile_url( get_current_user_id() ) ); ?>#application-passwords-section"><?php echo esc_html__( 'Open profile passwords', 'npcink-ai-client-adapter' ); ?></a>
 					</p>
 				</div>
 			<?php endif; ?>
@@ -800,6 +823,103 @@ final class Connection_Page {
 		}
 
 		return $active;
+	}
+
+	/**
+	 * Returns whether an active key-pair record has been used for a signed request.
+	 *
+	 * @param array<int,array<string,mixed>> $key_records Key records.
+	 * @return bool
+	 */
+	private function has_used_client_key( array $key_records ): bool {
+		foreach ( $key_records as $record ) {
+			if ( '' !== (string) ( $record['revoked_at'] ?? '' ) ) {
+				continue;
+			}
+
+			if ( '' !== (string) ( $record['last_used_at'] ?? '' ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Returns the current user's active WordPress Application Password count.
+	 *
+	 * Read-only boundary hygiene signal for the connection page; Adapter never
+	 * reads or prints password values.
+	 *
+	 * @return int
+	 */
+	private function current_user_application_password_count(): int {
+		if ( ! class_exists( 'WP_Application_Passwords' ) ) {
+			return 0;
+		}
+
+		$passwords = \WP_Application_Passwords::get_user_application_passwords( get_current_user_id() );
+
+		return is_array( $passwords ) ? count( $passwords ) : 0;
+	}
+
+	/**
+	 * Renders the connection readiness checklist.
+	 *
+	 * Steps read only state the page already owns: dependency health, paired
+	 * keys, and signed-request usage. Proposal, approval, and audit state stay
+	 * in Npcink Governance Core and must not appear here.
+	 *
+	 * @param array<string,mixed>         $health Health payload.
+	 * @param array<int,array<string,mixed>> $key_records Key records.
+	 * @param int                         $active_key_count Active key count.
+	 * @return void
+	 */
+	private function render_readiness_checklist( array $health, array $key_records, int $active_key_count ): void {
+		$dependencies_ready = ! empty( $health['dependencies_ready'] );
+		$signed_verified    = $this->has_used_client_key( $key_records );
+
+		$steps = array(
+			array(
+				'state'       => $dependencies_ready ? 'ok' : 'warning',
+				'state_label' => $dependencies_ready ? __( 'Ready', 'npcink-ai-client-adapter' ) : __( 'Needs attention', 'npcink-ai-client-adapter' ),
+				'label'       => __( 'Suite dependencies', 'npcink-ai-client-adapter' ),
+				'description' => $dependencies_ready
+					? __( 'Npcink Governance Core and the Abilities Toolkit are active.', 'npcink-ai-client-adapter' )
+					: __( 'Install or activate the missing suite plugins listed above; Adapter routes fail closed without them.', 'npcink-ai-client-adapter' ),
+			),
+			array(
+				'state'       => $active_key_count > 0 ? 'ok' : 'warning',
+				'state_label' => $active_key_count > 0 ? __( 'Ready', 'npcink-ai-client-adapter' ) : __( 'Needs attention', 'npcink-ai-client-adapter' ),
+				'label'       => __( 'Pair a client key', 'npcink-ai-client-adapter' ),
+				'description' => $active_key_count > 0
+					? __( 'At least one approved device key is active; this is the enforced-boundary connection path.', 'npcink-ai-client-adapter' )
+					: __( 'Copy the connect command below, run it on the machine where the AI client runs, then approve the pairing request.', 'npcink-ai-client-adapter' ),
+			),
+			array(
+				'state'       => $signed_verified ? 'ok' : 'warning',
+				'state_label' => $signed_verified ? __( 'Ready', 'npcink-ai-client-adapter' ) : __( 'Needs attention', 'npcink-ai-client-adapter' ),
+				'label'       => __( 'Verify a signed request', 'npcink-ai-client-adapter' ),
+				'description' => $signed_verified
+					? __( 'A paired key has completed a signed Adapter request successfully.', 'npcink-ai-client-adapter' )
+					: __( 'The connect command tests a signed health request after approval; this step completes automatically once pairing finishes.', 'npcink-ai-client-adapter' ),
+			),
+		);
+		?>
+		<section id="maa-readiness" class="maa-readiness">
+			<h2><?php echo esc_html__( 'Connection readiness', 'npcink-ai-client-adapter' ); ?></h2>
+			<ol class="maa-readiness-steps">
+				<?php foreach ( $steps as $step ) : ?>
+					<li class="maa-readiness-step is-<?php echo esc_attr( $step['state'] ); ?>">
+						<span class="maa-status maa-status-<?php echo esc_attr( $step['state'] ); ?>"><?php echo esc_html( $step['state_label'] ); ?></span>
+						<strong><?php echo esc_html( $step['label'] ); ?></strong>
+						<span class="description"><?php echo esc_html( $step['description'] ); ?></span>
+					</li>
+				<?php endforeach; ?>
+			</ol>
+			<p class="description"><?php echo esc_html__( 'Readiness covers the connection only. Writes still require a Core proposal, human approval, and commit-preflight; approval state lives in Npcink Governance Core.', 'npcink-ai-client-adapter' ); ?></p>
+		</section>
+		<?php
 	}
 
 	/**

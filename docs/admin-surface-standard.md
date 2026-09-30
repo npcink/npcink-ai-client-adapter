@@ -36,6 +36,21 @@ Default copyable values:
 - Adapter URL;
 - signed key-pair connect command.
 
+### Readiness Checklist
+
+The default view may include a `Connection readiness` checklist. It reports
+only connection-scope state the page already owns:
+
+- suite dependency health;
+- whether at least one client key is paired;
+- whether a paired key has completed a signed request.
+
+It must not add proposal, approval, preflight, or audit state; those stay in
+Core. When paired keys exist and the current administrator still has active
+WordPress Application Passwords, the page shows a read-only boundary hygiene
+notice linking to the profile Application Passwords section; the page never
+reads or prints password values.
+
 ## Developer Reference
 
 Do not put developer diagnostics on the default admin page. Keep these in
