@@ -47,7 +47,7 @@ Request:
     "name": "OpenClaw",
     "device_name": "Muze Mac",
     "broker": "@npcink-abilities-toolkit/adapter-broker",
-    "broker_version": "0.2.0"
+    "broker_version": "0.3.0"
   },
   "key": {
     "alg": "Ed25519",
@@ -189,10 +189,10 @@ duplicate-update `add_option()` path for the claim.
 OpenClaw-style clients can use the npm CLI after pairing:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.2.0 -- npcink-openclaw-adapter connect --site=https://example.test --profile=local
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.2.0 -- npcink-openclaw-adapter status --profile=local
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.2.0 -- npcink-openclaw-adapter request --profile=local GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.2.0 -- npcink-openclaw-adapter request --profile=local POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter connect --site=https://example.test --profile=local
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter status --profile=local
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=local GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=local POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
 ```
 
 The wrapper:

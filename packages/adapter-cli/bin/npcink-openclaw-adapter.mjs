@@ -428,6 +428,8 @@ async function status(args) {
   const coreProxyExecute = Boolean(health.core_proxy_execute);
   const commitExecution = Boolean(health.commit_execution);
   const boundaryOk = !coreProxyExecute && !commitExecution;
+  const policyBoundary = health.client_policy?.boundary_enforcement ?? null;
+  const boundaryClass = policyBoundary && policyBoundary.class ? String(policyBoundary.class) : '';
   const approvedProposalExecutionRoutes = Array.isArray(health.approved_proposal_execution_routes) ? health.approved_proposal_execution_routes : [];
   const supportedExecuteAbilityIds = Array.isArray(health.supported_execute_ability_ids) ? health.supported_execute_ability_ids : [];
   let proposalExecutionStatus = 'unknown_check_health';
@@ -457,6 +459,19 @@ async function status(args) {
       },
       note: 'false values indicate Core keeps final execution authority separate from Adapter diagnostics.',
     },
+    boundary_enforcement: boundaryClass
+      ? {
+          class: boundaryClass,
+          auth_mode: String(policyBoundary.auth_mode || ''),
+          recommended: String(policyBoundary.recommended || ''),
+          note: 'enforced: Adapter routes are the only reachable WordPress path for this credential; conventional: the credential can also reach wp/v2 directly.',
+        }
+      : {
+          class: 'unknown',
+          auth_mode: 'unknown',
+          recommended: '',
+          note: `Adapter did not report client_policy.boundary_enforcement (reported client_policy.policy_version: ${String(health.client_policy?.policy_version || 'unknown')}); update the Adapter plugin.`,
+        },
     proposal_execution: {
       status: proposalExecutionStatus,
       routes: approvedProposalExecutionRoutes,

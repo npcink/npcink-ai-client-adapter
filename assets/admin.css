@@ -459,3 +459,27 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* Connection readiness checklist */
+.npcink-openclaw-adapter-connection .maa-readiness {
+	margin: 16px 0;
+}
+.npcink-openclaw-adapter-connection .maa-readiness h2 {
+	margin-bottom: 8px;
+}
+.npcink-openclaw-adapter-connection .maa-readiness-steps {
+	margin: 0 0 8px;
+	padding: 0;
+}
+.npcink-openclaw-adapter-connection .maa-readiness-step {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	gap: 8px;
+	margin: 6px 0;
+	padding: 0;
+	list-style: none;
+}
+.npcink-openclaw-adapter-connection .maa-readiness-step .maa-status {
+	flex: none;
+}
