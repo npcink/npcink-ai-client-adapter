@@ -9,13 +9,13 @@ tool commands, logs, proposal payloads, or copied handoff text.
 Connect from the user's local machine:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter connect --site=https://example.com --profile=example
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter connect --site=https://example.com --profile=example
 ```
 
 Check the local profile and signed Adapter health:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter status --profile=example
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=example
 ```
 
 The status output includes derived `boundary` and `proposal_execution` fields.
@@ -28,22 +28,27 @@ proposal can execute, read `GET /proposals/{proposal_id}` and then use the
 Adapter approve-and-execute or execute routes after Core approval and
 commit-preflight.
 
-## MCP Server (read and propose tools only)
+## MCP Server (governed read, propose, and execute tools)
 
 The `mcp` subcommand runs a stdio MCP server over the same signed key-pair
 profile, so MCP clients such as Claude Desktop or Cursor enter through the
 governed Adapter channel instead of a direct WordPress connection:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter mcp --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter mcp --profile=local --insecure-local-tls
 ```
 
 Tool surface: `health`, `capabilities`, `list_proposals`, `proposal_status`,
-`run_read_ability`, `read_request_create`, `read_request_status`, and
-`propose_write`. There are no execution tools; `propose_write` only submits a
-Core proposal that still requires human approval in the WordPress admin.
-Calls route through the fixed tool table above — arbitrary Adapter routes and
-execute routes cannot be reached from this surface.
+`run_read_ability`, `read_request_create`, `read_request_status`,
+`propose_write`, `commit_preflight`, `execute_approved`, and
+`approve_and_execute`. `propose_write` only submits a Core proposal that
+requires human approval; the three execution tools mirror the CLI intent
+discipline: `commit_preflight` requires `intent="preflight"` and executes
+nothing, while `execute_approved` (for proposals a human already approved in
+the Core admin) and `approve_and_execute` (unified approve, preflight, and
+execute) require `intent="commit"` and run only post-Core allowlisted
+executions under the key's `npcink.execute` scope. Calls route through the
+fixed tool table above — arbitrary Adapter routes cannot be reached.
 
 Claude Desktop example configuration (stdio):
 
@@ -54,7 +59,7 @@ Claude Desktop example configuration (stdio):
       "command": "npm",
       "args": [
         "exec", "--yes",
-        "--package", "@npcink/openclaw-adapter-cli@0.3.0",
+        "--package", "@npcink/openclaw-adapter-cli@0.4.0",
         "--", "npcink-openclaw-adapter", "mcp",
         "--profile=local", "--insecure-local-tls"
       ]
@@ -70,17 +75,17 @@ it for public sites.
 
 Call Adapter through the signed local wrapper:
 
-```bashcd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=example GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=example GET /capabilities
+```bashcd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=example GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=example GET /capabilities
 ```
 
 Prefer the narrow read helpers for local AI client sessions. They build the
 Adapter body, keep output redacted, and reduce route/JSON mistakes:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter read-request create --profile=example --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --purpose="Review bounded diagnostics" --data-classes=diagnostics,logs --redaction-level=strict --max-rows=10 --tail-lines=5 --denied-fields=authorization,cookie,application_password
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter read-request status --profile=example READ_REQUEST_ID
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter read-ability --profile=example --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter read-request create --profile=example --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --purpose="Review bounded diagnostics" --data-classes=diagnostics,logs --redaction-level=strict --max-rows=10 --tail-lines=5 --denied-fields=authorization,cookie,application_password
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter read-request status --profile=example READ_REQUEST_ID
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter read-ability --profile=example --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
 ```
 
 For AI-generated page visuals that need a stable aspect ratio, use the bounded
@@ -91,8 +96,8 @@ adoption plan. It does not create Cloud crop runs, approve proposals, or execute
 final writes:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=example
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=example --preview-url=PREVIEW_URL --post-id=7424 --old-url=OLD_URL --title="WordPress AI hero" --alt-text="WordPress AI proposal workflow hero" --source-type=ai_generated --attribution-text="AI-generated image reviewed before adoption"
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=example
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=example --preview-url=PREVIEW_URL --post-id=7424 --old-url=OLD_URL --title="WordPress AI hero" --alt-text="WordPress AI proposal workflow hero" --source-type=ai_generated --attribution-text="AI-generated image reviewed before adoption"
 ```
 
 Add `--submit-proposal` to `adoption-plan` only after reviewing the returned
@@ -105,8 +110,8 @@ Use `--intent=commit` only when the operator explicitly confirmed final write
 execution:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=example POST /proposals/PROPOSAL_ID/commit-preflight --intent=preflight
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=example POST /proposals/PROPOSAL_ID/approve-and-execute --intent=commit
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=example POST /proposals/PROPOSAL_ID/commit-preflight --intent=preflight
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=example POST /proposals/PROPOSAL_ID/approve-and-execute --intent=commit
 ```
 
 The CLI refuses final execute routes when `--intent=commit` is missing, or when

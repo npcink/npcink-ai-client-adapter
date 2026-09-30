@@ -27,7 +27,7 @@ final class Connection_Page {
 	const PAIR_ACTION      = 'npcink_openclaw_adapter_pairing_decision';
 	const REVOKE_KEY_ACTION = 'npcink_openclaw_adapter_revoke_client_key';
 	const DATETIME_DISPLAY_FORMAT = 'Y-m-d H:i:s';
-	const LOCAL_CLI_PACKAGE = '@npcink/openclaw-adapter-cli@0.3.0';
+	const LOCAL_CLI_PACKAGE = '@npcink/openclaw-adapter-cli@0.4.0';
 	const APPLICATION_PASSWORD_FALLBACK_CONFIRM_FIELD = 'confirm_application_password_fallback';
 
 	/**

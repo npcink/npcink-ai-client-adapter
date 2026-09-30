@@ -360,6 +360,10 @@ async function requestJsonViaWrapper(parsed, method, route, body = null, options
     args.push('--body-stdin');
     runOptions.input = JSON.stringify(body);
   }
+  if (options.intent) {
+    // The wrapper refuses final-write routes without an explicit intent.
+    args.push(`--intent=${options.intent}`);
+  }
   const result = await runNode('keypair-adapter-request.mjs', args, runOptions);
   if (result.code !== 0) {
     throw new Error(safeErrorMessage(result.stdout, result.stderr));
@@ -513,6 +517,7 @@ const MCP_SAFE_ID_PATTERN = /^[A-Za-z0-9_-]{1,190}$/;
 const MCP_SAFE_ID_SCHEMA_PATTERN = '^[A-Za-z0-9_-]{1,190}$';
 const MCP_MAX_LINE_BYTES = 4 * 1024 * 1024;
 const MCP_TOOL_CALL_TIMEOUT_MS = 120000;
+const MCP_FINAL_WRITE_TIMEOUT_MS = 600000;
 
 function mcpToolDescriptors() {
   return [
@@ -622,7 +627,7 @@ function mcpToolDescriptors() {
     },
     {
       name: 'propose_write',
-      description: 'Create one Core governance proposal for a write-class ability. This only submits the request for human approval; a WordPress administrator must approve it in the Core admin, and execution happens outside this MCP surface. Rejected or blocked proposals should be shown to the operator, not retried blindly.',
+      description: 'Create one Core governance proposal for a write-class ability. This only submits the request for human approval; a WordPress administrator must approve it in the Core admin. Execution is a separate explicit step: commit_preflight, execute_approved, or approve_and_execute with the required intent. Rejected or blocked proposals should be shown to the operator, not retried blindly.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -648,7 +653,44 @@ function mcpToolDescriptors() {
         },
       }),
     },
+    proposalIntentTool(
+      'commit_preflight',
+      'Run the Core commit preflight for one proposal and return its evidence. Diagnostic only: nothing is executed. Use it to verify an approved proposal before final execution; stop here for dry-run-only checks.',
+      'commit-preflight',
+      'preflight'
+    ),
+    proposalIntentTool(
+      'execute_approved',
+      'Execute one proposal that a human has already approved in the Core admin. This is a final write: the ability runs with dry_run=false and commit=true. Only proceed when the operator explicitly asked to execute the approved proposal.',
+      'execute',
+      'commit'
+    ),
+    proposalIntentTool(
+      'approve_and_execute',
+      'Unified final action for one pending proposal: Core approval, commit preflight, and one allowlisted execution, in that order, in one call. Use only when the operator explicitly said to approve and execute this specific proposal. Rejected or blocked outcomes must be shown to the operator, not retried blindly.',
+      'approve-and-execute',
+      'commit'
+    ),
   ];
+}
+
+function proposalIntentTool(name, description, suffix, intent) {
+  return {
+    name,
+    description,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        proposal_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN },
+        intent: { type: 'string', enum: [intent] },
+      },
+      required: ['proposal_id', 'intent'],
+      additionalProperties: false,
+    },
+    idFields: ['proposal_id'],
+    requiredIntent: intent,
+    route: (input) => ({ method: 'POST', path: `/proposals/${encodeURIComponent(String(input.proposal_id))}/${suffix}`, intent }),
+  };
 }
 
 function mcpToolResult(payload, isError = false) {
@@ -662,7 +704,7 @@ async function mcpCallTool(parsed, tools, params) {
   const name = String((params && params.name) || '');
   const tool = tools.find((candidate) => candidate.name === name);
   if (!tool) {
-    return mcpToolResult({ ok: false, error: 'unknown_tool', message: `Unknown MCP tool: ${name || '(empty)'}. This surface exposes read and propose tools only.`, available_tools: tools.map((candidate) => candidate.name) }, true);
+    return mcpToolResult({ ok: false, error: 'unknown_tool', message: `Unknown MCP tool: ${name || '(empty)'}. This surface exposes read, propose, and explicitly-intended execution tools only.`, available_tools: tools.map((candidate) => candidate.name) }, true);
   }
 
   const input = params && typeof params.arguments === 'object' && params.arguments !== null && !Array.isArray(params.arguments) ? params.arguments : {};
@@ -698,14 +740,25 @@ async function mcpCallTool(parsed, tools, params) {
       return mcpToolResult({ ok: false, error: 'invalid_params', message: `Argument ${key} must match ${MCP_SAFE_ID_SCHEMA_PATTERN}.` }, true);
     }
   }
+  if (tool.requiredIntent && String(input.intent || '') !== tool.requiredIntent) {
+    // Mirrors the CLI --intent discipline: final writes and preflights need an
+    // explicit operator-facing intent, never an accidental default.
+    return mcpToolResult({ ok: false, error: 'invalid_intent', message: `This tool requires intent="${tool.requiredIntent}". Confirm the operator explicitly requested this action.` }, true);
+  }
 
   const request = tool.route(input);
 
   try {
-    const response = await requestJsonViaWrapper(parsed, request.method, request.path, 'body' in request ? request.body : null, { timeoutMs: MCP_TOOL_CALL_TIMEOUT_MS });
+    const response = await requestJsonViaWrapper(parsed, request.method, request.path, 'body' in request ? request.body : null, {
+      timeoutMs: request.intent ? MCP_FINAL_WRITE_TIMEOUT_MS : MCP_TOOL_CALL_TIMEOUT_MS,
+      ...(request.intent ? { intent: request.intent } : {}),
+    });
     return mcpToolResult(response);
   } catch (error) {
-    return mcpToolResult({ ok: false, error: 'adapter_request_failed', message: error.message }, true);
+    const message = request.intent && /timeout/i.test(String(error.message || ''))
+      ? `${error.message} A timeout does not mean the write failed; check proposal_status before retrying, because the server-side duplicate-execution guard may report the write as already completed.`
+      : error.message;
+    return mcpToolResult({ ok: false, error: 'adapter_request_failed', message }, true);
   }
 }
 
@@ -769,7 +822,7 @@ async function mcp(args) {
           title: 'Npcink AI Client Adapter (governed MCP channel)',
           version: serverVersion,
         },
-        instructions: 'Governed MCP channel over the Npcink AI Client Adapter. Reads run through approved WordPress abilities; writes are only Core proposals that require human approval in the WordPress admin. This surface has no execution tools.',
+        instructions: 'Governed MCP channel over the Npcink AI Client Adapter. Reads run through approved WordPress abilities; writes are Core proposals that require human approval. Execution tools need an explicit intent argument and run only post-Core allowlisted executions.',
       });
       return;
     }
