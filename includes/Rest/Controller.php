@@ -54,7 +54,7 @@ final class Controller {
 	const MAX_LOG_CONTEXT_STRING_BYTES = 200;
 	const MAX_LOG_CONTEXT_SERIALIZED_BYTES = 8192;
 	const ADAPTER_CONTRACT_VERSION    = '4';
-	const CLIENT_POLICY_VERSION       = '1';
+	const CLIENT_POLICY_VERSION       = '2';
 	const EXECUTION_PROFILE_REGISTRY_VERSION = '2';
 	const SUPPORTED_PLAN_ABILITIES_VERSION   = '1';
 	const CORE_CONTRACT_MIN_VERSION          = '1';
@@ -75,6 +75,16 @@ final class Controller {
 	 * @var string
 	 */
 	private $current_signed_client_fingerprint = '';
+
+	/**
+	 * Whether the current request authenticated through a registered Ed25519
+	 * key-pair signature. Tracked separately from the fingerprint because a
+	 * legacy or hand-edited key record may authenticate while carrying an
+	 * empty or invalid fingerprint value.
+	 *
+	 * @var bool
+	 */
+	private $current_signed_authenticated = false;
 
 	/**
 	 * Request-local dependency contract cache.
@@ -1041,6 +1051,7 @@ final class Controller {
 	 */
 	public function can_use_adapter( ?WP_REST_Request $request = null ): bool {
 		$this->current_signed_client_fingerprint = '';
+		$this->current_signed_authenticated       = false;
 
 		if ( current_user_can( 'manage_options' ) ) {
 			return true;
@@ -1610,7 +1621,7 @@ final class Controller {
 					'requires_npcink_governance_core'      => true,
 				),
 			),
-			'client_policy'  => $this->client_policy(),
+			'client_policy'  => $this->client_policy( false ),
 			'contract'       => $this->adapter_contract_metadata(),
 			'execution_profile_readiness' => $this->execution_profile_readiness(),
 			'dependency_contracts' => $this->dependency_contracts(),
@@ -1619,7 +1630,10 @@ final class Controller {
 		$base['integrity'] = array(
 			'canonicalization' => 'recursive_ksort_json',
 			'manifest_sha256'  => 'sha256:' . hash( 'sha256', $this->canonical_json( $base ) ),
+			'digest_excludes'  => array( 'client_policy.boundary_enforcement' ),
 		);
+
+		$base['client_policy']['boundary_enforcement'] = $this->boundary_enforcement_policy();
 
 		return $base;
 	}
@@ -1627,10 +1641,11 @@ final class Controller {
 	/**
 	 * Returns machine-readable client policy for local AI clients.
 	 *
+	 * @param bool $include_request_scoped_policy Whether to embed the per-request boundary enforcement classification. Exclude it from digest bases such as the connection manifest.
 	 * @return array<string,mixed>
 	 */
-	private function client_policy(): array {
-		return array(
+	private function client_policy( bool $include_request_scoped_policy = true ): array {
+		$policy = array(
 			'schema_version' => 'npcink_openclaw_adapter_client_policy.v1',
 			'policy_version' => self::CLIENT_POLICY_VERSION,
 			'policy_owner'   => 'npcink-ai-client-adapter',
@@ -1702,6 +1717,34 @@ final class Controller {
 				'read_request_status' => 'npcink-openclaw-adapter read-request status --profile=local REQUEST_ID',
 				'read_ability' => 'npcink-openclaw-adapter read-ability --profile=local --ability-id=ABILITY_ID --input-file=/tmp/input.json [--read-request-id=REQUEST_ID]',
 			),
+		);
+
+		if ( $include_request_scoped_policy ) {
+			$policy['boundary_enforcement'] = $this->boundary_enforcement_policy();
+		}
+
+		return $policy;
+	}
+
+	/**
+	 * Returns the boundary enforcement classification of the active connection.
+	 *
+	 * Semantics are owned by docs/threat-model.md: enforced means the request
+	 * was authenticated by a registered Ed25519 key-pair signature, so Adapter
+	 * routes are the only reachable WordPress path for that client;
+	 * conventional means a WordPress-native credential that can also reach
+	 * wp/v2 directly, which makes the approval gate voluntary.
+	 *
+	 * @return array<string,string>
+	 */
+	private function boundary_enforcement_policy(): array {
+		$enforced = $this->current_signed_authenticated;
+
+		return array(
+			'class'       => $enforced ? 'enforced' : 'conventional',
+			'auth_mode'   => $enforced ? 'ed25519_key_pair_signed' : 'wordpress_native',
+			'recommended' => 'ed25519_key_pair_device_pairing',
+			'reference'   => 'docs/threat-model.md',
 		);
 	}
 
@@ -1930,6 +1973,7 @@ final class Controller {
 	 */
 	private function authenticate_signed_request( WP_REST_Request $request ): bool {
 		$this->current_signed_client_fingerprint = '';
+		$this->current_signed_authenticated       = false;
 
 		if ( ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
 			return false;
@@ -1987,6 +2031,7 @@ final class Controller {
 		}
 		wp_set_current_user( $user_id );
 		$this->current_signed_client_fingerprint = $this->sanitize_signed_client_fingerprint( (string) ( $record['fingerprint'] ?? '' ) );
+		$this->current_signed_authenticated       = true;
 
 		return true;
 	}

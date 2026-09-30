@@ -260,7 +260,7 @@ function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $lab
 		'client_contract'                      => 'generic_ai_client',
 		'priority_channel'                     => 'openclaw',
 		'compatibility_rest_namespace'         => 'npcink-openclaw-adapter/v1',
-		'client_policy_version'                => '1',
+		'client_policy_version'                => '2',
 		'execution_profile_registry_version'   => '2',
 		'supported_plan_abilities_version'     => '1',
 		'core_contract_min_version'            => '1',
@@ -1544,7 +1544,11 @@ maa_adapter_smoke_assert( false === (bool) ( $health['commit_execution'] ?? true
 maa_adapter_smoke_assert( 'npcink_governance_core_admin' === (string) ( $health['approval_surface'] ?? '' ), 'adapter health exposes Core admin approval surface' );
 maa_adapter_smoke_assert( array_key_exists( 'core_app_token_configured', $health ), 'adapter health exposes Core app token configured state without token value' );
 maa_adapter_smoke_assert( 'npcink_openclaw_adapter_client_policy.v1' === (string) ( $health['client_policy']['schema_version'] ?? '' ), 'adapter health exposes machine-readable client policy' );
-maa_adapter_smoke_assert( '1' === (string) ( $health['client_policy']['policy_version'] ?? '' ), 'adapter health exposes client policy version' );
+maa_adapter_smoke_assert( '2' === (string) ( $health['client_policy']['policy_version'] ?? '' ), 'adapter health exposes client policy version' );
+maa_adapter_smoke_assert( 'conventional' === (string) ( $health['client_policy']['boundary_enforcement']['class'] ?? '' ), 'adapter health labels WordPress-native admin auth as a conventional boundary' );
+maa_adapter_smoke_assert( 'wordpress_native' === (string) ( $health['client_policy']['boundary_enforcement']['auth_mode'] ?? '' ), 'adapter health exposes the active auth mode for boundary enforcement' );
+maa_adapter_smoke_assert( 'ed25519_key_pair_device_pairing' === (string) ( $health['client_policy']['boundary_enforcement']['recommended'] ?? '' ), 'adapter health recommends key-pair pairing for an enforced boundary' );
+maa_adapter_smoke_assert( 'docs/threat-model.md' === (string) ( $health['client_policy']['boundary_enforcement']['reference'] ?? '' ), 'adapter health references the threat model for boundary semantics' );
 maa_adapter_smoke_assert( 'npcink_openclaw_adapter_contract.v1' === (string) ( $health['contract']['schema_version'] ?? '' ), 'adapter health exposes contract metadata' );
 maa_adapter_smoke_assert( '4' === (string) ( $health['contract']['adapter_contract_version'] ?? '' ), 'adapter health exposes adapter contract version' );
 maa_adapter_smoke_assert( 'generic_ai_client' === (string) ( $health['contract']['client_contract'] ?? '' ), 'adapter health exposes the generic AI client contract' );
