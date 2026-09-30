@@ -108,10 +108,10 @@ the official adapter, so Adapter must not compete on connection features.
 | --- | --- | --- | --- |
 | 1 | `docs/threat-model.md`; this document; README links | Adapter | Done 2026-09-30 |
 | 2 | `client_policy.boundary_enforcement` (`enforced` / `conventional`) on `/health`, `/help`, `/connection/manifest`; admin UI labels the Application Password fallback a conventional boundary; README leads with the governed-channel story; `CLIENT_POLICY_VERSION=2` with contract tests | Adapter code, own topic branch | Done 2026-09-30 |
-| 3 | MCP surface for governed actions (expose proposal/read/execute as MCP tools with Core as truth) | `npcink-workflow-toolbox` (platform decision; never Adapter) | Requires platform decision |
+| 3 | MCP surface for governed actions: an `mcp` subcommand of `@npcink/openclaw-adapter-cli` (stdio server over existing key-pair profiles; v0 status/read/read-request/propose tools only; execute deferred) | Adapter `packages/adapter-cli` (client-side tooling; decision accepted 2026-09-30, see the Toolbox platform record) | Accepted; implementation not started |
 | 3 | Suite onboarding wizard; target time-to-first-approved-action under 10 minutes | Suite distribution / Core admin surface | Requires platform decision |
-| 3 | Audit timeline flagship view: what the AI did, who approved it, what was blocked | `npcink-governance-core` admin | Requires platform decision |
-| 4 | Upstream conversation: propose an approval or consent hook for the official WordPress MCP Adapter / Abilities | External, ongoing | Not started |
+| 3 | Audit timeline flagship view: what the AI did, who approved it, what was blocked | `npcink-governance-core` admin | Accepted 2026-09-30 as the next focused task |
+| 4 | Upstream conversation: propose an approval or consent hook for the official WordPress MCP Adapter / Abilities | External, ongoing | Draft ready in Toolbox docs; posting deferred until the governed loop runs on MCP |
 | 4 | Target-market focus: agencies, production sites, unattended nightly flows | Positioning only | Continuous |
 
 ## Explicit non-goals of this document
