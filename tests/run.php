@@ -605,6 +605,7 @@ foreach (
 		'x_npcink_key_id',
 		'Npcink-Signature',
 		'Ed25519',
+		'raw_query_params',
 		'/run-read-ability',
 		'/read-requests',
 		'/read-requests/(?P<request_id>[A-Za-z0-9_-]+)',

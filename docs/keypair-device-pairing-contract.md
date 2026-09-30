@@ -163,7 +163,12 @@ CONTENT_SHA256
 ```
 
 For requests with no query parameters, `CANONICAL_QUERY_JSON` is `[]` to match
-WordPress' empty query parameter array.
+WordPress' empty query parameter array. `CANONICAL_QUERY_JSON` is built from
+the raw wire query parameters (the undecorated strings the client sent), not
+from WordPress' sanitized request arguments: argument sanitization casts
+declared values (for example `limit=3` becomes the integer `3`) before the
+permission callback runs, and verification must hash exactly what the client
+signed.
 
 Adapter verifies:
 
