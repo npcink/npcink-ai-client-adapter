@@ -12,7 +12,7 @@ const commandArgs = rawArgs.slice(1);
 const AI_IMAGE_RATIO_CROP_RECIPE_ID = 'ai_image_ratio_crop_media_adoption';
 const AI_IMAGE_RATIO_CROP_RECIPE_CLI_ID = 'ai-image-ratio-crop-media-adoption';
 
-if (!['connect', 'status', 'request', 'read-request', 'read-ability', 'recipe'].includes(command)) {
+if (!['connect', 'status', 'request', 'read-request', 'read-ability', 'recipe', 'mcp'].includes(command)) {
   printUsage();
   process.exit(2);
 }
@@ -28,6 +28,7 @@ function printUsage() {
     '  npcink-openclaw-adapter read-ability --profile=local --ability-id=ABILITY_ID --input-file=/tmp/input.json [--read-request-id=REQUEST_ID]',
     '  npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=local',
     '  npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=local --preview-url=URL --post-id=123 [--old-url=URL] [--source-type=ai_generated] [--submit-proposal]',
+    '  npcink-openclaw-adapter mcp --profile=local [--insecure-local-tls]  (stdio MCP server; read/propose tools only)',
   ].join('\n'));
 }
 
@@ -59,14 +60,27 @@ function profilePathFromArgs(args) {
 
 function runNode(scriptName, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const childStdio = [
-      options.input !== undefined ? 'pipe' : 'inherit',
-      options.capture ? 'pipe' : 'inherit',
-      options.capture ? 'pipe' : 'inherit',
-    ];
+    const childStdio = ['pipe', 'pipe', 'pipe'];
+    if (options.input === undefined) {
+      childStdio[0] = options.ignoreStdin ? 'ignore' : 'inherit';
+    }
+    if (!options.capture) {
+      childStdio[1] = 'inherit';
+      childStdio[2] = 'inherit';
+    }
     const child = spawn(process.execPath, [join(toolDir, scriptName), ...args], { stdio: childStdio });
     let stdout = '';
     let stderr = '';
+    let timeout = null;
+    if (options.timeoutMs !== undefined) {
+      // A hung child must not stall the caller (the serialized MCP dispatch
+      // chain); kill it and let the close event resolve the promise.
+      timeout = setTimeout(() => {
+        stderr += `\n[timeout after ${options.timeoutMs}ms]`;
+        child.kill('SIGKILL');
+      }, options.timeoutMs);
+      timeout.unref();
+    }
     if (options.capture) {
       child.stdout.on('data', (chunk) => {
         stdout += chunk;
@@ -75,12 +89,23 @@ function runNode(scriptName, args, options = {}) {
         stderr += chunk;
       });
     }
-    child.on('error', reject);
+    child.on('error', (error) => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+      reject(error);
+    });
     if (options.input !== undefined) {
+      // A dead child surfaces as EPIPE here; the close event below still
+      // resolves with the exit code, so the stdin error is safe to ignore.
+      child.stdin.on('error', () => {});
       child.stdin.write(options.input);
       child.stdin.end();
     }
     child.on('close', (code) => {
+      if (timeout) {
+        clearTimeout(timeout);
+      }
       resolve({ code, stdout, stderr });
     });
   });
@@ -322,18 +347,20 @@ async function recipeAiImageAdoptionPlan(parsed, recipeContract) {
   }, null, 2));
 }
 
-async function requestJsonViaWrapper(parsed, method, route, body = null) {
+async function requestJsonViaWrapper(parsed, method, route, body = null, options = {}) {
   const args = [
     ...requestCommonArgs(parsed),
     method,
     route,
   ];
-  const options = { capture: true };
+  // Never let the wrapper inherit our stdin: in the long-lived MCP server it
+  // would consume the pending JSON-RPC stream.
+  const runOptions = { capture: true, ignoreStdin: body === null, ...options };
   if (body !== null) {
     args.push('--body-stdin');
-    options.input = JSON.stringify(body);
+    runOptions.input = JSON.stringify(body);
   }
-  const result = await runNode('keypair-adapter-request.mjs', args, options);
+  const result = await runNode('keypair-adapter-request.mjs', args, runOptions);
   if (result.code !== 0) {
     throw new Error(safeErrorMessage(result.stdout, result.stderr));
   }
@@ -479,6 +506,356 @@ async function status(args) {
       readiness_rule: 'Use GET /proposals/{proposal_id}; execute only through Adapter approve-and-execute or execute routes after Core approval and commit-preflight.',
     },
   }, null, 2));
+}
+
+const MCP_DEFAULT_PROTOCOL_VERSION = '2025-06-18';
+const MCP_SAFE_ID_PATTERN = /^[A-Za-z0-9_-]{1,190}$/;
+const MCP_SAFE_ID_SCHEMA_PATTERN = '^[A-Za-z0-9_-]{1,190}$';
+const MCP_MAX_LINE_BYTES = 4 * 1024 * 1024;
+const MCP_TOOL_CALL_TIMEOUT_MS = 120000;
+
+function mcpToolDescriptors() {
+  return [
+    {
+      name: 'health',
+      description: 'Adapter health, dependency readiness, and boundary posture. Expected boundary controls: approval_proxy_enabled=false, core_proxy_execute=false, commit_execution=false.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      route: () => ({ method: 'GET', path: '/health' }),
+    },
+    {
+      name: 'capabilities',
+      description: 'Npcink Governance Core capability guidance per ability id. Treat this as the only governance truth when choosing abilities and governance modes.',
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      route: () => ({ method: 'GET', path: '/capabilities' }),
+    },
+    {
+      name: 'list_proposals',
+      description: 'List recent Core governance proposals, newest first.',
+      inputSchema: {
+        type: 'object',
+        properties: { limit: { type: 'integer', minimum: 1, maximum: 100, description: 'Maximum proposals to return (default 20).' } },
+        additionalProperties: false,
+      },
+      route: (input) => {
+        const limit = Math.max(1, Math.min(100, Number.parseInt(String(input.limit ?? '20'), 10) || 20));
+        return { method: 'GET', path: `/proposals?limit=${limit}` };
+      },
+    },
+    {
+      name: 'proposal_status',
+      description: 'Read one Core governance proposal with its approval status, preview, and audit timeline.',
+      inputSchema: {
+        type: 'object',
+        properties: { proposal_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN } },
+        required: ['proposal_id'],
+        additionalProperties: false,
+      },
+      idFields: ['proposal_id'],
+      route: (input) => ({ method: 'GET', path: `/proposals/${encodeURIComponent(String(input.proposal_id))}` }),
+    },
+    {
+      name: 'run_read_ability',
+      description: 'Run one approved direct-read ability through WordPress Abilities API. Sensitive reads fail closed with npcink_openclaw_adapter_core_read_authorization_required; then create a read request, wait for Core approval, and call again with the same ability_id, same input, and the approved read_request_id.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          ability_id: { type: 'string' },
+          input: { type: 'object', description: 'Ability input as documented in /capabilities.' },
+          read_request_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN, description: 'Approved Core read request id for sensitive reads.' },
+          log_context: { type: 'object', description: 'Optional bounded correlation fields such as correlation_id or external_thread_id.' },
+        },
+        required: ['ability_id', 'input'],
+        additionalProperties: false,
+      },
+      idFields: ['read_request_id'],
+      route: (input) => ({
+        method: 'POST',
+        path: '/run-read-ability',
+        body: {
+          ability_id: String(input.ability_id),
+          input: input.input,
+          ...(input.read_request_id ? { read_request_id: String(input.read_request_id) } : {}),
+          ...(input.log_context ? { log_context: input.log_context } : {}),
+        },
+      }),
+    },
+    {
+      name: 'read_request_create',
+      description: 'Create a Core read request to authorize a sensitive read. Wait for approval, then call run_read_ability with the granted read_request_id.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          ability_id: { type: 'string' },
+          input: { type: 'object' },
+          purpose: { type: 'string', description: 'Operator-facing purpose for the sensitive read.' },
+          data_classes: { type: 'array', items: { type: 'string' }, description: 'Data classes such as diagnostics or logs.' },
+          redaction_level: { type: 'string', default: 'strict' },
+          requested_input_summary: { type: 'string' },
+        },
+        required: ['ability_id', 'input', 'purpose', 'data_classes'],
+        additionalProperties: false,
+      },
+      route: (input) => ({
+        method: 'POST',
+        path: '/read-requests',
+        body: {
+          ability_id: String(input.ability_id),
+          input: input.input,
+          purpose: String(input.purpose),
+          data_classes: Array.isArray(input.data_classes) ? input.data_classes.map((value) => String(value)) : [],
+          redaction_level: String(input.redaction_level || 'strict'),
+          ...(input.requested_input_summary ? { requested_input_summary: String(input.requested_input_summary) } : {}),
+        },
+      }),
+    },
+    {
+      name: 'read_request_status',
+      description: 'Check whether a Core read request has been approved, rejected, or is still pending.',
+      inputSchema: {
+        type: 'object',
+        properties: { request_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN } },
+        required: ['request_id'],
+        additionalProperties: false,
+      },
+      idFields: ['request_id'],
+      route: (input) => ({ method: 'GET', path: `/read-requests/${encodeURIComponent(String(input.request_id))}` }),
+    },
+    {
+      name: 'propose_write',
+      description: 'Create one Core governance proposal for a write-class ability. This only submits the request for human approval; a WordPress administrator must approve it in the Core admin, and execution happens outside this MCP surface. Rejected or blocked proposals should be shown to the operator, not retried blindly.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          ability_id: { type: 'string' },
+          input: { type: 'object' },
+          preview: { type: 'object', description: 'Optional preview evidence for the reviewer.' },
+          title: { type: 'string' },
+          summary: { type: 'string' },
+        },
+        required: ['ability_id', 'input'],
+        additionalProperties: false,
+      },
+      route: (input) => ({
+        method: 'POST',
+        path: '/proposals',
+        body: {
+          ability_id: String(input.ability_id),
+          input: input.input,
+          ...(input.preview ? { preview: input.preview } : {}),
+          ...(input.title ? { title: String(input.title) } : {}),
+          ...(input.summary ? { summary: String(input.summary) } : {}),
+          caller: { via: 'npcink-openclaw-adapter-cli-mcp' },
+        },
+      }),
+    },
+  ];
+}
+
+function mcpToolResult(payload, isError = false) {
+  return {
+    content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }],
+    ...(isError ? { isError: true } : {}),
+  };
+}
+
+async function mcpCallTool(parsed, tools, params) {
+  const name = String((params && params.name) || '');
+  const tool = tools.find((candidate) => candidate.name === name);
+  if (!tool) {
+    return mcpToolResult({ ok: false, error: 'unknown_tool', message: `Unknown MCP tool: ${name || '(empty)'}. This surface exposes read and propose tools only.`, available_tools: tools.map((candidate) => candidate.name) }, true);
+  }
+
+  const input = params && typeof params.arguments === 'object' && params.arguments !== null && !Array.isArray(params.arguments) ? params.arguments : {};
+
+  // MCP input schemas are advisory to clients, so enforce them here and fail
+  // closed with an isError result instead of forwarding malformed requests.
+  const required = Array.isArray(tool.inputSchema.required) ? tool.inputSchema.required : [];
+  const missing = required.filter((key) => input[key] === undefined || input[key] === null || input[key] === '' || (Array.isArray(input[key]) && input[key].length === 0));
+  if (missing.length > 0) {
+    return mcpToolResult({ ok: false, error: 'invalid_params', message: `Missing required argument(s): ${missing.join(', ')}.` }, true);
+  }
+  const declaredProperties = tool.inputSchema.properties && typeof tool.inputSchema.properties === 'object' ? tool.inputSchema.properties : {};
+  for (const [key, schema] of Object.entries(declaredProperties)) {
+    const value = input[key];
+    if (value === undefined || value === null || value === '') {
+      continue;
+    }
+    const expectedType = schema && typeof schema === 'object' ? schema.type : '';
+    if (expectedType === 'object' && (typeof value !== 'object' || Array.isArray(value))) {
+      return mcpToolResult({ ok: false, error: 'invalid_params', message: `Argument ${key} must be an object.` }, true);
+    }
+    if (expectedType === 'array' && !Array.isArray(value)) {
+      return mcpToolResult({ ok: false, error: 'invalid_params', message: `Argument ${key} must be an array.` }, true);
+    }
+    if (expectedType === 'string' && typeof value !== 'string') {
+      return mcpToolResult({ ok: false, error: 'invalid_params', message: `Argument ${key} must be a string.` }, true);
+    }
+  }
+  const idFields = Array.isArray(tool.idFields) ? tool.idFields : [];
+  for (const key of idFields) {
+    const value = input[key];
+    if (value !== undefined && value !== null && value !== '' && !MCP_SAFE_ID_PATTERN.test(String(value))) {
+      return mcpToolResult({ ok: false, error: 'invalid_params', message: `Argument ${key} must match ${MCP_SAFE_ID_SCHEMA_PATTERN}.` }, true);
+    }
+  }
+
+  const request = tool.route(input);
+
+  try {
+    const response = await requestJsonViaWrapper(parsed, request.method, request.path, 'body' in request ? request.body : null, { timeoutMs: MCP_TOOL_CALL_TIMEOUT_MS });
+    return mcpToolResult(response);
+  } catch (error) {
+    return mcpToolResult({ ok: false, error: 'adapter_request_failed', message: error.message }, true);
+  }
+}
+
+async function mcp(args) {
+  const { profile, profilePath } = profilePathFromArgs(args);
+  if (!existsSync(profilePath)) {
+    console.error(JSON.stringify({ ok: false, status: 'missing_profile', profile, message: 'Run connect before mcp.' }));
+    process.exitCode = 1;
+    return;
+  }
+
+  const { parsed } = parseArgs(args);
+  const tools = mcpToolDescriptors();
+  let serverVersion = '0.0.0';
+  try {
+    serverVersion = String(JSON.parse(readFileSync(join(toolDir, '..', 'package.json'), 'utf8')).version || '0.0.0');
+  } catch (error) {
+    serverVersion = '0.0.0';
+  }
+
+  const respond = (id, result) => {
+    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, result })}\n`);
+  };
+  const respondError = (id, code, message) => {
+    process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } })}\n`);
+  };
+
+  const handleMessage = async (line) => {
+    let message = null;
+    try {
+      message = JSON.parse(line);
+    } catch (error) {
+      respondError(null, -32700, 'Parse error.');
+      return;
+    }
+
+    if (!message || typeof message !== 'object' || Array.isArray(message)) {
+      // Batches, scalars, and null are not Request objects; answer instead of
+      // leaving a waiting client hanging.
+      respondError(null, -32600, 'Invalid Request.');
+      return;
+    }
+
+    const id = message.id !== undefined ? message.id : null;
+    const method = typeof message.method === 'string' ? message.method : '';
+    const params = typeof message.params === 'object' && message.params !== null && !Array.isArray(message.params) ? message.params : {};
+
+    if (id === null) {
+      // Notifications such as notifications/initialized need no response.
+      return;
+    }
+
+    if (method === 'initialize') {
+      // Respond only with a protocol version this server supports; echoing an
+      // unsupported client version would falsely signal compatibility.
+      respond(id, {
+        protocolVersion: MCP_DEFAULT_PROTOCOL_VERSION,
+        capabilities: { tools: { listChanged: false } },
+        serverInfo: {
+          name: 'npcink-openclaw-adapter',
+          title: 'Npcink AI Client Adapter (governed MCP channel)',
+          version: serverVersion,
+        },
+        instructions: 'Governed MCP channel over the Npcink AI Client Adapter. Reads run through approved WordPress abilities; writes are only Core proposals that require human approval in the WordPress admin. This surface has no execution tools.',
+      });
+      return;
+    }
+
+    if (method === 'ping') {
+      respond(id, {});
+      return;
+    }
+
+    if (method === 'tools/list') {
+      respond(id, {
+        tools: tools.map((tool) => ({ name: tool.name, description: tool.description, inputSchema: tool.inputSchema })),
+      });
+      return;
+    }
+
+    if (method === 'tools/call') {
+      respond(id, await mcpCallTool(parsed, tools, params));
+      return;
+    }
+
+    respondError(id, -32601, `Unknown method: ${method || '(empty)'}.`);
+  };
+
+  // Handle one message at a time: a client cannot spawn concurrent wrapper
+  // processes through this server, and responses stay bounded.
+  let dispatchChain = Promise.resolve();
+  const dispatchMessage = (line) => {
+    let requestId = null;
+    try {
+      const parsedLine = JSON.parse(line);
+      if (parsedLine && typeof parsedLine === 'object' && !Array.isArray(parsedLine) && parsedLine.id !== undefined) {
+        requestId = parsedLine.id;
+      }
+    } catch (error) {
+      // Parse errors are answered inside handleMessage.
+    }
+    dispatchChain = dispatchChain
+      .then(() => handleMessage(line))
+      .catch((error) => {
+        respondError(requestId, -32603, `Internal error: ${error && error.message ? String(error.message) : 'unknown'}.`);
+      });
+  };
+
+  let buffer = '';
+  process.stdin.setEncoding('utf8');
+  process.stdin.on('data', (chunk) => {
+    buffer += chunk;
+    // Cap the pending (incomplete) line, not the whole buffer: complete
+    // messages ahead of it stay processable. Count bytes, not UTF-16 code
+    // units, so multibyte payloads cannot slip past the cap.
+    const pendingLine = buffer.slice(buffer.lastIndexOf('\n') + 1);
+    if (Buffer.byteLength(pendingLine) > MCP_MAX_LINE_BYTES) {
+      respondError(null, -32602, `Message too large (limit ${MCP_MAX_LINE_BYTES} bytes).`);
+      buffer = '';
+      process.stdin.destroy();
+      return;
+    }
+    let newlineIndex = buffer.indexOf('\n');
+    while (newlineIndex >= 0) {
+      const line = buffer.slice(0, newlineIndex).trim();
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line) {
+        dispatchMessage(line);
+      }
+      newlineIndex = buffer.indexOf('\n');
+    }
+  });
+  // On EOF, flush any tail line and let Node exit naturally once every
+  // in-flight request (wrapper child process) has answered. An explicit
+  // process.exit() here would kill pending tool calls.
+  process.stdin.on('end', () => {
+    const line = buffer.trim();
+    buffer = '';
+    if (line) {
+      dispatchMessage(line);
+    }
+  });
+  // A dead MCP client surfaces as EPIPE on the next write; exit cleanly
+  // instead of crashing the long-lived server with an unhandled error.
+  process.stdin.on('error', () => {
+    process.exit(0);
+  });
+  process.stdout.on('error', () => {
+    process.exit(0);
+  });
 }
 
 function requestCommonArgs(parsed) {
@@ -637,6 +1014,8 @@ if (command === 'connect') {
   await connect(commandArgs);
 } else if (command === 'status') {
   await status(commandArgs);
+} else if (command === 'mcp') {
+  await mcp(commandArgs);
 } else if (command === 'request') {
   await request(commandArgs);
 } else if (command === 'read-request') {
