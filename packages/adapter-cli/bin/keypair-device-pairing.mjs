@@ -3,10 +3,18 @@ import { createHash, generateKeyPairSync, randomBytes, sign } from 'node:crypto'
 import { spawn } from 'node:child_process';
 import { request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
-import { mkdirSync, writeFileSync, chmodSync } from 'node:fs';
+import { mkdirSync, writeFileSync, chmodSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { homedir } from 'node:os';
 import { URL } from 'node:url';
+
+function cliVersion() {
+  try {
+    return String(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version || '0.0.0');
+  } catch (error) {
+    return '0.0.0';
+  }
+}
 
 const args = new Map();
 for (const arg of process.argv.slice(2)) {
@@ -168,7 +176,7 @@ const start = await requestJson('POST', `${adapterBaseUrl}/connect/device/start`
     name: clientName,
     device_name: deviceName,
     broker: 'npcink-openclaw-adapter local keypair verifier',
-    broker_version: '0.3.0',
+    broker_version: cliVersion(),
   },
   key: {
     alg: 'Ed25519',
