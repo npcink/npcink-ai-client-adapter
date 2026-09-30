@@ -481,6 +481,15 @@ cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-op
 cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter read-ability --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
 ```
 
+MCP clients (Claude Desktop, Cursor) enter through the same governed channel
+with the CLI `mcp` subcommand, a stdio MCP server that reuses the paired
+key profile. Its v0 tool surface is read and propose only (`health`,
+`capabilities`, `list_proposals`, `proposal_status`, `run_read_ability`,
+`read_request_create`, `read_request_status`, `propose_write`); there are no
+execution tools, and calls route through that fixed tool table. See the CLI
+package README (`packages/adapter-cli/README.md`) for a Claude Desktop
+configuration example.
+
 For generated page visuals, the local CLI includes a bounded
 `recipe ai-image-ratio-crop-media-adoption` helper. It reads `/help`, verifies
 `openclaw_recipes.ai_image_ratio_crop_media_adoption`, accepts a reviewed

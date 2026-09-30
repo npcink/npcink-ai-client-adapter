@@ -28,10 +28,49 @@ proposal can execute, read `GET /proposals/{proposal_id}` and then use the
 Adapter approve-and-execute or execute routes after Core approval and
 commit-preflight.
 
-Call Adapter through the signed local wrapper:
+## MCP Server (read and propose tools only)
+
+The `mcp` subcommand runs a stdio MCP server over the same signed key-pair
+profile, so MCP clients such as Claude Desktop or Cursor enter through the
+governed Adapter channel instead of a direct WordPress connection:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=example GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter mcp --profile=local --insecure-local-tls
+```
+
+Tool surface: `health`, `capabilities`, `list_proposals`, `proposal_status`,
+`run_read_ability`, `read_request_create`, `read_request_status`, and
+`propose_write`. There are no execution tools; `propose_write` only submits a
+Core proposal that still requires human approval in the WordPress admin.
+Calls route through the fixed tool table above — arbitrary Adapter routes and
+execute routes cannot be reached from this surface.
+
+Claude Desktop example configuration (stdio):
+
+```json
+{
+  "mcpServers": {
+    "npcink-adapter": {
+      "command": "npm",
+      "args": [
+        "exec", "--yes",
+        "--package", "@npcink/openclaw-adapter-cli@0.3.0",
+        "--", "npcink-openclaw-adapter", "mcp",
+        "--profile=local", "--insecure-local-tls"
+      ]
+    }
+  }
+}
+```
+
+Use `--insecure-local-tls` only for local HTTPS sites such as LocalWP; drop
+it for public sites.
+
+## Signed requests
+
+Call Adapter through the signed local wrapper:
+
+```bashcd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=example GET /health
 cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.3.0 -- npcink-openclaw-adapter request --profile=example GET /capabilities
 ```
 
