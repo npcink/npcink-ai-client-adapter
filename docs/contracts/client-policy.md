@@ -90,8 +90,10 @@ proposal -> Core approval -> commit-preflight -> explicit commit intent -> Adapt
 ```
 
 Adapter does not expose standalone approve or reject proxy routes to signed
-clients. It exposes approve-and-execute only as a productized user action that
-still depends on Core truth and Adapter profile validation.
+clients. The unified approve-and-execute action holds approval authority and
+is reserved for WordPress administrator sessions; signed clients wait for
+human approval in the Core admin and then call
+`POST /proposals/{proposal_id}/execute`.
 
 ## Source Documents
 

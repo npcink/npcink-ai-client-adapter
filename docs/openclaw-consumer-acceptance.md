@@ -294,7 +294,10 @@ Run this order for a local acceptance pass:
     handoff. For dry-run-only validation, stop at this step and do not call
     execute.
 17. For the unified user action, call
-    `POST /proposals/{proposal_id}/approve-and-execute` from Adapter/OpenClaw.
+    `POST /proposals/{proposal_id}/approve-and-execute` from an Adapter
+    administrator session (the acceptance profile's WordPress Application
+    Password qualifies; signed key-pair clients are rejected with
+    `npcink_openclaw_adapter_approve_requires_admin_session`).
     Confirm Adapter approved through Core when status was pending, ran Core
     commit-preflight, returned `proposal_id`, `post_id`, `ability_id`, and
     `correlation_id`, normalized ability input to `dry_run=false` and
@@ -466,8 +469,8 @@ operator to revise the plan or draft before creating a new proposal.
 
 The disabled approval and rejection stubs are part of the acceptance surface.
 They prove that OpenClaw can discover the routes while using
-`approve-and-execute` for the unified user action or Core admin for split
-approval decisions.
+`approve-and-execute` from an administrator session for the unified user
+action or Core admin for split approval decisions.
 
 ## Non-Goals
 

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Npcink AI Client Adapter
  * Description: Thin AI client adapter for Npcink Governance Core and WordPress Abilities execution.
- * Version: 0.3.3
+ * Version: 0.4.0
  * Requires PHP: 8.0
  * Requires at least: 7.0
  * Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
@@ -23,7 +23,7 @@ if ( defined( 'NPCINK_OPENCLAW_ADAPTER_FILE' ) ) {
 	return;
 }
 
-define( 'NPCINK_OPENCLAW_ADAPTER_VERSION', '0.3.3' );
+define( 'NPCINK_OPENCLAW_ADAPTER_VERSION', '0.4.0' );
 define( 'NPCINK_OPENCLAW_ADAPTER_FILE', __FILE__ );
 define( 'NPCINK_OPENCLAW_ADAPTER_DIR', plugin_dir_path( __FILE__ ) );
 

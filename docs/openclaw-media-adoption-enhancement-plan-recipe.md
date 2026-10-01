@@ -18,7 +18,7 @@ This is a governed handoff, not a direct media write path.
 - Handoff route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`
 - Status route: `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}`
 - Final route:
-  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
 - Final write abilities:
   `npcink-abilities-toolkit/upload-media-from-url`,
   `npcink-abilities-toolkit/optimize-media-asset`, and optional
@@ -34,7 +34,7 @@ This is a governed handoff, not a direct media write path.
    `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`.
 4. Poll the proposal and show the ordered batch actions to the operator.
 5. Only after Core approval and commit preflight, call
-   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`.
+   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`.
 
 ## Guardrails
 

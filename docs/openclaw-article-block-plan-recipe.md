@@ -11,7 +11,7 @@ executor.
 - Entrypoint ability: `npcink-abilities-toolkit/build-article-block-plan`
 - Artifact type: `article_block_plan`
 - Handoff route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`
-- Final route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+- Final route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
 - Final write abilities: `npcink-abilities-toolkit/create-draft` and
   `npcink-abilities-toolkit/update-post-blocks`
 
@@ -60,7 +60,7 @@ known, also pass `hero_media_attachment_id` so Toolkit can bind
    `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`.
 4. Poll `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}`.
 5. Execute only after approval with
-   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`.
+   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`.
 6. Read the created post through
    `GET /wp-json/npcink-openclaw-adapter/v1/post-blocks?post_id={post_id}`.
 

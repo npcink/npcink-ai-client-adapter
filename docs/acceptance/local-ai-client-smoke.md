@@ -50,10 +50,11 @@ MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1 \
 composer accept:local-ai-client-fixture
 ```
 
-This verifies final `approve-and-execute`, Core preflight evidence, Core
-execution-result recording, non-dry-run WordPress draft creation, duplicate
-execution rejection with the stored Adapter record, and cleanup of the created
-draft post.
+This verifies the signed-client self-approval refusal, human Core approval,
+signed final execution through `POST /proposals/{id}/execute`, Core preflight
+evidence, Core execution-result recording, non-dry-run WordPress draft
+creation, duplicate execution rejection with the stored Adapter record, and
+cleanup of the created draft post.
 
 ## Release Baseline
 

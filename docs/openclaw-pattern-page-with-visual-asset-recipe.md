@@ -38,7 +38,7 @@ or write page blocks by itself.
   `npcink-abilities-toolkit/build-pattern-page-plan`
 - Handoff route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`
 - Final route:
-  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
 
 Final WordPress writes stay split across Core-approved proposals:
 

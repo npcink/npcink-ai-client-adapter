@@ -7,7 +7,9 @@ It gives OpenClaw-compatible and similar AI clients one WordPress REST namespace
 - read Npcink Governance Core capability guidance;
 - run approved direct-read abilities through WordPress Abilities API;
 - create Core proposals for write or destructive operations;
-- forward one user-triggered approve-and-execute request to Core.
+- execute one supported write after a human approves the proposal in the Core
+  admin (the unified approve-and-execute action remains available to
+  WordPress administrator sessions).
 
 Adapter is the governed channel, not the connector: connection to WordPress
 is being standardized by WordPress itself, so Adapter's product is the
@@ -178,7 +180,7 @@ authentication, such as an administrator Application Password.
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/commit-preflight`
 - `POST /wp-json/npcink-openclaw-adapter/v1/execute-approved-proposal`
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
-- `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+- `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute` (administrator sessions only)
 
 Adapter does not expose direct-read shortcut routes, workflow recipe routes,
 provider/model smoke routes, or Cloud/media derivative façade routes. Use
@@ -383,7 +385,7 @@ The page default view shows:
   password, credential, or secret field;
 - Adapter base URL and non-secret connection manifest URL;
 - Core and WordPress Abilities API connection status;
-- a higher-security signed key-pair flow using `cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter`;
+- a higher-security signed key-pair flow using `cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter`;
 - authorized public key management with revoke actions;
 - the minimal information needed to continue in client tooling or Core admin
   without turning Adapter into a proposal queue.
@@ -432,8 +434,8 @@ For local validation, use the npm CLI on the same machine or execution
 environment as OpenClaw:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter connect --site=https://npcink.local --profile=local --insecure-local-tls
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter connect --site=https://npcink.local --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
 ```
 
 The script opens the WordPress approval URL in the system browser. Approve the
@@ -454,8 +456,9 @@ connection, `approval_proxy_enabled=false`, `core_proxy_execute=false`, and
 `commit_execution=false` are expected boundary controls. They mean Core did not
 execute final writes and standalone approval proxying is disabled; they are not
 an execution-disabled signal. For proposal execution readiness, inspect
-`GET /proposals/{proposal_id}` and use the Adapter approve-and-execute or
-execute routes only after Core approval and commit-preflight.
+`GET /proposals/{proposal_id}`; after a human approves the proposal in the
+Core admin, use the Adapter execute route. The unified approve-and-execute
+route is reserved for WordPress administrator sessions.
 In that post-Core phase, Adapter executes only explicit supported execution
 profiles; Core still owns approval state and commit-preflight truth.
 If Core approval or commit-preflight fails, Adapter returns the blocked Core
@@ -465,32 +468,39 @@ After pairing, local clients can call Adapter through the signed request command
 without reading or printing profile secrets:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/PROPOSAL_ID/commit-preflight --intent=preflight
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/PROPOSAL_ID/approve-and-execute --intent=commit
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/PROPOSAL_ID/commit-preflight --intent=preflight
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/PROPOSAL_ID/execute --intent=commit
 ```
+
+The final execute call is valid only after a human approved the proposal in
+the Core admin; signed clients that call the unified
+`approve-and-execute` route receive
+`npcink_openclaw_adapter_approve_requires_admin_session`.
 
 For sensitive reads, prefer the narrower CLI helpers instead of asking an AI
 client to hand-build JSON route bodies:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter read-request create --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --purpose="Review bounded diagnostics" --data-classes=diagnostics,logs --redaction-level=strict --max-rows=10 --tail-lines=5 --denied-fields=authorization,cookie,application_password
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter read-request status --profile=local --insecure-local-tls READ_REQUEST_ID
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter read-ability --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-request create --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --purpose="Review bounded diagnostics" --data-classes=diagnostics,logs --redaction-level=strict --max-rows=10 --tail-lines=5 --denied-fields=authorization,cookie,application_password
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-request status --profile=local --insecure-local-tls READ_REQUEST_ID
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-ability --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
 ```
 
 MCP clients (Claude Desktop, Cursor) enter through the same governed channel
 with the CLI `mcp` subcommand, a stdio MCP server that reuses the paired
 key profile. Its tool surface covers reads and proposals (`health`,
 `capabilities`, `list_proposals`, `proposal_status`, `run_read_ability`,
-`read_request_create`, `read_request_status`, `propose_write`) plus three
+`read_request_create`, `read_request_status`, `propose_write`) plus two
 execution tools that mirror the CLI `--intent` discipline: `commit_preflight`
-(`intent="preflight"`, executes nothing), `execute_approved` for proposals a
-human already approved in the Core admin, and `approve_and_execute` as the
-unified approve-preflight-execute action (both `intent="commit"`, gated by the
-key's `npcink.execute` scope and the Adapter execution allowlist). Calls route
+(`intent="preflight"`, executes nothing) and `execute_approved`
+(`intent="commit"`, final write, only for proposals a human already approved
+in the Core admin, gated by the key's `npcink.execute` scope and the Adapter
+execution allowlist). There is deliberately no `approve_and_execute` MCP
+tool: signed AI clients never hold approval authority, so the model cannot
+approve the proposals it creates. Calls route
 through that fixed tool table. See the CLI package README
 (`packages/adapter-cli/README.md`) for a Claude Desktop configuration example.
 
@@ -505,8 +515,8 @@ proposal. Cloud crop, run polling, artifact preview, and derivative payload
 building do not belong to Adapter CLI.
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=local --insecure-local-tls
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=local --insecure-local-tls --preview-url=PREVIEW_URL --post-id=7424 --old-url=OLD_URL --title="WordPress AI hero" --alt-text="WordPress AI proposal workflow hero" --source-type=ai_generated --attribution-text="AI-generated image reviewed before adoption"
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=local --insecure-local-tls --preview-url=PREVIEW_URL --post-id=7424 --old-url=OLD_URL --title="WordPress AI hero" --alt-text="WordPress AI proposal workflow hero" --source-type=ai_generated --attribution-text="AI-generated image reviewed before adoption"
 ```
 
 The request command accepts only Adapter-relative routes such as `/health`,
@@ -536,7 +546,7 @@ does not keep root-level `tools/` compatibility wrappers; use the package
 directly:
 
 ```bash
-npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
 ```
 
 See [`docs/keypair-device-pairing-contract.md`](docs/keypair-device-pairing-contract.md)
@@ -854,10 +864,10 @@ Proposal-required write flow:
 4. OpenClaw polls `GET /proposals/{proposal_id}` through the adapter until Core
    returns an approved or rejected status. `GET /proposals?limit=...` is
    available for list views.
-5. For the unified user path, OpenClaw calls
-   `POST /proposals/{proposal_id}/approve-and-execute` so the user approves
-   and executes from the Adapter/OpenClaw entry point. Core remains the
-   governance backend for approval, commit-preflight, and audit.
+5. A human approves the proposal in the Core admin (or a WordPress
+   administrator session uses the unified
+   `POST /proposals/{proposal_id}/approve-and-execute` action). Core remains
+   the governance backend for approval, commit-preflight, and audit.
 6. If `status=rejected`, OpenClaw stops and shows the rejection state or reason
    returned by Core.
 7. If `status=approved` and execution is intended, OpenClaw calls
@@ -946,8 +956,9 @@ Adapter only carries bounded request context such as `adapter_request_id`,
 `POST /proposals/{proposal_id}/reject` are disabled stubs. They return HTTP 403
 with `code=npcink_openclaw_adapter_approval_proxy_disabled`,
 `approval_proxy_enabled=false`, and
-`approval_surface=npcink_governance_core_admin`. For the Adapter/OpenClaw unified user
-action, use `POST /proposals/{proposal_id}/approve-and-execute`; otherwise use
+`approval_surface=npcink_governance_core_admin`. For the unified user action,
+use `POST /proposals/{proposal_id}/approve-and-execute` from a WordPress
+administrator session; otherwise use
 Npcink Governance Core admin for split approval decisions. The adapter does not forward
 the standalone approve/reject stub routes to Core and does not require a
 default Core key with approval or rejection scopes.
@@ -994,9 +1005,11 @@ Write or destructive abilities:
 2. If `governance_mode=proposal_required`, OpenClaw calls Adapter
    `/proposals`.
 3. OpenClaw polls Adapter `/proposals/{proposal_id}` for Core status.
-4. If pending and the user chooses the unified action, OpenClaw calls
-   Adapter `/proposals/{proposal_id}/approve-and-execute`; Adapter calls Core
-   approve, Core commit-preflight, then executes one allowlisted final write.
+4. If pending, wait for a human to approve the proposal in the Core admin
+   (a WordPress administrator session may instead use the unified
+   Adapter `/proposals/{proposal_id}/approve-and-execute`, where Adapter
+   calls Core approve, Core commit-preflight, then executes one allowlisted
+   final write).
 5. If rejected, OpenClaw stops and shows the status. If approved, OpenClaw calls
    Adapter `/proposals/{proposal_id}/commit-preflight` after
    approval.
@@ -1138,10 +1151,11 @@ Run the signed local AI client fixture acceptance pass:
 MAA_ADAPTER_ACCEPTANCE_PROFILE=local composer accept:local-ai-client-fixture
 ```
 
-By default this creates and reads a Core proposal, then verifies that the CLI
+By default this creates and reads a Core proposal, verifies that the signed
+client cannot self-approve through the unified route, and verifies that the CLI
 refuses final Adapter execution without `--intent=commit`. To run the final
-approve-and-execute fixture, set `MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1`; the
-script deletes the created draft post with WP-CLI by default.
+human-approval-plus-execute fixture, set `MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1`;
+the script deletes the created draft post with WP-CLI by default.
 
 Set `MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_*`,
 `MAA_ADAPTER_ACCEPTANCE_PREFLIGHT_PROPOSAL_ID`, or

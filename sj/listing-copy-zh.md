@@ -50,8 +50,8 @@ Adapter 在 health、help 和 connection manifest 中暴露机器可读的 `clie
 - 暴露机器可读的 `client_policy`，让客户端理解 route、read、write 和敏感数据边界。
 - 通过 WordPress Abilities API 路由已批准的 direct-read 请求。
 - 将受治理的写入请求转发到 Npcink Governance Core proposal 和 commit-preflight 端点。
-- 在 Core approval 之后，为明确 allowlist 的 execution profile 提供用户触发的
-  approve-and-execute 路径。
+- 在 Core approval 之后，为明确 allowlist 的 execution profile 提供人工批准后的
+  执行路径；统一的 approve-and-execute 操作仅限 WordPress 管理员会话使用。
 - 优先使用本地客户端安全密钥配对，并在合适场景下保留 Application Password 备用方式。
 - 保持 channel、governance、ability、cloud 和 model-provider 职责分离。
 
@@ -78,9 +78,10 @@ Adapter 在 health、help 和 connection manifest 中暴露机器可读的 `clie
 
 ### Adapter 会审批 proposal 吗？
 
-Adapter 提供一个用户触发的 `approve-and-execute` 操作，用于受支持的 execution
-profile。但 proposal storage、approval、commit-preflight 和 audit 仍然由 Npcink
-Governance Core 负责。
+Adapter 提供一个 `approve-and-execute` 操作，用于受支持的 execution
+profile，但该操作仅限 WordPress 管理员会话使用。签名 AI 客户端需要等待
+人工在 Core 后台批准后再执行。proposal storage、approval、commit-preflight
+和 audit 仍然由 Npcink Governance Core 负责。
 
 ### Adapter 会执行任意 ability 吗？
 

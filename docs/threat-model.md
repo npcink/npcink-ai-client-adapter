@@ -77,6 +77,28 @@ administrator Application Passwords when key-pair pairing is in use.
   flow into Core audit and AI Request Logs correlation without merging the
   two log systems.
 
+## Approval authority rule for the unified action
+
+The Adapter unified `approve-and-execute` action programmatically approves a
+pending Core proposal through the Adapter-held app token, so it carries the
+human-approval step itself. To keep that step human, the route requires a
+WordPress administrator session (cookie, Application Password, or basic auth
+as a `manage_options` user). Signed client keys are denied at the permission
+gate, at the client-key scope gate (no scope can ever allow the route), and
+again inside the route handler; signed attempts fail closed with
+`npcink_openclaw_adapter_approve_requires_admin_session`. A signed client's
+governed final-write path is: create the proposal, wait for a human to
+approve it in the Core admin, then call
+`POST /proposals/{proposal_id}/execute` with commit intent. The
+`npcink.execute` key scope grants execution of already-human-approved
+proposals only; it never grants approval, and the pairing screen says so.
+
+Note the honest boundary class distinction from the table above still
+applies: an Application Password held by an AI client is admin-equivalent and
+can reach the unified action (and `wp/v2`) directly. That is the documented
+conventional mode; only Ed25519 key-pair clients are confined to the enforced
+Adapter surface where self-approval is impossible.
+
 ## Explicit non-claims
 
 Adapter does not defend against:
@@ -100,6 +122,8 @@ in the non-claims list.
 ## Fail-closed properties (restated as security invariants)
 
 - No execution profile for an ability means no final write for that ability.
+- No client key scope can authorize the unified approve-and-execute action;
+  only a WordPress administrator session can.
 - Undeclared input fields, invalid enums, or oversized values are rejected
   before the proposal or plan reaches Core.
 - Missing Core or Toolkit dependencies fail closed with

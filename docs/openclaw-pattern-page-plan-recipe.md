@@ -10,7 +10,7 @@ making Adapter a page renderer or generic write executor.
 - Entrypoint ability: `npcink-abilities-toolkit/build-pattern-page-plan`
 - Artifact type: `pattern_page_plan`
 - Handoff route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`
-- Final route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+- Final route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
 - Final write abilities: `npcink-abilities-toolkit/create-draft` and
   `npcink-abilities-toolkit/update-post-blocks`
 
@@ -76,7 +76,7 @@ reusing one monolithic template.
    `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`.
 5. Poll `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}`.
 6. Execute only after approval with
-   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`.
+   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`.
 7. Read the created page through
    `GET /wp-json/npcink-openclaw-adapter/v1/post-blocks?post_id={post_id}`.
 
