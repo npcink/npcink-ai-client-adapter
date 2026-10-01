@@ -194,10 +194,10 @@ duplicate-update `add_option()` path for the claim.
 OpenClaw-style clients can use the npm CLI after pairing:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter connect --site=https://example.test --profile=local
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter connect --site=https://example.test --profile=local
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
 ```
 
 The wrapper:
@@ -214,9 +214,15 @@ The wrapper:
 
 - `npcink.status`: health, help, capabilities, connection metadata.
 - `npcink.read`: direct-read ability routes.
-- `npcink.propose`: proposal routes, approved-proposal execution routes, and
-  media derivative Cloud run/proposal-payload routes that can consume runtime
-  resources before a governed media proposal is created. Core remains the
+- `npcink.propose`: proposal creation and status routes. Core remains the
   proposal, approval, preflight, and audit truth.
+- `npcink.execute`: final execution routes (`POST /execute-approved-proposal`,
+  `POST /proposals/{proposal_id}/execute`, and commit-preflight handoff
+  consumption) for proposals a human already approved in the Core admin. This
+  scope never includes proposal approval: the unified
+  `POST /proposals/{proposal_id}/approve-and-execute` action requires a
+  WordPress administrator session and rejects signed clients with
+  `npcink_openclaw_adapter_approve_requires_admin_session`, regardless of
+  scopes.
 
 Legacy `magick.*` scopes remain accepted only for existing signed clients.

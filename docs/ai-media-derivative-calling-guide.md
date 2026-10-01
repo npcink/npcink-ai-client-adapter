@@ -233,7 +233,7 @@ Do not:
 POST /wp-json/npcink-openclaw-adapter/v1/run-read-ability
 POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan
 POST /wp-json/npcink-openclaw-adapter/v1/proposals
-POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute
+POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute
 ```
 
 ## Related Documents

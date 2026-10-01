@@ -5,7 +5,7 @@ Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.0
 Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
-Stable tag: 0.3.3
+Stable tag: 0.4.0
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -21,7 +21,7 @@ The default connection path uses signed key-pair pairing so the AI client does n
 
 Adapter is intentionally thin. It does not define abilities, store approval truth, run workflow queues, act as an MCP server, manage model providers, store prompts, or execute arbitrary final write mutations. Governance remains in Npcink Governance Core. Ability definitions and callbacks remain in Npcink Abilities Toolkit or another WordPress Abilities API provider.
 
-Adapter exposes a machine-readable `client_policy` on health, help, and the connection manifest so compatible clients can consume explicit route, output, sensitive-read, and write-flow boundaries. The local CLI also redacts profile paths, key ids, signing headers, tokens, passwords, and secrets from output.
+Adapter exposes a machine-readable `client_policy` on health, help, and the connection manifest so compatible clients can consume explicit route, output, sensitive-read, and write-flow boundaries. The local CLI also redacts profile paths, key ids, signing headers, tokens, passwords, and secrets from output, and its `mcp` subcommand runs a client-side stdio MCP server over the same signed profile with governed read, propose, preflight, and execute-after-human-approval tools only.
 
 Current governed execution support covers explicit Adapter profiles after Core approval and commit-preflight: `npcink-abilities-toolkit/trash-post`, `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`, `npcink-abilities-toolkit/patch-post-content`, `npcink-abilities-toolkit/update-post-blocks`, `npcink-abilities-toolkit/update-template-blocks`, `npcink-abilities-toolkit/upsert-template-blocks`, `npcink-abilities-toolkit/update-template-part-blocks`, `npcink-abilities-toolkit/patch-setting-value`, `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/adopt-article-audio`, `npcink-abilities-toolkit/set-post-slug`, `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`, `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/upload-media-from-url`, `npcink-abilities-toolkit/set-post-featured-image`, `npcink-abilities-toolkit/optimize-media-asset`, `npcink-abilities-toolkit/replace-media-file`, `npcink-abilities-toolkit/restore-media-backup`, `npcink-abilities-toolkit/adopt-cloud-media-derivative`, `npcink-abilities-toolkit/rename-media-file`, `npcink-abilities-toolkit/delete-media-permanently`, `npcink-abilities-toolkit/reply-comment`, `npcink-abilities-toolkit/trash-comment`, and `npcink-abilities-toolkit/approve-comment`.
 
@@ -32,7 +32,7 @@ Key features:
 * Expose a machine-readable `client_policy` so clients can understand route, read, write, and sensitive-data boundaries.
 * Route approved direct-read requests through the WordPress Abilities API.
 * Forward governed write requests to Npcink Governance Core proposal and commit-preflight endpoints.
-* Support a user-triggered approve-and-execute path for explicit, supported execution profiles after Core approval.
+* Support human-approved final execution for explicit, supported execution profiles after Core approval, plus a unified approve-and-execute action reserved for WordPress administrator sessions.
 * Prefer signed key-pair pairing for local clients, with an Application Password fallback when appropriate.
 * Keep channel, governance, ability, cloud, and model-provider responsibilities separate.
 
@@ -47,7 +47,7 @@ Key features:
 
 = Does Adapter approve proposals? =
 
-Adapter provides a user-triggered `approve-and-execute` action for supported execution profiles, but Npcink Governance Core remains the governance backend for proposal storage, approval, commit-preflight, and audit.
+Adapter provides an `approve-and-execute` action for supported execution profiles, reserved for WordPress administrator sessions. Signed AI clients cannot approve their own proposals: a human approves in the Npcink Governance Core admin and the client then calls the execute route. Npcink Governance Core remains the governance backend for proposal storage, approval, commit-preflight, and audit.
 Execution abilities are declared by Npcink Abilities Toolkit and approved by Npcink Governance Core; Adapter supplies only the post-preflight channel.
 
 = Does Adapter execute arbitrary abilities? =
@@ -81,6 +81,13 @@ Adapter health and help routes can report dependency status. Routes that require
 3. WordPress Application Password fallback connection flow for clients that use a dedicated secret field or credential vault.
 
 == Changelog ==
+
+= 0.4.0 =
+
+* Restrict the unified approve-and-execute action to WordPress administrator sessions. Signed AI clients now wait for human approval in the Npcink Governance Core admin and then call the execute route; signed attempts on the unified route fail closed with `npcink_openclaw_adapter_approve_requires_admin_session`.
+* Add `client_policy.boundary_enforcement` (client policy version 2) so clients can distinguish enforced key-pair connections from conventional WordPress-native credentials.
+* Add the connection readiness checklist and CLI boundary status reporting.
+* Document the governed MCP tool surface of the companion CLI (`@npcink/openclaw-adapter-cli` 0.5.0): read, propose, preflight, and execute-after-human-approval tools only, with no self-approval tool.
 
 = 0.3.3 =
 

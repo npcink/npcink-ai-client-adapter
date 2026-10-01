@@ -46,5 +46,8 @@ jobs:
       - name: Check adapter CLI syntax
         run: npm --prefix packages/adapter-cli run check
 
+      - name: Run adapter CLI contract tests
+        run: npm --prefix packages/adapter-cli test
+
       - name: Run WordPress.org review guard
         run: composer check:wporg

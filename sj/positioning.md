@@ -5,8 +5,10 @@
 Npcink AI Client Adapter is the thin AI client channel plugin for WordPress. It gives
 OpenClaw-compatible and similar AI clients one WordPress REST namespace for reading Npcink Governance Core capability
 guidance, running approved direct-read abilities through the WordPress
-Abilities API, creating Core proposals, and orchestrating one user-triggered
-approve-and-execute path through Core.
+Abilities API, creating Core proposals, and executing one allowlisted write
+after a human approves the proposal in the Core admin (a unified
+approve-and-execute action remains available to WordPress administrator
+sessions).
 
 Npcink AI Client Adapter is part of the Npcink plugin family:
 
@@ -25,7 +27,8 @@ credentials, or execute arbitrary final write mutations.
 Npcink AI Client Adapter 是面向 WordPress 的薄 AI 客户端通道插件。它为 OpenClaw 兼容及类似 AI 客户端
 提供一个 WordPress REST namespace，用于读取 Npcink Governance Core 的 capability
 guidance、通过 WordPress Abilities API 运行已批准的 direct-read abilities、
-创建 Core proposals，并通过 Core 编排一个用户触发的 approve-and-execute 路径。
+创建 Core proposals，并在人工于 Core 后台批准后执行 allowlist 内的写入（管理员
+会话也可使用统一的 approve-and-execute 操作）。
 
 Npcink AI Client Adapter 是 Npcink 系列插件的一部分：
 

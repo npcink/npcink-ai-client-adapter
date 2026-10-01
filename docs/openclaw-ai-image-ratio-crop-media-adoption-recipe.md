@@ -29,7 +29,7 @@ import media, crop images locally, or patch page content by itself.
   `npcink-abilities-toolkit/build-media-adoption-enhancement-plan`
 - Handoff route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`
 - Final route:
-  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
 
 Final WordPress writes remain Core-approved media and exact page-reference
 actions:

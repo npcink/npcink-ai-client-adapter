@@ -28,7 +28,7 @@ function printUsage() {
     '  npcink-openclaw-adapter read-ability --profile=local --ability-id=ABILITY_ID --input-file=/tmp/input.json [--read-request-id=REQUEST_ID]',
     '  npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=local',
     '  npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=local --preview-url=URL --post-id=123 [--old-url=URL] [--source-type=ai_generated] [--submit-proposal]',
-    '  npcink-openclaw-adapter mcp --profile=local [--insecure-local-tls]  (stdio MCP server; read/propose tools only)',
+    '  npcink-openclaw-adapter mcp --profile=local [--insecure-local-tls]  (stdio MCP server; governed read/propose/execute tools; execution only for proposals a human approved in the Core admin)',
   ].join('\n'));
 }
 
@@ -455,7 +455,21 @@ async function status(args) {
     return;
   }
 
-  const health = JSON.parse(result.stdout);
+  let health;
+  try {
+    health = JSON.parse(result.stdout);
+  } catch {
+    console.log(JSON.stringify({
+      ok: false,
+      status: 'health_unparseable',
+      profile,
+      profile_configured: true,
+      connection: metadata,
+      message: 'Adapter /health returned output that is not valid JSON. Check whether a proxy or error page intercepted the request.',
+    }, null, 2));
+    process.exitCode = 1;
+    return;
+  }
   const coreProxyExecute = Boolean(health.core_proxy_execute);
   const commitExecution = Boolean(health.commit_execution);
   const boundaryOk = !coreProxyExecute && !commitExecution;
@@ -627,7 +641,7 @@ function mcpToolDescriptors() {
     },
     {
       name: 'propose_write',
-      description: 'Create one Core governance proposal for a write-class ability. This only submits the request for human approval; a WordPress administrator must approve it in the Core admin. Execution is a separate explicit step: commit_preflight, execute_approved, or approve_and_execute with the required intent. Rejected or blocked proposals should be shown to the operator, not retried blindly.',
+      description: 'Create one Core governance proposal for a write-class ability. This only submits the request for human approval; a WordPress administrator must approve it in the Core admin. Execution is a separate explicit step: run commit_preflight for verification or execute_approved for the final write, each with the required intent. Rejected or blocked proposals should be shown to the operator, not retried blindly.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -663,12 +677,6 @@ function mcpToolDescriptors() {
       'execute_approved',
       'Execute one proposal that a human has already approved in the Core admin. This is a final write: the ability runs with dry_run=false and commit=true. Only proceed when the operator explicitly asked to execute the approved proposal.',
       'execute',
-      'commit'
-    ),
-    proposalIntentTool(
-      'approve_and_execute',
-      'Unified final action for one pending proposal: Core approval, commit preflight, and one allowlisted execution, in that order, in one call. Use only when the operator explicitly said to approve and execute this specific proposal. Rejected or blocked outcomes must be shown to the operator, not retried blindly.',
-      'approve-and-execute',
       'commit'
     ),
   ];

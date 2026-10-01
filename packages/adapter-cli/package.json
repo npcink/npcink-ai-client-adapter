@@ -1,9 +1,18 @@
 {
   "name": "@npcink/openclaw-adapter-cli",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Local signed key-pair CLI for Npcink OpenClaw Adapter.",
   "license": "GPL-2.0-or-later",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/npcink/npcink-ai-client-adapter.git",
+    "directory": "packages/adapter-cli"
+  },
+  "homepage": "https://github.com/npcink/npcink-ai-client-adapter/tree/master/packages/adapter-cli#readme",
+  "bugs": {
+    "url": "https://github.com/npcink/npcink-ai-client-adapter/issues"
+  },
   "bin": {
     "npcink-openclaw-adapter": "bin/npcink-openclaw-adapter.mjs"
   },
@@ -15,6 +24,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "check": "node --check bin/npcink-openclaw-adapter.mjs && node --check bin/keypair-device-pairing.mjs && node --check bin/keypair-adapter-request.mjs"
+    "check": "node --check bin/npcink-openclaw-adapter.mjs && node --check bin/keypair-device-pairing.mjs && node --check bin/keypair-adapter-request.mjs",
+    "test": "node test/cli-contract.test.mjs"
   }
 }

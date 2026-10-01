@@ -19,7 +19,7 @@ compose this recipe with `pattern_page_plan` as described in
 - Handoff route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`
 - Status route: `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}`
 - Final route:
-  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
 - Final write abilities:
   `npcink-abilities-toolkit/upload-media-from-url`,
   `npcink-abilities-toolkit/update-media-details`, and optional
@@ -38,7 +38,7 @@ compose this recipe with `pattern_page_plan` as described in
    `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`.
 5. Poll the proposal.
 6. Only after Core approval and commit preflight, call
-   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`.
+   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`.
 
 ## Guardrails
 

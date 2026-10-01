@@ -58,8 +58,9 @@ approval, including `npcink-abilities-toolkit/trash-post`,
 - Route approved direct-read requests through the WordPress Abilities API.
 - Forward governed write requests to Npcink Governance Core proposal and
   commit-preflight endpoints.
-- Support a user-triggered approve-and-execute path for explicit, allowlisted
-  execution profiles after Core approval.
+- Support human-approved final execution for explicit, allowlisted execution
+  profiles after Core approval, plus a unified approve-and-execute action
+  reserved for WordPress administrator sessions.
 - Prefer signed key-pair pairing for local clients, with an Application Password
   fallback when appropriate.
 - Keep channel, governance, ability, cloud, and model-provider responsibilities
@@ -93,8 +94,10 @@ API providers.
 
 ### Does Adapter approve proposals?
 
-Adapter provides a user-triggered `approve-and-execute` action for supported
-execution profiles, but Npcink Governance Core remains the governance backend
+Adapter provides an `approve-and-execute` action for supported execution
+profiles, but it is reserved for WordPress administrator sessions. Signed AI
+clients wait for human approval in the Core admin and then execute.
+Npcink Governance Core remains the governance backend
 for proposal storage, approval, commit-preflight, and audit.
 
 ### Does Adapter execute arbitrary abilities?

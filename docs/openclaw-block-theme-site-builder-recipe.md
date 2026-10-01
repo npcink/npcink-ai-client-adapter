@@ -22,7 +22,7 @@ without making Adapter a generic WordPress site control plane.
 - Artifact type: `block_theme_site_plan`
 - Handoff route: `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`
 - Final route:
-  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+  `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
 - Final write abilities:
   `npcink-abilities-toolkit/update-template-blocks`,
   `npcink-abilities-toolkit/upsert-template-blocks`, and
@@ -115,8 +115,8 @@ Failure behavior:
   that the target template state already satisfies the request.
 - Inspector returns `manual_review`: stop before proposal creation and report the
   unsupported or uncertain issue codes.
-- User asks to apply immediately: create or inspect the Core proposal and wait
-  for an explicit approve-and-execute action.
+- User asks to apply immediately: create or inspect the Core proposal, wait
+  for a human to approve it in the Core admin, then execute.
 
 ## Flow
 
@@ -137,7 +137,7 @@ Failure behavior:
    `write_actions[]` is non-empty.
 8. Poll `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}`.
 9. Execute only after approval with
-   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`.
+   `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`.
 10. Read changed templates back with `get-template-blocks` or
    `get-template-part-blocks`.
 11. Run `npcink-abilities-toolkit/inspect-gutenberg-composition-contract` on

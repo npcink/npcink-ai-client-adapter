@@ -97,7 +97,7 @@ GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}
 6. Execute only after Core approval and commit preflight:
 
 ```text
-POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute
+POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute
 ```
 
 ## Guardrails

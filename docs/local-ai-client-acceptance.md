@@ -48,9 +48,11 @@ composer accept:local-ai-client-fixture
 ```
 
 The default fixture flow creates a Core proposal for
-`npcink-abilities-toolkit/create-draft`, reads it back, and verifies that the
-local CLI refuses `approve-and-execute` unless the caller explicitly passes
-`--intent=commit`. It stops before final write execution.
+`npcink-abilities-toolkit/create-draft`, reads it back, verifies that the
+signed client cannot self-approve through `approve-and-execute`
+(`npcink_openclaw_adapter_approve_requires_admin_session`), and verifies that
+the local CLI refuses the final execute route unless the caller explicitly
+passes `--intent=commit`. It stops before final write execution.
 
 To include final write execution:
 
@@ -61,11 +63,13 @@ MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1 \
 composer accept:local-ai-client-fixture
 ```
 
-The commit-enabled fixture uses Adapter `approve-and-execute`, verifies the
-created draft post id, verifies duplicate execution rejection with
-`npcink_openclaw_adapter_execution_already_completed`, and deletes the created
-draft post by default. Set `MAA_ADAPTER_FIXTURE_CLEANUP_POST=0` only when you
-intentionally want to inspect the created draft.
+The commit-enabled fixture approves the proposal through the Core admin
+surface as a WordPress administrator (simulated with WP-CLI), executes the
+approved proposal through the signed CLI `POST /proposals/{id}/execute`,
+verifies the created draft post id, verifies duplicate execution rejection
+with `npcink_openclaw_adapter_execution_already_completed`, and deletes the
+created draft post by default. Set `MAA_ADAPTER_FIXTURE_CLEANUP_POST=0` only
+when you intentionally want to inspect the created draft.
 
 ## Sensitive Read Check
 

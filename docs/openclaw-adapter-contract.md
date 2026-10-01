@@ -12,9 +12,10 @@ OpenClaw connection verification.
 
 OpenClaw only connects to Adapter. Core is Adapter's governance service for
 proposal storage, approval status, commit preflight, and audit attribution.
-Adapter may expose the productized OpenClaw user action for
-approve-and-execute, but Core remains the governance truth source behind that
-action.
+Adapter exposes the unified approve-and-execute action only for WordPress
+administrator sessions; signed clients such as OpenClaw wait for human
+approval in the Core admin and then call execute. Core remains the governance
+truth source behind both paths.
 
 ## Dependencies
 
@@ -336,7 +337,7 @@ a machine-readable fixed flow. The recipe is channel guidance only:
 - entrypoint ability: `npcink-toolbox/build-article-write-plan`
 - plan handoff route: `POST /proposals/from-plan`
 - status route: `GET /proposals/{proposal_id}`
-- final route: `POST /proposals/{proposal_id}/approve-and-execute`
+- final route: `POST /proposals/{proposal_id}/execute` after human approval in the Core admin (unified approve-and-execute is administrator-session only)
 - final write ability: `npcink-abilities-toolkit/create-draft`
 
 The recipe must keep `core_proxy_execute=false`,
@@ -354,7 +355,7 @@ reviewed 2-5 article draft batches:
 - entrypoint ability: `npcink-toolbox/build-article-batch-write-plan`
 - plan handoff route: `POST /proposals/from-plan`
 - status route: `GET /proposals/{proposal_id}`
-- final route: `POST /proposals/{proposal_id}/approve-and-execute`
+- final route: `POST /proposals/{proposal_id}/execute` after human approval in the Core admin (unified approve-and-execute is administrator-session only)
 - final write ability: `npcink-abilities-toolkit/create-draft`
 - artifact type: `article_batch_write_plan`
 - proposal mode: `batch`
@@ -371,7 +372,7 @@ reviewed article drafts with selected image-source candidates:
   `npcink-toolbox/build-article-media-batch-write-plan`
 - plan handoff route: `POST /proposals/from-plan`
 - status route: `GET /proposals/{proposal_id}`
-- final route: `POST /proposals/{proposal_id}/approve-and-execute`
+- final route: `POST /proposals/{proposal_id}/execute` after human approval in the Core admin (unified approve-and-execute is administrator-session only)
 - final write abilities: `npcink-abilities-toolkit/create-draft`,
   `npcink-abilities-toolkit/upload-media-from-url`, `npcink-abilities-toolkit/update-media-details`, and
   `npcink-abilities-toolkit/set-post-featured-image`
@@ -409,7 +410,7 @@ Gutenberg page pattern drafts:
   `npcink-abilities-toolkit/build-pattern-page-plan`
 - plan handoff route: `POST /proposals/from-plan`
 - status route: `GET /proposals/{proposal_id}`
-- final route: `POST /proposals/{proposal_id}/approve-and-execute`
+- final route: `POST /proposals/{proposal_id}/execute` after human approval in the Core admin (unified approve-and-execute is administrator-session only)
 - final write abilities: `npcink-abilities-toolkit/create-draft` and
   `npcink-abilities-toolkit/update-post-blocks`
 - artifact type: `pattern_page_plan`
@@ -455,7 +456,7 @@ conversational block theme Site Editor changes:
   `npcink-abilities-toolkit/build-block-theme-site-plan`
 - plan handoff route: `POST /proposals/from-plan`
 - status route: `GET /proposals/{proposal_id}`
-- final route: `POST /proposals/{proposal_id}/approve-and-execute`
+- final route: `POST /proposals/{proposal_id}/execute` after human approval in the Core admin (unified approve-and-execute is administrator-session only)
 - final write abilities: `npcink-abilities-toolkit/update-template-blocks`,
   `npcink-abilities-toolkit/upsert-template-blocks`, and
   `npcink-abilities-toolkit/update-template-part-blocks`
@@ -482,7 +483,7 @@ Gutenberg article block drafts:
   `npcink-abilities-toolkit/build-article-block-plan`
 - plan handoff route: `POST /proposals/from-plan`
 - status route: `GET /proposals/{proposal_id}`
-- final route: `POST /proposals/{proposal_id}/approve-and-execute`
+- final route: `POST /proposals/{proposal_id}/execute` after human approval in the Core admin (unified approve-and-execute is administrator-session only)
 - final write abilities: `npcink-abilities-toolkit/create-draft` and
   `npcink-abilities-toolkit/update-post-blocks`
 - artifact type: `article_block_plan`
@@ -502,7 +503,7 @@ apply plans from Toolkit:
 - source recipe: `npcink-abilities-toolkit/recipes/article-optimization`
 - plan handoff route: `POST /proposals/from-plan`
 - status route: `GET /proposals/{proposal_id}`
-- final route: `POST /proposals/{proposal_id}/approve-and-execute`
+- final route: `POST /proposals/{proposal_id}/execute` after human approval in the Core admin (unified approve-and-execute is administrator-session only)
 - final write ability: `npcink-abilities-toolkit/update-post`
 - artifact type: `article_optimization_apply_plan`
 - proposal mode: `single`
@@ -538,7 +539,7 @@ reviewed adoption of one image candidate into the media library:
 - candidate contract: `image_candidate.v1`
 - plan handoff route: `POST /proposals/from-plan`
 - status route: `GET /proposals/{proposal_id}`
-- final route: `POST /proposals/{proposal_id}/approve-and-execute`
+- final route: `POST /proposals/{proposal_id}/execute` after human approval in the Core admin (unified approve-and-execute is administrator-session only)
 - final write abilities: `npcink-abilities-toolkit/upload-media-from-url`,
   `npcink-abilities-toolkit/update-media-details`, and optional
   `npcink-abilities-toolkit/set-post-featured-image`
@@ -624,7 +625,8 @@ POST /wp-json/npcink-governance-core/v1/proposals/{proposal_id}/commit-preflight
 ```
 
 The adapter does not store proposal governance state. It may call Core approval
-only as part of the explicit unified approve-and-execute action.
+only as part of the explicit unified approve-and-execute action, which is
+restricted to WordPress administrator sessions.
 
 Failure responses for plan intake, rejected proposals, and commit-preflight
 blocks may include additive `data.operator_feedback`. This is an OpenClaw
@@ -684,7 +686,12 @@ provider posture was checked or absent for the executed ability ids.
 ## Unified Approve And Execute Contract
 
 Adapter exposes one user-facing action for the minimal destructive execution
-loop:
+loop. This action holds approval authority, so it requires a WordPress
+administrator session (cookie, Application Password, or basic auth as a
+`manage_options` user). Signed key-pair clients receive
+`npcink_openclaw_adapter_approve_requires_admin_session` when they call it;
+their governed path is human approval in the Core admin followed by
+`POST /proposals/{proposal_id}/execute`:
 
 ```text
 POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute
@@ -774,7 +781,7 @@ Adapter may execute one approved Core proposal only through:
 ```text
 POST /wp-json/npcink-openclaw-adapter/v1/execute-approved-proposal
 POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute
-POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute
+POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute   (administrator sessions only)
 ```
 
 The current supported profiles is intentionally narrow:
@@ -1018,10 +1025,11 @@ Default response:
 ```json
 {
   "code": "npcink_openclaw_adapter_execute_profile_unsupported",
-  "message": "Use POST /proposals/{proposal_id}/approve-and-execute for the Adapter unified user action, or use Npcink Governance Core admin for split approval decisions.",
+  "message": "Use POST /proposals/{proposal_id}/approve-and-execute from a WordPress administrator session for the Adapter unified user action, use Npcink Governance Core admin for split approval decisions, then POST /proposals/{proposal_id}/execute.",
   "approval_proxy_enabled": false,
   "approval_surface": "npcink_governance_core_admin",
-  "unified_action_route": "POST /proposals/{proposal_id}/approve-and-execute"
+  "unified_action_route": "POST /proposals/{proposal_id}/approve-and-execute",
+  "unified_action_authorization": "wordpress_admin_session_only"
 }
 ```
 
@@ -1031,11 +1039,14 @@ scopes. OpenClaw and agents must not receive default approval power through
 standalone approve/reject proxy routes.
 
 The supported Adapter-side approval action is the unified
-`approve-and-execute` route. Adapter must not expose a generic approve/reject
-proxy without a separate explicit trusted-host policy and ADR-backed feature.
-The generic approval proxy routes and top-level health contract preserve
-`approval_surface=npcink_governance_core_admin` to make the standalone proxy boundary
-explicit.
+`approve-and-execute` route, reachable only from a WordPress administrator
+session. Signed clients never hold approval authority: a human approves in the
+Core admin and the same signed client then calls
+`POST /proposals/{proposal_id}/execute`. Adapter must not expose a generic
+approve/reject proxy without a separate explicit trusted-host policy and
+ADR-backed feature. The generic approval proxy routes and top-level health
+contract preserve `approval_surface=npcink_governance_core_admin` to make the
+standalone proxy boundary explicit.
 
 ## First Product Routes
 
@@ -1165,7 +1176,7 @@ Governance:
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/commit-preflight`
 - `POST /wp-json/npcink-openclaw-adapter/v1/execute-approved-proposal`
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
-- `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute`
+- `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute` (administrator sessions only)
 
 ## Security
 
@@ -1239,10 +1250,12 @@ Connection check order:
 5. optional plan handoff with `POST /proposals/from-plan`.
 6. proposal-required `POST /proposals`.
 7. proposal status polling with `GET /proposals/{proposal_id}`.
-8. unified user action with `POST /proposals/{proposal_id}/approve-and-execute`
-   for supported execution, or split approval in Core admin.
+8. human approval in the Core admin for pending proposals, then
+   `POST /proposals/{proposal_id}/execute` for supported execution; the
+   unified `approve-and-execute` route exists for administrator sessions
+   only.
 9. rejected proposal stops the flow.
-10. approved proposal split path uses `POST /proposals/{proposal_id}/execute`;
+10. approved proposal path uses `POST /proposals/{proposal_id}/execute`;
     Adapter commit-preflight is diagnostic and must be followed immediately by
     Adapter execute.
 
@@ -1255,9 +1268,12 @@ OpenClaw must treat Core as the only proposal and approval truth:
 2. Send `POST /proposals` with the real `ability_id`, dry-run style `input`,
    rendered or structured `preview`, and `caller` metadata.
 3. Poll `GET /proposals/{proposal_id}` through the adapter for Core status.
-4. If `status=pending` and the user chooses the unified OpenClaw action, call
-   `POST /proposals/{proposal_id}/approve-and-execute`. Adapter calls Core
-   approve, then Core commit-preflight, then one supported final write.
+4. If `status=pending`, wait for a human to approve the proposal in the Core
+   admin, then call `POST /proposals/{proposal_id}/execute`. The unified
+   `approve-and-execute` route (Core approve, commit-preflight, and one
+   supported final write in one call) requires a WordPress administrator
+   session and rejects signed clients with
+   `npcink_openclaw_adapter_approve_requires_admin_session`.
 5. If `status=rejected`, stop and show the rejection state or reason returned
    by Core.
 6. If using the lower-level split path and `status=approved`, call
@@ -1288,7 +1304,9 @@ OpenClaw must treat Core as the only proposal and approval truth:
 Adapter invariants:
 
 - It can call Core approve only inside
-  `POST /proposals/{proposal_id}/approve-and-execute`.
+  `POST /proposals/{proposal_id}/approve-and-execute`, and only when that
+  request was authenticated by a WordPress administrator session rather than a
+  signed client key.
 - It does not store proposal or approval state.
 - It stores bounded execution records only to prevent replaying an already
   completed Adapter write.

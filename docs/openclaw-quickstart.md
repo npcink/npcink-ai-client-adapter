@@ -10,8 +10,10 @@ a thin channel layer:
 - Npcink Governance Core is Adapter's governance service behind the scenes;
 - Core remains the approval, preflight, and audit truth source;
 - read operations go through WordPress Abilities API;
-- write-like operations create Core proposals and may use Adapter's
-  approve-and-execute user action for one supported execution;
+- write-like operations create Core proposals; a human approves them in the
+  Core admin, and the signed client then executes one supported write through
+  Adapter's execute route (the unified approve-and-execute action exists for
+  WordPress administrator sessions only);
 - `core_proxy_execute=false`;
 - `approval_surface=npcink_governance_core_admin`;
 - `core_proxy_execute=false`;
@@ -133,8 +135,8 @@ For local validation, run the npm CLI on the same machine or execution
 environment as OpenClaw:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter connect --site=https://npcink.local --profile=local --insecure-local-tls
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter connect --site=https://npcink.local --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
 ```
 
 The script opens the WordPress approval URL in the system browser. Approve the
@@ -153,16 +155,16 @@ After pairing, local clients should call Adapter through the
 local request wrapper instead of reading the profile file:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
 ```
 
 For POST requests, write the non-secret request JSON to a temporary file and
 pass it with `--body-file`, or pass non-secret JSON through stdin:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
-printf '%s' '{"plan":{}}' | (cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-stdin)
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
+printf '%s' '{"plan":{}}' | (cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-stdin)
 ```
 
 The wrapper rejects absolute URLs, signs the Adapter-relative route locally, and
@@ -174,7 +176,7 @@ does not keep root-level `tools/` compatibility wrappers.
 Use the package directly:
 
 ```bash
-npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
 ```
 
 Administrators manage authorized public keys from `Npcink -> Adapter` in the
@@ -194,10 +196,10 @@ For local OpenClaw validation, first confirm the same profile works through the
 signed wrapper:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /help
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /help
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
 ```
 
 Use `--insecure-local-tls` only for LocalWP or other `.local` self-signed HTTPS
@@ -229,8 +231,9 @@ equivalent Ed25519 signing implementation instead.
    - `core_proxy_execute=false`
    - `commit_execution=false`
 3. Call `GET /help` to confirm route discovery includes proposal list/detail,
-   `POST /proposals/from-plan`, `POST /proposals/{proposal_id}/execute`, and
-   `POST /proposals/{proposal_id}/approve-and-execute`. For article drafting,
+   `POST /proposals/from-plan`, and `POST /proposals/{proposal_id}/execute`
+   (`POST /proposals/{proposal_id}/approve-and-execute` is listed for
+   administrator sessions only). For article drafting,
    read `openclaw_recipes.article_draft_plan`.
 4. Call `GET /capabilities`.
 5. Use the returned Core guidance as the only governance truth.
@@ -454,9 +457,11 @@ These are read-only Core status proxies. They preserve proposal fields such as
 `caller`, `created_at`, `updated_at`, and detail `audit_timeline` when Core
 returns it.
 
-5. If `status=pending`, use the unified OpenClaw action
-   `POST /proposals/{proposal_id}/approve-and-execute` for supported
-   execution, or use `Npcink -> Core` for split approval decisions.
+5. If `status=pending`, wait for a human to approve the proposal through
+   `Npcink -> Core`, then call `POST /proposals/{proposal_id}/execute` for
+   supported execution. The unified approve-and-execute route is reserved for
+   WordPress administrator sessions and rejects signed clients with
+   `npcink_openclaw_adapter_approve_requires_admin_session`.
    Do not call Core directly from OpenClaw.
 6. If `status=rejected`, stop and show the rejection state or reason returned
    by Core.
@@ -482,8 +487,9 @@ curl -sS --user "1:<openclaw-secret-field-value>" \
    `npcink-abilities-toolkit/rename-media-file`,
    `npcink-abilities-toolkit/delete-media-permanently`,
    `npcink-abilities-toolkit/reply-comment`, `npcink-abilities-toolkit/trash-comment`, and
-   `npcink-abilities-toolkit/approve-comment` are currently supported. The preferred user path
-   is one Adapter/OpenClaw action:
+   `npcink-abilities-toolkit/approve-comment` are currently supported. The
+   preferred operator path is one Adapter unified action from a WordPress
+   administrator session (cookie, Application Password, or basic auth):
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
@@ -494,6 +500,10 @@ curl -sS --user "1:<openclaw-secret-field-value>" \
 Adapter calls Core approve when the proposal is pending, calls Core
 commit-preflight, verifies `approval_commit_authorized=true` and
 `commit_execution=false`, then executes one WordPress Abilities API call.
+Signed key-pair clients cannot call this route
+(`npcink_openclaw_adapter_approve_requires_admin_session`); their path is a
+human approval in the Core admin followed by
+`POST /proposals/{proposal_id}/execute`.
 Adapter execute is a final write path and normalizes ability input to `dry_run=false` and `commit=true`. Core remains the governance backend for
 proposal state, approval, preflight, and audit.
 
@@ -573,15 +583,20 @@ They return HTTP 403 with
 `code=npcink_openclaw_adapter_execute_profile_unsupported`,
 `core_proxy_execute=false`, and
 `approval_surface=npcink_governance_core_admin`. Use
-`POST /proposals/{proposal_id}/approve-and-execute` for the Adapter unified
-user action, or Npcink Governance Core admin for split approval decisions. Adapter does
+`POST /proposals/{proposal_id}/approve-and-execute` from a WordPress
+administrator session for the Adapter unified user action, Npcink Governance
+Core admin for split approval decisions, then
+`POST /proposals/{proposal_id}/execute`. Adapter does
 not forward the standalone stub calls to Core and OpenClaw does not get generic
 approval power.
 
 Failure code handling:
 
-- `npcink_openclaw_adapter_execute_profile_unsupported`: call approve-and-execute or use
-  Core admin for split approval.
+- `npcink_openclaw_adapter_execute_profile_unsupported`: approve through the
+  Core admin (or the administrator-session unified action), then execute.
+- `npcink_openclaw_adapter_approve_requires_admin_session`: a signed client
+  tried the unified action; wait for human approval in the Core admin, then
+  call `POST /proposals/{proposal_id}/execute`.
 - `npcink_openclaw_adapter_execute_profile_unsupported`: stop; the proposal ability
   is outside Adapter's execution supported profiles.
 - `npcink_openclaw_adapter_proposal_rejected`: stop and show the Core rejection.

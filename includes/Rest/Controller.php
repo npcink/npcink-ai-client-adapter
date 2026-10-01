@@ -986,7 +986,7 @@ final class Controller {
 				array(
 					'methods'             => WP_REST_Server::CREATABLE,
 					'callback'            => array( $this, 'approve_and_execute_proposal_route' ),
-					'permission_callback' => array( $this, 'can_use_adapter' ),
+					'permission_callback' => array( $this, 'can_use_unified_approve_and_execute' ),
 					'args'                => array(
 						'proposal_id' => array(
 							'type'              => 'string',
@@ -1068,6 +1068,45 @@ final class Controller {
 	 */
 	public function can_use_admin_session( ?WP_REST_Request $request = null ): bool {
 		return current_user_can( 'manage_options' );
+	}
+
+	/**
+	 * Authorizes the unified approve-and-execute action.
+	 *
+	 * The unified action programmatically approves a pending Core proposal and
+	 * then executes it, so it carries approval authority. It is reserved for a
+	 * WordPress administrator session. Signed local clients must never hold
+	 * that authority: a human approves the proposal in the Core admin and the
+	 * same signed client then calls POST /proposals/{proposal_id}/execute.
+	 * See docs/threat-model.md.
+	 *
+	 * @param WP_REST_Request|null $request Request.
+	 * @return bool|WP_Error
+	 */
+	public function can_use_unified_approve_and_execute( ?WP_REST_Request $request = null ) {
+		$this->current_signed_client_fingerprint = '';
+		$this->current_signed_authenticated       = false;
+
+		if ( current_user_can( 'manage_options' ) ) {
+			return true;
+		}
+
+		if ( $request instanceof WP_REST_Request && '' !== $this->signed_request_credentials( $request )['key_id'] ) {
+			return new WP_Error(
+				'npcink_openclaw_adapter_approve_requires_admin_session',
+				__( 'The unified approve-and-execute action requires a WordPress administrator session. Signed AI clients must wait for human approval in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute.', 'npcink-ai-client-adapter' ),
+				array(
+					'status' => 403,
+					'operator_feedback' => array(
+						'reason'     => 'signed_client_cannot_self_approve',
+						'next_step'  => 'Approve the proposal in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute from the same signed client.',
+						'authorized_surface' => 'wordpress_admin_session_only',
+					),
+				)
+			);
+		}
+
+		return false;
 	}
 
 	/**
@@ -1702,13 +1741,16 @@ final class Controller {
 			'write_flow' => array(
 				'required'                  => true,
 				'proposal_required'         => true,
-				'approval_surface'          => 'npcink_governance_core_admin_or_adapter_unified_user_action',
+				'approval_surface'          => 'npcink_governance_core_admin',
+				'signed_client_self_approval' => 'forbidden',
 				'commit_intent_required'    => true,
 				'execution_handoff_posture' => $this->execution_handoff_posture(),
 				'final_write_routes'        => array(
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
-					'POST /proposals/{proposal_id}/approve-and-execute',
+				),
+				'admin_session_only_routes' => array(
+					'POST /proposals/{proposal_id}/approve-and-execute' => 'unified approve-and-execute holds approval authority and requires a WordPress administrator session',
 				),
 			),
 			'recommended_cli' => array(
@@ -2290,6 +2332,13 @@ final class Controller {
 		$route  = $request->get_route();
 		$method = strtoupper( $request->get_method() );
 
+		// The unified approve-and-execute action holds approval authority and is
+		// reserved for WordPress administrator sessions. No client key scope can
+		// ever allow it. See docs/threat-model.md.
+		if ( false !== strpos( $route, '/approve-and-execute' ) ) {
+			return false;
+		}
+
 		if ( 'POST' === $method && $this->client_key_route_requires_execute_scope( $route ) ) {
 			return ! empty( $scopes['npcink.execute'] ) || ! empty( $scopes['magick.execute'] );
 		}
@@ -2314,7 +2363,6 @@ final class Controller {
 	private function client_key_route_requires_execute_scope( string $route ): bool {
 		return false !== strpos( $route, '/execute-approved-proposal' )
 			|| false !== strpos( $route, '/commit-preflight' )
-			|| false !== strpos( $route, '/approve-and-execute' )
 			|| ( false !== strpos( $route, '/proposals/' ) && false !== strpos( $route, '/execute' ) );
 	}
 
@@ -2406,6 +2454,13 @@ final class Controller {
 					'POST /proposals/{proposal_id}/execute',
 					'POST /proposals/{proposal_id}/approve-and-execute',
 				),
+				'admin_session_only_execution_routes' => array(
+					'POST /proposals/{proposal_id}/approve-and-execute',
+				),
+				'signed_client_execution_routes' => array(
+					'POST /execute-approved-proposal',
+					'POST /proposals/{proposal_id}/execute',
+				),
 				'supported_execute_ability_ids' => self::supported_execute_ability_ids(),
 				'execution_profile_readiness' => $this->execution_profile_readiness(),
 				'execution_input_contract' => array(
@@ -2481,7 +2536,9 @@ final class Controller {
 					'unified_approve_and_execute' => array(
 						'governance_mode'      => 'core_approval_then_adapter_execution',
 						'execution_surface'    => 'wp_abilities_rest_after_core_preflight',
-						'approval_surface'     => 'npcink_openclaw_adapter_unified_action',
+						'approval_surface'     => 'npcink_governance_core_admin',
+						'authorization'        => 'wordpress_admin_session_only',
+						'signed_client_access' => 'forbidden_use_execute_after_human_approval',
 						'core_commit_execution' => false,
 						'supported_ability_ids'  => self::supported_execute_ability_ids(),
 						'execution_input_contract' => array(
@@ -2600,6 +2657,13 @@ final class Controller {
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
 					'POST /proposals/{proposal_id}/approve-and-execute',
+				),
+				'admin_session_only_execution_routes' => array(
+					'POST /proposals/{proposal_id}/approve-and-execute',
+				),
+				'signed_client_execution_routes' => array(
+					'POST /execute-approved-proposal',
+					'POST /proposals/{proposal_id}/execute',
 				),
 				'supported_execute_ability_ids' => self::supported_execute_ability_ids(),
 				'execution_profile_readiness' => $this->execution_profile_readiness(),
@@ -2740,7 +2804,7 @@ final class Controller {
 				'POST /proposals/{proposal_id}/commit-preflight' => 'Advanced diagnostic route: run Core commit preflight without final writes and cache the one-time handoff for the next Adapter execute call; dry-run verification stops here.',
 				'POST /execute-approved-proposal' => 'Final write route: execute one approved proposal after Core commit preflight or a cached Adapter preflight handoff; normalizes ability input to dry_run=false and commit=true.',
 				'POST /proposals/{proposal_id}/execute' => 'Final write route: execute one approved proposal by id after Core commit preflight or a cached Adapter preflight handoff; normalizes ability input to dry_run=false and commit=true.',
-				'POST /proposals/{proposal_id}/approve-and-execute' => 'Final write route: approve a pending proposal through Core, then preflight and execute one supported single input or write_actions payload with dry_run=false and commit=true.',
+				'POST /proposals/{proposal_id}/approve-and-execute' => 'Final write route for WordPress administrator sessions only: approve a pending proposal through Core, then preflight and execute one supported single input or write_actions payload with dry_run=false and commit=true. Signed AI clients must not call this route; wait for human approval in the Core admin and use POST /proposals/{proposal_id}/execute.',
 			'GET /terms' => 'List terms; use returned id with GET /term?id={id}; pass taxonomy when known.',
 			'GET /term' => 'Read one term by list row id. Adapter infers taxonomy from id when possible; term_id is accepted as an alias for id.',
 		);
@@ -3982,6 +4046,10 @@ final class Controller {
 	/**
 	 * Approves a pending proposal through Core and executes supported input.
 	 *
+	 * Reserved for WordPress administrator sessions: this action holds approval
+	 * authority. Signed local clients must use the two-step flow instead (human
+	 * approval in the Core admin, then POST /proposals/{id}/execute).
+	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
 	 */
@@ -4000,6 +4068,23 @@ final class Controller {
 				'npcink_openclaw_adapter_proposal_id_required',
 				__( 'proposal_id is required.', 'npcink-ai-client-adapter' ),
 				array( 'status' => 400 )
+			);
+			$this->emit_operation_event( 'adapter.proposal.execute', $started, $error, $event_context );
+			return $error;
+		}
+
+		if ( $this->current_signed_authenticated ) {
+			$error = new WP_Error(
+				'npcink_openclaw_adapter_approve_requires_admin_session',
+				__( 'The unified approve-and-execute action requires a WordPress administrator session. Signed AI clients must wait for human approval in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute.', 'npcink-ai-client-adapter' ),
+				array(
+					'status' => 403,
+					'operator_feedback' => array(
+						'reason'     => 'signed_client_cannot_self_approve',
+						'next_step'  => 'Approve the proposal in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute from the same signed client.',
+						'authorized_surface' => 'wordpress_admin_session_only',
+					),
+				)
 			);
 			$this->emit_operation_event( 'adapter.proposal.execute', $started, $error, $event_context );
 			return $error;

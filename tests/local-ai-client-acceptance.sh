@@ -82,11 +82,15 @@ fi
 
 if [[ -n "$COMMIT_PROPOSAL_ID" ]]; then
 	if [[ "${MAA_ADAPTER_ACCEPTANCE_ALLOW_COMMIT:-}" != "1" ]]; then
-		echo "Set MAA_ADAPTER_ACCEPTANCE_ALLOW_COMMIT=1 before approve-and-execute." >&2
+		echo "Set MAA_ADAPTER_ACCEPTANCE_ALLOW_COMMIT=1 before final execution." >&2
 		exit 2
 	fi
-	echo "[accept] running approve-and-execute: $COMMIT_PROPOSAL_ID"
-	"${CLI[@]}" request "${COMMON_ARGS[@]}" POST "/proposals/$COMMIT_PROPOSAL_ID/approve-and-execute" --intent=commit
+	if [[ "${MAA_ADAPTER_ACCEPTANCE_HUMAN_APPROVED:-}" != "1" ]]; then
+		echo "Approve proposal $COMMIT_PROPOSAL_ID in the Npcink Governance Core admin first, then set MAA_ADAPTER_ACCEPTANCE_HUMAN_APPROVED=1. Signed clients cannot approve their own proposals." >&2
+		exit 2
+	fi
+	echo "[accept] executing human-approved proposal as the signed client: $COMMIT_PROPOSAL_ID"
+	"${CLI[@]}" request "${COMMON_ARGS[@]}" POST "/proposals/$COMMIT_PROPOSAL_ID/execute" --intent=commit
 fi
 
 echo "[accept] local AI client acceptance completed"

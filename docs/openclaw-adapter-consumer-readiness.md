@@ -41,7 +41,7 @@ The consumer readiness pass verified these Adapter routes:
 - `GET /proposals`
 - `GET /proposals/{proposal_id}`
 - `POST /proposals/{proposal_id}/commit-preflight`
-- `POST /proposals/{proposal_id}/approve-and-execute`
+- `POST /proposals/{proposal_id}/approve-and-execute` (administrator sessions only)
 - `POST /proposals/{proposal_id}/approve` and
   `POST /proposals/{proposal_id}/reject` as disabled HTTP 403 stubs
 
@@ -53,7 +53,8 @@ The readiness pass verified:
 - direct read;
 - diagnostics read;
 - proposal create, list, and detail;
-- Core approval through Adapter `approve-and-execute`;
+- human Core approval followed by Adapter execute (the unified `approve-and-execute`
+  action is administrator-session only);
 - Core commit-preflight before execution;
 - supported final execution for `npcink-abilities-toolkit/trash-post`,
   `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`,
@@ -107,7 +108,9 @@ Adapter remains a thin OpenClaw channel layer:
 
 The generic proposal approval proxying must remain disabled unless a future decision
 explicitly changes the product boundary. The current productized user action is
-`POST /proposals/{proposal_id}/approve-and-execute`.
+`POST /proposals/{proposal_id}/approve-and-execute`, reserved for WordPress
+administrator sessions; signed clients use human Core approval followed by
+`POST /proposals/{proposal_id}/execute`.
 
 Batch `write_actions[]` execution is governed by
 [`openclaw-batch-execution-policy.md`](openclaw-batch-execution-policy.md).
