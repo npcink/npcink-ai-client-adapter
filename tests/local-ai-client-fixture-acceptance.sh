@@ -245,10 +245,10 @@ approve_proposal_as_admin "$proposal_id" || fail "Human approval through the Cor
 
 echo "[accept-fixture] executing the human-approved proposal through the signed CLI"
 run_cli_json "$execute_out" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/execute" --intent=commit
-success="$(json_field "$execute_out" success)" || fail "Execution did not return success."
+execute_status="$(json_field "$execute_out" status)" || fail "Execution did not return status."
 execute_ability_id="$(json_field "$execute_out" ability_id)" || fail "Execution did not return ability_id."
 post_id="$(json_field "$execute_out" post_id)" || fail "Execution did not return post_id."
-[[ "$success" == "true" ]] || fail "Execution did not report success."
+[[ "$execute_status" == "executed" ]] || fail "Execution did not report executed status: $execute_status"
 [[ "$execute_ability_id" == "npcink-abilities-toolkit/create-draft" ]] || fail "Unexpected execution ability id: $execute_ability_id"
 assert_json_field_equals "$execute_out" proposal_id "$proposal_id" "Execution"
 assert_json_field_equals "$execute_out" execution_mode "single_post" "Execution"
