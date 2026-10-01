@@ -131,12 +131,47 @@ trap cleanup EXIT
 proposal_body="$tmp_dir/create-draft-proposal.json"
 proposal_out="$tmp_dir/create-draft-proposal.out.json"
 status_out="$tmp_dir/proposal-status.out.json"
+self_approve_out="$tmp_dir/self-approve.out"
+self_approve_err="$tmp_dir/self-approve.err"
 no_intent_out="$tmp_dir/no-intent.out"
 no_intent_err="$tmp_dir/no-intent.err"
 execute_out="$tmp_dir/execute.out.json"
 executed_status_out="$tmp_dir/executed-proposal-status.out.json"
 duplicate_out="$tmp_dir/duplicate.out"
 duplicate_err="$tmp_dir/duplicate.err"
+
+approve_php="$tmp_dir/approve-proposal.php"
+cat >"$approve_php" <<'PHP'
+<?php
+$proposal_id = (string) getenv( 'MAA_FIXTURE_PROPOSAL_ID' );
+if ( '' === $proposal_id ) {
+	fwrite( STDERR, "Missing MAA_FIXTURE_PROPOSAL_ID.\n" );
+	exit( 1 );
+}
+$admins = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => array( 'ID' ) ) );
+if ( empty( $admins ) ) {
+	fwrite( STDERR, "No administrator user found for the human approval step.\n" );
+	exit( 1 );
+}
+wp_set_current_user( (int) $admins[0]->ID );
+$request = new WP_REST_Request( 'POST', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/approve' );
+$request->set_param( 'proposal_id', $proposal_id );
+$request->set_param( 'note', 'Human approval for the Adapter CLI fixture acceptance flow.' );
+$response = rest_do_request( $request );
+if ( is_wp_error( $response ) ) {
+	fwrite( STDERR, $response->get_error_message() . "\n" );
+	exit( 1 );
+}
+$data = $response->get_data();
+if ( 200 !== $response->get_status() || ! is_array( $data ) || 'approved' !== (string) ( $data['status'] ?? '' ) ) {
+	fwrite( STDERR, 'Core approval did not return an approved proposal: ' . wp_json_encode( $data ) . "\n" );
+	exit( 1 );
+}
+PHP
+
+approve_proposal_as_admin() {
+	MAA_FIXTURE_PROPOSAL_ID="$1" run_wp eval-file "$approve_php" >/dev/null
+}
 
 cat >"$proposal_body" <<JSON
 {
@@ -175,9 +210,19 @@ run_cli_json "$status_out" request "${COMMON_ARGS[@]}" GET "/proposals/$proposal
 status_proposal_id="$(json_field "$status_out" proposal_id)" || fail "Proposal status did not return proposal_id."
 [[ "$status_proposal_id" == "$proposal_id" ]] || fail "Proposal status id mismatch."
 
-echo "[accept-fixture] verifying final route refuses missing commit intent"
+echo "[accept-fixture] verifying signed clients cannot self-approve through the unified route"
 set +e
-"${CLI[@]}" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/approve-and-execute" >"$no_intent_out" 2>"$no_intent_err"
+"${CLI[@]}" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/approve-and-execute" --intent=commit >"$self_approve_out" 2>"$self_approve_err"
+self_approve_code=$?
+set -e
+if [[ "$self_approve_code" -eq 0 ]]; then
+	fail "Signed client approve-and-execute unexpectedly succeeded."
+fi
+grep -q 'npcink_openclaw_adapter_approve_requires_admin_session' "$self_approve_out" || grep -q 'npcink_openclaw_adapter_approve_requires_admin_session' "$self_approve_err" || fail "Signed client self-approval refusal did not return the admin-session error code."
+
+echo "[accept-fixture] verifying the final execute route refuses missing commit intent"
+set +e
+"${CLI[@]}" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/execute" >"$no_intent_out" 2>"$no_intent_err"
 no_intent_code=$?
 set -e
 if [[ "$no_intent_code" -eq 0 ]]; then
@@ -186,13 +231,16 @@ fi
 grep -q -- '--intent=commit' "$no_intent_err" || grep -q -- '--intent=commit' "$no_intent_out" || fail "Missing commit-intent refusal message."
 
 if [[ "$ALLOW_COMMIT" != "1" ]]; then
-	echo "[accept-fixture] stopping before final write. Set MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1 to run approve-and-execute."
+	echo "[accept-fixture] stopping before final write. Set MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1 to run human Core approval plus signed-client execution."
 	echo "local AI client fixture acceptance: ok"
 	exit 0
 fi
 
-echo "[accept-fixture] executing approve-and-execute through signed CLI"
-run_cli_json "$execute_out" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/approve-and-execute" --intent=commit
+echo "[accept-fixture] approving the pending proposal as a WordPress administrator through Core"
+approve_proposal_as_admin "$proposal_id" || fail "Human approval through the Core admin surface failed."
+
+echo "[accept-fixture] executing the human-approved proposal through the signed CLI"
+run_cli_json "$execute_out" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/execute" --intent=commit
 success="$(json_field "$execute_out" success)" || fail "Execution did not return success."
 execute_ability_id="$(json_field "$execute_out" ability_id)" || fail "Execution did not return ability_id."
 post_id="$(json_field "$execute_out" post_id)" || fail "Execution did not return post_id."
@@ -200,8 +248,6 @@ post_id="$(json_field "$execute_out" post_id)" || fail "Execution did not return
 [[ "$execute_ability_id" == "npcink-abilities-toolkit/create-draft" ]] || fail "Unexpected execution ability id: $execute_ability_id"
 assert_json_field_equals "$execute_out" proposal_id "$proposal_id" "Execution"
 assert_json_field_equals "$execute_out" execution_mode "single_post" "Execution"
-assert_json_field_equals "$execute_out" status_before "pending" "Execution"
-assert_json_field_equals "$execute_out" approved_by_adapter "true" "Execution"
 assert_json_field_equals "$execute_out" core_commit_execution "false" "Execution"
 assert_json_field_equals "$execute_out" preflight_source "core_commit_preflight" "Execution"
 assert_json_field_present "$execute_out" correlation_id "Execution"
@@ -244,11 +290,11 @@ post_title="$(run_wp post get "$post_id" --field=post_title)" || fail "Created d
 
 echo "[accept-fixture] verifying duplicate execution is rejected"
 set +e
-"${CLI[@]}" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/approve-and-execute" --intent=commit >"$duplicate_out" 2>"$duplicate_err"
+"${CLI[@]}" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/execute" --intent=commit >"$duplicate_out" 2>"$duplicate_err"
 duplicate_code=$?
 set -e
 if [[ "$duplicate_code" -eq 0 ]]; then
-	fail "Duplicate approve-and-execute unexpectedly succeeded."
+	fail "Duplicate execution unexpectedly succeeded."
 fi
 grep -q 'npcink_openclaw_adapter_execution_already_completed' "$duplicate_out" || fail "Duplicate execution did not return completed execution code."
 

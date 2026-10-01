@@ -408,7 +408,7 @@ final class Connection_Page {
 				'npcink.read'    => __( 'Read approved Adapter and WordPress Abilities API routes.', 'npcink-ai-client-adapter' ),
 				'npcink.propose' => __( 'Create Core-governed proposals for reviewed writes.', 'npcink-ai-client-adapter' ),
 				'npcink.status'  => __( 'Check Adapter, Core proposal, and execution status.', 'npcink-ai-client-adapter' ),
-				'npcink.execute' => __( 'Execute approved Adapter write routes only after Core approval and commit preflight.', 'npcink-ai-client-adapter' ),
+				'npcink.execute' => __( 'Execute already-approved Adapter write routes after human approval in the Core admin and commit preflight. This scope never includes proposal approval: the client cannot approve its own proposals.', 'npcink-ai-client-adapter' ),
 			);
 
 			$descriptions = array();

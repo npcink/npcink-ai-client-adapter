@@ -847,7 +847,14 @@ foreach (
 			'approved_proposal_execution',
 			'unified_approve_and_execute',
 			'core_approval_then_adapter_execution',
-			'npcink_openclaw_adapter_unified_action',
+			'can_use_unified_approve_and_execute',
+			'npcink_openclaw_adapter_approve_requires_admin_session',
+			'signed_client_cannot_self_approve',
+			'wordpress_admin_session_only',
+			'admin_session_only_execution_routes',
+			'signed_client_execution_routes',
+			'signed_client_self_approval',
+			'admin_session_only_routes',
 			'core_approved_commit_preflight_required',
 			'wp_abilities_rest_after_core_preflight',
 			'MAX_EXECUTION_ACTIONS',
@@ -1382,7 +1389,12 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 		maa_adapter_assert( false !== strpos( $client_key_scope, "'magick.read'" ), 'Client key scopes preserve legacy Magick read scope compatibility.' );
 	$execute_scope_routes = substr( $controller, (int) strpos( $controller, 'private function client_key_route_requires_execute_scope' ), 700 );
 	maa_adapter_assert( false !== strpos( $execute_scope_routes, "'/commit-preflight'" ), 'Client key execute scope covers commit-preflight handoff consumption.' );
-	maa_adapter_assert( false !== strpos( $execute_scope_routes, "'/approve-and-execute'" ), 'Client key execute scope covers approve-and-execute.' );
+	maa_adapter_assert( false === strpos( $execute_scope_routes, "'/approve-and-execute'" ), 'Client key execute scope no longer covers approve-and-execute.' );
+	maa_adapter_assert( false !== strpos( $client_key_scope, "strpos( \$route, '/approve-and-execute' )" ), 'Client key scope gate hard-denies the unified approve-and-execute route for every signed key scope.' );
+	$unified_route_registration = substr( $controller, (int) strpos( $controller, "'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/approve-and-execute'" ), 900 );
+	maa_adapter_assert( false !== strpos( $unified_route_registration, 'can_use_unified_approve_and_execute' ), 'Unified approve-and-execute route registers the admin-session permission callback.' );
+	maa_adapter_assert( 2 <= substr_count( $controller, 'npcink_openclaw_adapter_approve_requires_admin_session' ), 'Admin-session requirement is enforced at both the permission gate and the route handler.' );
+	maa_adapter_assert( false === strpos( $controller, 'npcink_openclaw_adapter_unified_action' ), 'Unified approve-and-execute no longer advertises an adapter-owned approval surface.' );
 	$requested_scopes = substr( $controller, (int) strpos( $controller, 'private function connection_requested_scopes' ), 900 );
 	maa_adapter_assert( false !== strpos( $requested_scopes, "'npcink.execute' => true" ), 'Device pairing can explicitly request npcink.execute.' );
 	maa_adapter_assert( false !== strpos( $requested_scopes, "\$default_scopes = array( 'npcink.read', 'npcink.propose', 'npcink.status' );" ), 'Device pairing defaults do not silently grant execute scope.' );
@@ -1893,7 +1905,7 @@ foreach (
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
 		'POST /wp-json/npcink-openclaw-adapter/v1/execute-approved-proposal',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/reject',
 		'approved proposal execution',
@@ -2050,7 +2062,7 @@ foreach ( $current_boundary_docs as $doc_name => $doc_body ) {
 foreach (
 	array(
 		'"name": "@npcink/openclaw-adapter-cli"',
-		'"version": "0.4.0"',
+		'"version": "0.5.0"',
 		'"bin"',
 		'"npcink-openclaw-adapter": "bin/npcink-openclaw-adapter.mjs"',
 		'"node": ">=20"',
@@ -2172,13 +2184,14 @@ foreach (
 			'propose_write',
 			'commit_preflight',
 			'execute_approved',
-			'approve_and_execute',
 			'requiredIntent',
 			'invalid_intent',
 			'Confirm the operator explicitly requested this action',
 			'explicitly-intended execution tools only',
 			'ignoreStdin',
 			'Execution tools need an explicit intent argument',
+			'health_unparseable',
+			'Adapter /health returned output that is not valid JSON',
 		'readRequestCreate',
 		'readRequestStatus',
 		'inputPayloadFromArgs',
@@ -2191,6 +2204,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $magick_adapter_tool, $required ), 'Packaged unified local CLI contains expected behavior: ' . $required );
 }
 maa_adapter_assert( false === strpos( $magick_adapter_tool, 'private_key_jwk:' ), 'Unified local CLI does not read private key material by property access.' );
+maa_adapter_assert( false === strpos( $magick_adapter_tool, 'approve_and_execute' ), 'Unified local CLI exposes no self-approval MCP tool; execution is limited to proposals a human already approved in the Core admin.' );
 maa_adapter_assert( false === strpos( $magick_adapter_tool, 'connection_id: String' ), 'Unified local CLI does not print connection id from status metadata.' );
 maa_adapter_assert( false === strpos( $magick_adapter_tool, 'key_id: String' ), 'Unified local CLI does not print key id from status metadata.' );
 maa_adapter_assert( false === strpos( $magick_adapter_tool, '/media-derivative-runs' ), 'Unified local CLI does not call Adapter media derivative run routes.' );
@@ -2212,14 +2226,14 @@ foreach (
 		'Tested up to: 7.1',
 		'Requires PHP: 8.0',
 		'Requires Plugins: npcink-abilities-toolkit, npcink-governance-core',
-		'Stable tag: 0.3.3',
+		'Stable tag: 0.4.0',
 		'License: GPL-2.0-or-later',
 		'structured missing dependency error',
 		'machine-readable `client_policy`',
 		'local CLI also redacts profile paths',
 		'Npcink Governance Core remains the governance backend',
 		'npcink-abilities-toolkit/trash-post',
-		'= 0.3.3 =',
+		'= 0.4.0 =',
 		'= 0.3.1 =',
 		'= 0.3.0 =',
 		'Add Adapter-declared Core and Abilities Toolkit compatibility floors to the machine-readable contract metadata',
@@ -2591,7 +2605,7 @@ foreach (
 		'GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'POST /wp-json/npcink-openclaw-adapter/v1/run-read-ability',
 		'Adapter does not expose direct-read shortcut routes',
 			'approval_surface=npcink_governance_core_admin',
@@ -3453,7 +3467,7 @@ foreach (
 		'npcink-abilities-toolkit/create-draft',
 		'POST /wp-json/npcink-openclaw-adapter/v1/run-read-ability',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'artifact_type=article_write_plan',
 		'risk_level=high',
 		'blocked_claims',
@@ -3478,7 +3492,7 @@ foreach (
 		'npcink-abilities-toolkit/create-draft',
 		'POST /wp-json/npcink-openclaw-adapter/v1/run-read-ability',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'status=draft',
 		'core_proxy_execute=false',
 		'commit_execution=false',
@@ -3582,7 +3596,7 @@ foreach (
 		'npcink-abilities-toolkit/update-media-details',
 		'npcink-abilities-toolkit/set-post-featured-image',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'image source attribution is preserved',
 		'core_proxy_execute=false',
 		'commit_execution=false',
@@ -3603,7 +3617,7 @@ foreach (
 		'npcink-abilities-toolkit/create-draft',
 		'npcink-abilities-toolkit/update-post-blocks',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'responsive_profile',
 		'landing_standard',
 		'media_strategy',
@@ -3647,7 +3661,7 @@ foreach (
 		'npcink-abilities-toolkit/create-draft',
 		'npcink-abilities-toolkit/update-post-blocks',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'article_template',
 		'comparison-review',
 		'responsive_profile',
@@ -3808,7 +3822,7 @@ foreach (
 		'npcink-abilities-toolkit/update-media-details',
 		'npcink-abilities-toolkit/set-post-featured-image',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'core_proxy_execute=false',
 		'commit_execution=false',
 		'cloud_control_plane=false',
@@ -3828,7 +3842,7 @@ foreach (
 		'npcink-abilities-toolkit/optimize-media-asset',
 		'npcink-abilities-toolkit/patch-post-content',
 		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan',
-		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-execute',
+		'POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute',
 		'core_proxy_execute=false',
 		'commit_execution=false',
 		'cloud_control_plane=false',
