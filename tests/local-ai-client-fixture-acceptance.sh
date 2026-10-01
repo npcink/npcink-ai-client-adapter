@@ -162,6 +162,10 @@ if ( is_wp_error( $response ) ) {
 	fwrite( STDERR, $response->get_error_message() . "\n" );
 	exit( 1 );
 }
+if ( ! $response instanceof WP_REST_Response ) {
+	fwrite( STDERR, "Core approval returned an unexpected response type.\n" );
+	exit( 1 );
+}
 $data = $response->get_data();
 if ( 200 !== $response->get_status() || ! is_array( $data ) || 'approved' !== (string) ( $data['status'] ?? '' ) ) {
 	fwrite( STDERR, 'Core approval did not return an approved proposal: ' . wp_json_encode( $data ) . "\n" );

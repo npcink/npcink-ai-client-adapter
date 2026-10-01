@@ -135,8 +135,8 @@ For local validation, run the npm CLI on the same machine or execution
 environment as OpenClaw:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter connect --site=https://npcink.local --profile=local --insecure-local-tls
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter connect --site=https://npcink.local --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
 ```
 
 The script opens the WordPress approval URL in the system browser. Approve the
@@ -155,16 +155,16 @@ After pairing, local clients should call Adapter through the
 local request wrapper instead of reading the profile file:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
 ```
 
 For POST requests, write the non-secret request JSON to a temporary file and
 pass it with `--body-file`, or pass non-secret JSON through stdin:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
-printf '%s' '{"plan":{}}' | (cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-stdin)
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
+printf '%s' '{"plan":{}}' | (cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-stdin)
 ```
 
 The wrapper rejects absolute URLs, signs the Adapter-relative route locally, and
@@ -176,7 +176,7 @@ does not keep root-level `tools/` compatibility wrappers.
 Use the package directly:
 
 ```bash
-npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
 ```
 
 Administrators manage authorized public keys from `Npcink -> Adapter` in the
@@ -196,10 +196,10 @@ For local OpenClaw validation, first confirm the same profile works through the
 signed wrapper:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /help
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.4.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /help
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
 ```
 
 Use `--insecure-local-tls` only for LocalWP or other `.local` self-signed HTTPS
