@@ -331,8 +331,7 @@ the atom input contracts, output artifact expectations, and boundary rules.
 
 ## OpenClaw Recipe Discovery
 
-`GET /help` includes `openclaw_recipes.article_draft_plan` for clients that need
-a machine-readable fixed flow. The recipe is channel guidance only:
+The article draft plan recipe is documented in `docs/openclaw-article-draft-plan-recipe.md` for clients that need a fixed flow. The recipe is channel guidance only:
 
 - entrypoint ability: `npcink-toolbox/build-article-write-plan`
 - plan handoff route: `POST /proposals/from-plan`
@@ -349,8 +348,7 @@ publishes to OpenClaw. Those buttons must mirror the same ability ids, artifact
 types, and Core proposal handoff routes; they do not make Toolbox a second
 OpenClaw recipe owner, proposal truth, approval surface, or write executor.
 
-`GET /help` also includes `openclaw_recipes.article_batch_draft_plan` for
-reviewed 2-5 article draft batches:
+The article batch draft plan recipe is documented in `docs/openclaw-article-batch-draft-plan-recipe.md` for reviewed 2-5 article draft batches:
 
 - entrypoint ability: `npcink-toolbox/build-article-batch-write-plan`
 - plan handoff route: `POST /proposals/from-plan`
@@ -365,8 +363,7 @@ The batch recipe must keep `batch_approval=true`, declare
 stop after earlier actions have succeeded), `core_proxy_execute=false`,
 `commit_execution=false`, `draft_only=true`, and `publish_allowed=false`.
 
-`GET /help` also includes `openclaw_recipes.article_media_batch_plan` for
-reviewed article drafts with selected image-source candidates:
+The article media batch plan recipe is documented in `docs/openclaw-article-media-batch-plan-recipe.md` for reviewed article drafts with selected image-source candidates:
 
 - entrypoint ability:
   `npcink-toolbox/build-article-media-batch-write-plan`
@@ -384,8 +381,7 @@ The article media batch recipe must preserve image-source attribution and keep
 `partial_success_possible=true`, `core_proxy_execute=false`,
 `commit_execution=false`, `draft_only=true`, and `publish_allowed=false`.
 
-`GET /help` also includes `openclaw_recipes.content_intent_router` for routing
-natural-language content requests to one supported Gutenberg recipe before a
+The content intent router contract is documented in `docs/openclaw-content-intent-router-contract.md` for routing natural-language content requests to one supported Gutenberg recipe before a
 plan is built:
 
 - entrypoint ability:
@@ -403,8 +399,7 @@ not create proposals for `route=unsupported`, and must not treat a customer
 prompt as execution approval. See
 [`docs/openclaw-content-intent-router-contract.md`](openclaw-content-intent-router-contract.md).
 
-`GET /help` also includes `openclaw_recipes.pattern_page_plan` for reviewed
-Gutenberg page pattern drafts:
+The pattern page plan recipe is documented in `docs/openclaw-pattern-page-plan-recipe.md` for reviewed Gutenberg page pattern drafts:
 
 - entrypoint ability:
   `npcink-abilities-toolkit/build-pattern-page-plan`
@@ -422,8 +417,7 @@ write actions after Core approval and commit-preflight.
 The recipe also exposes `visual_acceptance` so OpenClaw can run browser checks
 against the created draft page without treating Adapter as a browser runner.
 
-`GET /help` also includes `openclaw_recipes.site_edit_router` for normalizing
-untrusted customer wording before a reviewed block-editing recipe is selected:
+The Site Editor router contract is documented in `docs/openclaw-site-edit-router-contract.md` for normalizing untrusted customer wording before a reviewed block-editing recipe is selected:
 
 - contract mode: `untrusted_user_prompt_to_allowed_recipe`
 - `prompt_is_authorization=false`
@@ -439,8 +433,7 @@ project the allowed surface/intent/target shape and then continue through the
 existing recipe, plan, proposal, approval, commit-preflight, execution profile,
 and read-back verification path.
 
-`GET /help` also includes `openclaw_recipes.block_theme_site_plan` for reviewed
-conversational block theme Site Editor changes:
+The block theme site builder recipe is documented in `docs/openclaw-block-theme-site-builder-recipe.md` for reviewed conversational block theme Site Editor changes:
 
 - context abilities:
   `npcink-abilities-toolkit/get-block-theme-context`,
@@ -476,8 +469,7 @@ supports `intent=add_breadcrumbs` plus bounded
 navigation, raw template HTML, and arbitrary unprofiled template composition
 outside the execution profile.
 
-`GET /help` also includes `openclaw_recipes.article_block_plan` for reviewed
-Gutenberg article block drafts:
+The article block plan recipe is documented in `docs/openclaw-article-block-plan-recipe.md` for reviewed Gutenberg article block drafts:
 
 - entrypoint ability:
   `npcink-abilities-toolkit/build-article-block-plan`
@@ -515,8 +507,7 @@ Adapter commit-preflight.
 The shared browser checklist lives in
 [`openclaw-gutenberg-visual-acceptance.md`](openclaw-gutenberg-visual-acceptance.md).
 
-`GET /help` also includes `openclaw_recipes.pattern_page_research_brief` for
-research-backed Gutenberg landing pages:
+The pattern page research brief recipe is documented in `docs/openclaw-pattern-page-research-brief-recipe.md` for research-backed Gutenberg landing pages:
 
 - entrypoint ability:
   `npcink-toolbox/build-content-discoverability-brief`
@@ -531,8 +522,7 @@ search intent and guardrails. The research brief must not copy reference-site
 text, images, CSS, pricing claims, customer claims, rankings, or unsupported
 feature claims into the Pattern page plan.
 
-`GET /help` also includes `openclaw_recipes.image_candidate_adoption_plan` for
-reviewed adoption of one image candidate into the media library:
+The image candidate adoption plan recipe is documented in `docs/openclaw-image-candidate-adoption-plan-recipe.md` for reviewed adoption of one image candidate into the media library:
 
 - entrypoint ability:
   `npcink-toolbox/build-image-candidate-adoption-plan`
@@ -552,9 +542,7 @@ The image candidate adoption recipe must preserve source attribution and keep
 search stock providers, generate images, upload media, set featured images, or
 create a media registry by itself.
 
-`GET /help` also includes
-`openclaw_recipes.pattern_page_with_visual_asset_plan` for visually richer
-Gutenberg landing pages. This is a composed two-stage playbook that can follow
+The pattern page with visual asset recipe is documented in `docs/openclaw-pattern-page-with-visual-asset-recipe.md` for visually richer Gutenberg landing pages. This is a composed two-stage playbook that can follow
 `pattern_page_research_brief`:
 
 1. ask the Cloud-backed image source recommender for reviewable
@@ -581,9 +569,7 @@ import media, crop images, or create the page as one direct mutation. The page
 plan must reference the final local WordPress media URL, not a remote source or
 temporary Cloud preview URL.
 
-`GET /help` also includes
-`openclaw_recipes.ai_image_ratio_crop_media_adoption` for AI-generated images
-that need a stable page-slot ratio before adoption. This is a composed
+The AI image ratio crop recipe is documented in `docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md` for AI-generated images that need a stable page-slot ratio before adoption. This is a composed
 candidate-crop-adoption playbook:
 
 1. collect and review an `image_candidate.v1` from Cloud recommendation first;

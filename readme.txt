@@ -5,7 +5,7 @@ Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.0
 Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
-Stable tag: 0.4.0
+Stable tag: 0.4.1
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ Adapter health and help routes can report dependency status. Routes that require
 3. WordPress Application Password fallback connection flow for clients that use a dedicated secret field or credential vault.
 
 == Changelog ==
+
+= 0.4.1 =
+
+* Return structured, actionable authentication errors for signed requests: credential completeness, clock skew, and body-hash mismatches now carry distinct stable codes with `reason` and `next_step` data instead of a generic `rest_forbidden`; key-record and signature failures share one pre-verification code so key liveness is never observable without the private key; scope and nonce-replay causes are reported only after the signature verifies. Requests without credentials receive `npcink_openclaw_adapter_authentication_required` pointing at the device-pairing entry, and logged-in non-administrator accounts receive `npcink_openclaw_adapter_privilege_required`.
+* Pairing rate-limit responses now set the standard `Retry-After` response header alongside the existing error data.
+* Remove stale `GET /terms`/`GET /term` purpose strings from `/help` route discovery.
+* Companion CLI 0.6.0: failed Adapter responses now print the full error envelope including `data.operator_feedback`, `next_step`, and `retry_after` (redacted); the bounded AI image ratio crop recipe helper now mirrors the reviewed recipe contract locally because Adapter `/help` no longer carries recipe playbooks.
 
 = 0.4.0 =
 

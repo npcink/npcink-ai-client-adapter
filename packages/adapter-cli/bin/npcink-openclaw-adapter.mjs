@@ -11,6 +11,27 @@ const command = rawArgs[0] || '';
 const commandArgs = rawArgs.slice(1);
 const AI_IMAGE_RATIO_CROP_RECIPE_ID = 'ai_image_ratio_crop_media_adoption';
 const AI_IMAGE_RATIO_CROP_RECIPE_CLI_ID = 'ai-image-ratio-crop-media-adoption';
+// Adapter /help no longer carries recipe playbooks (thin-channel cleanup).
+// The CLI mirrors the reviewed recipe contract locally; the contract source
+// of truth is docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md.
+const AI_IMAGE_RATIO_CROP_RECIPE_CONTRACT = {
+  recipe_id: AI_IMAGE_RATIO_CROP_RECIPE_ID,
+  title: 'AI image ratio crop media adoption',
+  plan_ability_id: 'npcink-abilities-toolkit/build-media-adoption-enhancement-plan',
+  default_input: {
+    preferred_format: 'webp',
+    quality: 84,
+  },
+  guardrails: {
+    target_aspect_ratio_required: true,
+    ai_generation_dimensions_are_advisory: true,
+    cloud_crop_required_for_generated_images: true,
+    direct_wordpress_write: false,
+    adapter_artifact_registry: false,
+  },
+  contract_source: 'cli-local-mirror',
+  contract_docs: 'docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
+};
 
 if (!['connect', 'status', 'request', 'read-request', 'read-ability', 'recipe', 'mcp'].includes(command)) {
   printUsage();
@@ -244,7 +265,7 @@ async function recipe(args) {
   }
 
   const { parsed } = parseArgs(subArgs);
-  const recipeContract = await loadAiImageRatioCropRecipe(parsed);
+  const recipeContract = aiImageRatioCropRecipeContract();
   if (action === 'inspect') {
     console.log(JSON.stringify({
       ok: true,
@@ -252,30 +273,26 @@ async function recipe(args) {
       cli_recipe_id: AI_IMAGE_RATIO_CROP_RECIPE_CLI_ID,
       recipe: recipeContract,
       supported_actions: ['adoption-plan'],
-      note: 'Cloud crop and result transport belongs to Cloud Addon or Cloud tooling. This helper accepts a reviewed preview URL and can submit a Core proposal plan when explicitly requested.',
+      note: 'Cloud crop and result transport belongs to Cloud Addon or Cloud tooling. This helper accepts a reviewed preview URL and can submit a Core proposal plan when explicitly requested. Adapter /help no longer exposes openclaw_recipes; this contract is a local mirror of the reviewed recipe document.',
     }, null, 2));
     return;
   }
   await recipeAiImageAdoptionPlan(parsed, recipeContract);
 }
 
-async function loadAiImageRatioCropRecipe(parsed) {
-  const help = await requestJsonViaWrapper(parsed, 'GET', '/help');
-  const recipeContract = help?.openclaw_recipes?.[AI_IMAGE_RATIO_CROP_RECIPE_ID];
-  if (!recipeContract || typeof recipeContract !== 'object') {
-    throw new Error(`Adapter /help does not expose openclaw_recipes.${AI_IMAGE_RATIO_CROP_RECIPE_ID}.`);
+function aiImageRatioCropRecipeContract() {
+  const contract = AI_IMAGE_RATIO_CROP_RECIPE_CONTRACT;
+  if (!contract || typeof contract !== 'object'
+    || !contract.plan_ability_id
+    || !contract.guardrails
+    || contract.guardrails.target_aspect_ratio_required !== true
+    || contract.guardrails.ai_generation_dimensions_are_advisory !== true
+    || contract.guardrails.cloud_crop_required_for_generated_images !== true
+    || contract.guardrails.direct_wordpress_write !== false
+    || contract.guardrails.adapter_artifact_registry !== false) {
+    throw new Error('Local AI image crop adoption recipe contract does not match the expected review boundary.');
   }
-  const guardrails = recipeContract.guardrails || {};
-  if (
-    guardrails.target_aspect_ratio_required !== true
-    || guardrails.ai_generation_dimensions_are_advisory !== true
-    || guardrails.cloud_crop_required_for_generated_images !== true
-    || guardrails.direct_wordpress_write !== false
-    || guardrails.adapter_artifact_registry !== false
-  ) {
-    throw new Error('Adapter recipe guardrails do not match the expected AI image crop adoption boundary.');
-  }
-  return recipeContract;
+  return contract;
 }
 
 async function recipeAiImageAdoptionPlan(parsed, recipeContract) {
@@ -1063,7 +1080,17 @@ function safeErrorMessage(stdout, stderr) {
     }
     try {
       const parsed = JSON.parse(text);
-      return sanitizeOutputText(String(parsed.message || parsed.error || parsed.code || 'Request failed.'));
+      let message = String(parsed.message || parsed.error || parsed.code || 'Request failed.');
+      // The wrapper now carries the server error data (reason, next_step,
+      // retry_after, route-specific operator_feedback); surface a bounded
+      // copy for MCP operators.
+      const data = parsed && typeof parsed === 'object' && parsed.data && typeof parsed.data === 'object' && !Array.isArray(parsed.data)
+        ? parsed.data
+        : null;
+      if (data && Object.keys(data).length > 0) {
+        message += ` ${JSON.stringify(data).slice(0, 2000)}`;
+      }
+      return sanitizeOutputText(message);
     } catch (error) {
       return sanitizeOutputText(text.trim().split('\n')[0]);
     }

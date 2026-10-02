@@ -1046,10 +1046,16 @@ final class Controller {
 	/**
 	 * Authorizes adapter use.
 	 *
+	 * Returns true for an authorized caller, or a WP_Error with a structured
+	 * reason when authentication or authorization fails. The REST API serves
+	 * the error verbatim, so signed clients can distinguish clock skew,
+	 * revoked keys, replayed nonces, and scope gaps instead of debugging a
+	 * generic rest_forbidden.
+	 *
 	 * @param WP_REST_Request|null $request Request.
-	 * @return bool
+	 * @return bool|WP_Error
 	 */
-	public function can_use_adapter( ?WP_REST_Request $request = null ): bool {
+	public function can_use_adapter( ?WP_REST_Request $request = null ) {
 		$this->current_signed_client_fingerprint = '';
 		$this->current_signed_authenticated       = false;
 
@@ -1057,7 +1063,86 @@ final class Controller {
 			return true;
 		}
 
-		return $request instanceof WP_REST_Request && $this->authenticate_signed_request( $request );
+		if ( ! $request instanceof WP_REST_Request || ! $this->request_carries_signature_credentials( $request ) ) {
+			if ( is_user_logged_in() ) {
+				return new WP_Error(
+					'npcink_openclaw_adapter_privilege_required',
+					__( 'This WordPress account cannot use the Adapter channel. Adapter routes require an administrator session or a paired signed client.', 'npcink-ai-client-adapter' ),
+					array(
+						'status'         => 403,
+						'reason'         => 'wordpress_account_lacks_manage_options',
+						'next_step'      => __( 'Use an administrator account, or pair a signed client key through POST /connect/device/start.', 'npcink-ai-client-adapter' ),
+						'pairing_route'  => 'POST /' . self::NAMESPACE . '/connect/device/start',
+					)
+				);
+			}
+
+			return $this->adapter_authentication_required_error();
+		}
+
+		$authentication = $this->authenticate_signed_request( $request );
+		if ( true === $authentication ) {
+			return true;
+		}
+
+		return $authentication;
+	}
+
+	/**
+	 * Returns whether the request carries any Npcink signature credentials.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	private function request_carries_signature_credentials( WP_REST_Request $request ): bool {
+		$credentials = $this->signed_request_credentials( $request );
+
+		return '' !== $credentials['key_id'] || '' !== $credentials['signature'];
+	}
+
+	/**
+	 * Builds the structured error for requests without usable credentials.
+	 *
+	 * @return WP_Error
+	 */
+	private function adapter_authentication_required_error(): WP_Error {
+		return new WP_Error(
+			'npcink_openclaw_adapter_authentication_required',
+			__( 'Adapter requires a paired signed client or a WordPress administrator session. Start key-pair device pairing, then send the signed request headers.', 'npcink-ai-client-adapter' ),
+			array(
+				'status'        => 401,
+				'reason'        => 'credentials_missing',
+				'auth_modes'    => array(
+					'ed25519_key_pair_device_pairing',
+					'wordpress_application_password',
+				),
+				'pairing_route' => 'POST /' . self::NAMESPACE . '/connect/device/start',
+				'contract_doc'  => 'docs/keypair-device-pairing-contract.md',
+			)
+		);
+	}
+
+	/**
+	 * Builds one structured signed-request failure with a stable reason key
+	 * and an operator-facing next step.
+	 *
+	 * @param string $code    Stable error code.
+	 * @param string $message Human-readable message.
+	 * @param string $reason  Stable reason key.
+	 * @param string $next_step Operator-facing next step.
+	 * @param int    $status  HTTP status.
+	 * @return WP_Error
+	 */
+	private function signed_request_error( string $code, string $message, string $reason, string $next_step, int $status ): WP_Error {
+		return new WP_Error(
+			$code,
+			$message,
+			array(
+				'status'    => $status,
+				'reason'    => $reason,
+				'next_step' => $next_step,
+			)
+		);
 	}
 
 	/**
@@ -1135,7 +1220,7 @@ final class Controller {
 		$rate_limit = $this->enforce_device_pairing_start_rate_limit( $request );
 		if ( is_wp_error( $rate_limit ) ) {
 			$this->emit_operation_event( 'adapter.device_pairing.start', $started, $rate_limit );
-			return $rate_limit;
+			return $this->rest_response_with_retry_after( $rate_limit );
 		}
 
 		if ( ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
@@ -1225,7 +1310,7 @@ final class Controller {
 		$rate_limit  = $this->enforce_device_pairing_poll_rate_limit( $device_code );
 		if ( is_wp_error( $rate_limit ) ) {
 			$this->emit_operation_event( 'adapter.device_pairing.poll', $started, $rate_limit );
-			return $rate_limit;
+			return $this->rest_response_with_retry_after( $rate_limit );
 		}
 
 		$pairing     = $this->device_pairing_by_device_code( $device_code );
@@ -2008,17 +2093,29 @@ final class Controller {
 	}
 
 	/**
-	 * Authenticates an Adapter request signed by a registered Ed25519 key.
+	 * Authenticates a signed request from a paired local client.
+	 *
+	 * Returns true on success, or a WP_Error with a distinct stable code per
+	 * failure mode so clients can act on the cause. Key-state-independent
+	 * checks (credential completeness, timestamp window, body hash) run first
+	 * and keep specific codes. Every failure that depends on the key record
+	 * and precedes a verified signature shares one code, so a caller holding
+	 * only an observed key id cannot distinguish live, revoked, and unknown
+	 * keys. Scope and nonce checks run only after the signature verifies.
 	 *
 	 * @param WP_REST_Request $request Request.
-	 * @return bool
+	 * @return true|WP_Error
 	 */
-	private function authenticate_signed_request( WP_REST_Request $request ): bool {
+	private function authenticate_signed_request( WP_REST_Request $request ) {
 		$this->current_signed_client_fingerprint = '';
 		$this->current_signed_authenticated       = false;
 
 		if ( ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
-			return false;
+			return new WP_Error(
+				'npcink_openclaw_adapter_sodium_unavailable',
+				__( 'Ed25519 signed requests require the PHP sodium extension.', 'npcink-ai-client-adapter' ),
+				array( 'status' => 501 )
+			);
 		}
 
 		$credentials = $this->signed_request_credentials( $request );
@@ -2031,47 +2128,86 @@ final class Controller {
 		$signature      = $credentials['signature'];
 
 		if ( '' === $key_id || '' === $timestamp || '' === $nonce || '' === $content_sha256 || 'Ed25519' !== $signature_alg || '' === $signature ) {
-			return false;
-		}
-
-		$keys   = $this->client_key_records();
-		$record = is_array( $keys[ $key_id ] ?? null ) ? $keys[ $key_id ] : array();
-		if ( empty( $record ) || '' !== (string) ( $record['revoked_at'] ?? '' ) ) {
-			return false;
-		}
-
-		$user_id = (int) ( $record['user_id'] ?? 0 );
-		$user    = get_userdata( $user_id );
-		if ( ! $user || ! user_can( $user, 'manage_options' ) || ! $this->client_key_scope_allows_request( $record, $request ) ) {
-			return false;
+			return $this->signed_request_error(
+				'npcink_openclaw_adapter_signed_request_malformed',
+				__( 'The signed request is missing required Npcink signature credential fields.', 'npcink-ai-client-adapter' ),
+				'credentials_incomplete',
+				__( 'Send key_id, timestamp, nonce, content_sha256, alg=Ed25519, and signature on every request. See docs/keypair-device-pairing-contract.md.', 'npcink-ai-client-adapter' ),
+				401
+			);
 		}
 
 		$timestamp_epoch = strtotime( $timestamp );
 		if ( false === $timestamp_epoch || abs( time() - $timestamp_epoch ) > self::SIGNATURE_NONCE_TTL ) {
-			return false;
+			return $this->signed_request_error(
+				'npcink_openclaw_adapter_signed_request_timestamp_skew',
+				__( 'The signed request timestamp is unparseable or outside the allowed freshness window.', 'npcink-ai-client-adapter' ),
+				'timestamp_outside_window',
+				__( 'Regenerate the timestamp from a synced clock and re-sign the request before retrying.', 'npcink-ai-client-adapter' ),
+				401
+			);
 		}
 
 		$expected_hash = 'sha256:' . hash( 'sha256', (string) $request->get_body() );
 		if ( ! hash_equals( $expected_hash, $content_sha256 ) ) {
-			return false;
+			return $this->signed_request_error(
+				'npcink_openclaw_adapter_signed_request_content_hash_mismatch',
+				__( 'The signed content hash does not match the request body received by the adapter.', 'npcink-ai-client-adapter' ),
+				'content_hash_mismatch',
+				__( 'Hash and sign the exact request body bytes; do not modify the body after signing.', 'npcink-ai-client-adapter' ),
+				401
+			);
 		}
 
-		$public_key = $this->base64url_decode( (string) ( $record['public_key'] ?? '' ) );
+		$keys   = $this->client_key_records();
+		$record = is_array( $keys[ $key_id ] ?? null ) ? $keys[ $key_id ] : array();
+		$user   = ! empty( $record ) ? get_userdata( (int) ( $record['user_id'] ?? 0 ) ) : false;
+		$public_key     = $this->base64url_decode( (string) ( $record['public_key'] ?? '' ) );
 		$signature_bytes = $this->base64url_decode( $signature );
 		$canonical = $this->signed_request_canonical_string( $request, $timestamp, $nonce, $content_sha256 );
-		if ( 32 !== strlen( $public_key ) || 64 !== strlen( $signature_bytes ) || ! sodium_crypto_sign_verify_detached( $signature_bytes, $canonical, $public_key ) ) {
-			return false;
+		if (
+			empty( $record )
+			|| '' !== (string) ( $record['revoked_at'] ?? '' )
+			|| ! $user
+			|| ! user_can( $user, 'manage_options' )
+			|| 32 !== strlen( $public_key )
+			|| 64 !== strlen( $signature_bytes )
+			|| ! sodium_crypto_sign_verify_detached( $signature_bytes, $canonical, $public_key )
+		) {
+			return $this->signed_request_error(
+				'npcink_openclaw_adapter_signed_request_rejected',
+				__( 'The client key or request signature was rejected.', 'npcink-ai-client-adapter' ),
+				'key_or_signature_rejected',
+				__( 'Pair the client again through POST /connect/device/start, or rebuild the canonical string exactly as documented in docs/keypair-device-pairing-contract.md and re-sign the request.', 'npcink-ai-client-adapter' ),
+				401
+			);
+		}
+
+		if ( ! $this->client_key_scope_allows_request( $record, $request ) ) {
+			return $this->signed_request_error(
+				'npcink_openclaw_adapter_signed_request_scope_denied',
+				__( 'The paired client key does not carry the scope required by this route.', 'npcink-ai-client-adapter' ),
+				'scope_not_granted',
+				__( 'Re-pair the client requesting the needed scope, or ask a WordPress administrator to approve a key with it.', 'npcink-ai-client-adapter' ),
+				403
+			);
 		}
 
 		if ( ! $this->claim_signature_nonce( $key_id, $nonce ) ) {
-			return false;
+			return $this->signed_request_error(
+				'npcink_openclaw_adapter_signed_request_nonce_replayed',
+				__( 'The signed request nonce was already claimed.', 'npcink-ai-client-adapter' ),
+				'nonce_already_claimed',
+				__( 'Use a fresh nonce for every request; a retried request must be re-signed with a new nonce and timestamp.', 'npcink-ai-client-adapter' ),
+				401
+			);
 		}
 		if ( $this->should_update_client_key_last_used( (string) ( $record['last_used_at'] ?? '' ) ) ) {
 			$record['last_used_at'] = gmdate( 'c' );
 			$keys[ $key_id ]        = $record;
 			update_option( self::CLIENT_KEYS_OPTION, $keys, false );
 		}
-		wp_set_current_user( $user_id );
+		wp_set_current_user( (int) ( $record['user_id'] ?? 0 ) );
 		$this->current_signed_client_fingerprint = $this->sanitize_signed_client_fingerprint( (string) ( $record['fingerprint'] ?? '' ) );
 		$this->current_signed_authenticated       = true;
 
@@ -2574,7 +2710,7 @@ final class Controller {
 					),
 				),
 				'permission_capability'  => 'manage_options',
-				'current_user_authorized' => $this->can_use_adapter(),
+				'current_user_authorized' => current_user_can( 'manage_options' ),
 				'adapter_base_url'        => rest_url( self::NAMESPACE ),
 				'health_url'              => rest_url( self::NAMESPACE . '/health' ),
 				'help_url'                => rest_url( self::NAMESPACE . '/help' ),
@@ -2805,9 +2941,7 @@ final class Controller {
 				'POST /execute-approved-proposal' => 'Final write route: execute one approved proposal after Core commit preflight or a cached Adapter preflight handoff; normalizes ability input to dry_run=false and commit=true.',
 				'POST /proposals/{proposal_id}/execute' => 'Final write route: execute one approved proposal by id after Core commit preflight or a cached Adapter preflight handoff; normalizes ability input to dry_run=false and commit=true.',
 				'POST /proposals/{proposal_id}/approve-and-execute' => 'Final write route for WordPress administrator sessions only: approve a pending proposal through Core, then preflight and execute one supported single input or write_actions payload with dry_run=false and commit=true. Signed AI clients must not call this route; wait for human approval in the Core admin and use POST /proposals/{proposal_id}/execute.',
-			'GET /terms' => 'List terms; use returned id with GET /term?id={id}; pass taxonomy when known.',
-			'GET /term' => 'Read one term by list row id. Adapter infers taxonomy from id when possible; term_id is accepted as an alias for id.',
-		);
+			);
 
 		if ( isset( $purposes[ $key ] ) ) {
 			return $purposes[ $key ];
@@ -7900,6 +8034,35 @@ final class Controller {
 	private function error_status_code( WP_Error $error, int $fallback ): int {
 		$data = $error->get_error_data();
 		return is_array( $data ) ? absint( $data['status'] ?? $fallback ) : $fallback;
+	}
+
+	/**
+	 * Converts a rate-limit WP_Error into a REST response that also carries
+	 * the standard Retry-After response header, so stock HTTP clients and
+	 * SDKs honor the backoff without parsing the error body.
+	 *
+	 * @param WP_Error $error Rate limit error with retry_after in error data.
+	 * @return WP_REST_Response
+	 */
+	private function rest_response_with_retry_after( WP_Error $error ): WP_REST_Response {
+		$error_data = $error->get_error_data();
+		$error_data = is_array( $error_data ) ? $error_data : array();
+
+		$response = new WP_REST_Response(
+			array(
+				'code'    => $error->get_error_code(),
+				'message' => $error->get_error_message(),
+				'data'    => $error_data,
+			),
+			$this->error_status_code( $error, 429 )
+		);
+
+		$retry_after = absint( $error_data['retry_after'] ?? 0 );
+		if ( $retry_after > 0 ) {
+			$response->header( 'Retry-After', (string) $retry_after );
+		}
+
+		return $response;
 	}
 
 	/**

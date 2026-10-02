@@ -81,8 +81,7 @@ After execution, verify:
 - the front-end post has no horizontal overflow at 1440px, 768px, and 390px;
 - Gutenberg editor opens without invalid block recovery prompts.
 
-`GET /help` exposes these browser checks as
-`openclaw_recipes.article_block_plan.visual_acceptance`. For local browser QA,
+This document defines these browser checks as the recipe's `visual_acceptance` contract. For local browser QA,
 the smoke suite can export retained fixture URLs and viewport targets:
 
 ```bash

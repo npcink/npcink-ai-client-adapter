@@ -9,13 +9,13 @@ tool commands, logs, proposal payloads, or copied handoff text.
 Connect from the user's local machine:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter connect --site=https://example.com --profile=example
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter connect --site=https://example.com --profile=example
 ```
 
 Check the local profile and signed Adapter health:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=example
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter status --profile=example
 ```
 
 The status output includes derived `boundary` and `proposal_execution` fields.
@@ -37,7 +37,7 @@ profile, so MCP clients such as Claude Desktop or Cursor enter through the
 governed Adapter channel instead of a direct WordPress connection:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter mcp --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter mcp --profile=local --insecure-local-tls
 ```
 
 Tool surface: `health`, `capabilities`, `list_proposals`, `proposal_status`,
@@ -63,7 +63,7 @@ Claude Desktop example configuration (stdio):
       "command": "npm",
       "args": [
         "exec", "--yes",
-        "--package", "@npcink/openclaw-adapter-cli@0.5.0",
+        "--package", "@npcink/openclaw-adapter-cli@0.6.0",
         "--", "npcink-openclaw-adapter", "mcp",
         "--profile=local", "--insecure-local-tls"
       ]
@@ -80,29 +80,30 @@ it for public sites.
 Call Adapter through the signed local wrapper:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=example GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=example GET /capabilities
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=example GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=example GET /capabilities
 ```
 
 Prefer the narrow read helpers for local AI client sessions. They build the
 Adapter body, keep output redacted, and reduce route/JSON mistakes:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-request create --profile=example --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --purpose="Review bounded diagnostics" --data-classes=diagnostics,logs --redaction-level=strict --max-rows=10 --tail-lines=5 --denied-fields=authorization,cookie,application_password
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-request status --profile=example READ_REQUEST_ID
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-ability --profile=example --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter read-request create --profile=example --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --purpose="Review bounded diagnostics" --data-classes=diagnostics,logs --redaction-level=strict --max-rows=10 --tail-lines=5 --denied-fields=authorization,cookie,application_password
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter read-request status --profile=example READ_REQUEST_ID
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter read-ability --profile=example --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
 ```
 
 For AI-generated page visuals that need a stable aspect ratio, use the bounded
-recipe helper. It reads `GET /help`, verifies
-`openclaw_recipes.ai_image_ratio_crop_media_adoption`, accepts a reviewed
+recipe helper. It carries a local mirror of the reviewed recipe contract
+(`openclaw_recipes.ai_image_ratio_crop_media_adoption` was removed from
+Adapter `GET /help` in the thin-channel cleanup), accepts a reviewed
 preview URL produced by Cloud Addon or Cloud tooling, and then builds the local
 adoption plan. It does not create Cloud crop runs, approve proposals, or execute
 final writes:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=example
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=example --preview-url=PREVIEW_URL --post-id=7424 --old-url=OLD_URL --title="WordPress AI hero" --alt-text="WordPress AI proposal workflow hero" --source-type=ai_generated --attribution-text="AI-generated image reviewed before adoption"
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=example
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=example --preview-url=PREVIEW_URL --post-id=7424 --old-url=OLD_URL --title="WordPress AI hero" --alt-text="WordPress AI proposal workflow hero" --source-type=ai_generated --attribution-text="AI-generated image reviewed before adoption"
 ```
 
 Add `--submit-proposal` to `adoption-plan` only after reviewing the returned
@@ -118,13 +119,18 @@ administrator sessions; signed clients that call it receive
 `npcink_openclaw_adapter_approve_requires_admin_session`:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=example POST /proposals/PROPOSAL_ID/commit-preflight --intent=preflight
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=example POST /proposals/PROPOSAL_ID/execute --intent=commit
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=example POST /proposals/PROPOSAL_ID/commit-preflight --intent=preflight
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=example POST /proposals/PROPOSAL_ID/execute --intent=commit
 ```
 
 The CLI refuses final execute routes when `--intent=commit` is missing, or when
 the request body still contains preview markers such as `dry_run=true`,
 `commit=false`, or `commit_execution=false`.
+
+When the Adapter returns an error, the CLI prints the full error envelope,
+including the error `data` object with fields such as `operator_feedback`,
+`next_step`, or `retry_after` (after redaction). Show those fields to the
+operator instead of retrying blindly.
 
 CLI output is redacted by default for local connection identifiers, profile
 paths, key ids, signatures, authorization headers, cookies, tokens, passwords,

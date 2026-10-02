@@ -385,7 +385,7 @@ The page default view shows:
   password, credential, or secret field;
 - Adapter base URL and non-secret connection manifest URL;
 - Core and WordPress Abilities API connection status;
-- a higher-security signed key-pair flow using `cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter`;
+- a higher-security signed key-pair flow using `cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter`;
 - authorized public key management with revoke actions;
 - the minimal information needed to continue in client tooling or Core admin
   without turning Adapter into a proposal queue.
@@ -434,8 +434,8 @@ For local validation, use the npm CLI on the same machine or execution
 environment as OpenClaw:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter connect --site=https://npcink.local --profile=local --insecure-local-tls
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter connect --site=https://npcink.local --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
 ```
 
 The script opens the WordPress approval URL in the system browser. Approve the
@@ -468,11 +468,11 @@ After pairing, local clients can call Adapter through the signed request command
 without reading or printing profile secrets:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/PROPOSAL_ID/commit-preflight --intent=preflight
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/PROPOSAL_ID/execute --intent=commit
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls GET /capabilities
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/PROPOSAL_ID/commit-preflight --intent=preflight
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=local --insecure-local-tls POST /proposals/PROPOSAL_ID/execute --intent=commit
 ```
 
 The final execute call is valid only after a human approved the proposal in
@@ -484,9 +484,9 @@ For sensitive reads, prefer the narrower CLI helpers instead of asking an AI
 client to hand-build JSON route bodies:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-request create --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --purpose="Review bounded diagnostics" --data-classes=diagnostics,logs --redaction-level=strict --max-rows=10 --tail-lines=5 --denied-fields=authorization,cookie,application_password
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-request status --profile=local --insecure-local-tls READ_REQUEST_ID
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter read-ability --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter read-request create --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --purpose="Review bounded diagnostics" --data-classes=diagnostics,logs --redaction-level=strict --max-rows=10 --tail-lines=5 --denied-fields=authorization,cookie,application_password
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter read-request status --profile=local --insecure-local-tls READ_REQUEST_ID
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter read-ability --profile=local --insecure-local-tls --ability-id=npcink-abilities-toolkit/wp-ops-diagnostics-detail --input-file=/tmp/read-input.json --read-request-id=READ_REQUEST_ID
 ```
 
 MCP clients (Claude Desktop, Cursor) enter through the same governed channel
@@ -505,8 +505,10 @@ through that fixed tool table. See the CLI package README
 (`packages/adapter-cli/README.md`) for a Claude Desktop configuration example.
 
 For generated page visuals, the local CLI includes a bounded
-`recipe ai-image-ratio-crop-media-adoption` helper. It reads `/help`, verifies
-`openclaw_recipes.ai_image_ratio_crop_media_adoption`, accepts a reviewed
+`recipe ai-image-ratio-crop-media-adoption` helper. It carries a local mirror
+of the reviewed recipe contract
+(`docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`; Adapter `/help`
+no longer exposes recipe playbooks), accepts a reviewed
 preview URL produced by Cloud Addon or Cloud tooling, and can call
 `npcink-abilities-toolkit/build-media-adoption-enhancement-plan` for the
 reviewed preview URL. It submits `/proposals/from-plan` only when
@@ -515,8 +517,8 @@ proposal. Cloud crop, run polling, artifact preview, and derivative payload
 building do not belong to Adapter CLI.
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=local --insecure-local-tls
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=local --insecure-local-tls --preview-url=PREVIEW_URL --post-id=7424 --old-url=OLD_URL --title="WordPress AI hero" --alt-text="WordPress AI proposal workflow hero" --source-type=ai_generated --attribution-text="AI-generated image reviewed before adoption"
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption inspect --profile=local --insecure-local-tls
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter recipe ai-image-ratio-crop-media-adoption adoption-plan --profile=local --insecure-local-tls --preview-url=PREVIEW_URL --post-id=7424 --old-url=OLD_URL --title="WordPress AI hero" --alt-text="WordPress AI proposal workflow hero" --source-type=ai_generated --attribution-text="AI-generated image reviewed before adoption"
 ```
 
 The request command accepts only Adapter-relative routes such as `/health`,
@@ -546,7 +548,7 @@ does not keep root-level `tools/` compatibility wrappers; use the package
 directly:
 
 ```bash
-npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
+npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter status --profile=local --insecure-local-tls
 ```
 
 See [`docs/keypair-device-pairing-contract.md`](docs/keypair-device-pairing-contract.md)
@@ -638,8 +640,10 @@ Initial connection:
    - `commit_execution=false`
 4. OpenClaw calls `GET /capabilities` and uses Core guidance as the only
    governance truth for each `ability_id`.
-5. OpenClaw may call `GET /help` to discover adapter route labels, current
-   non-goals, and `openclaw_recipes.article_draft_plan`.
+5. OpenClaw may call `GET /help` to discover adapter route labels and
+   current non-goals. Recipe playbooks are no longer exposed there; every
+   reviewed recipe is documented under `docs/` (for example,
+   `docs/openclaw-article-draft-plan-recipe.md`).
 
 Read-only execution:
 
@@ -705,37 +709,24 @@ Plan-to-proposal flow:
 	   For the Toolbox article write plan, Adapter still only forwards the
 	   reviewed `article_write_plan`; Core validates the plan and Adapter later
 	   executes `npcink-abilities-toolkit/create-draft` only after Core approval and
-	   commit-preflight. The machine-readable OpenClaw playbook is exposed as
-	   `openclaw_recipes.article_draft_plan` from `GET /help`.
+	   commit-preflight. The reviewed OpenClaw playbook is documented in `docs/openclaw-article-draft-plan-recipe.md`.
 	   For reviewed 2-5 article draft batches, use
 	   `npcink-toolbox/build-article-batch-write-plan`; Core creates one
 	   batch proposal and Adapter later executes only the approved
-	   `npcink-abilities-toolkit/create-draft` write actions. The machine-readable playbook is
-	   exposed as `openclaw_recipes.article_batch_draft_plan` from `GET /help`.
+	   `npcink-abilities-toolkit/create-draft` write actions. The reviewed playbook is documented in `docs/openclaw-article-batch-draft-plan-recipe.md`.
 	   See [OpenClaw Article Batch Draft Plan Recipe](docs/openclaw-article-batch-draft-plan-recipe.md).
 	   For reviewed article batches with selected image-source candidates, use
 	   `npcink-toolbox/build-article-media-batch-write-plan`; Core creates one
 	   batch proposal and Adapter later executes only approved
 	   `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/upload-media-from-url`,
 	   `npcink-abilities-toolkit/update-media-details`, and
-	   `npcink-abilities-toolkit/set-post-featured-image` actions. The machine-readable
-		   playbook is exposed as `openclaw_recipes.article_media_batch_plan` from
-		   `GET /help`. See
+	   `npcink-abilities-toolkit/set-post-featured-image` actions. The reviewed playbook is documented in `docs/openclaw-article-media-batch-plan-recipe.md`. See
 		   [OpenClaw Article Media Batch Plan Recipe](docs/openclaw-article-media-batch-plan-recipe.md).
-		   Before selecting any Gutenberg or block-theme editing recipe, normalize
-		   customer wording through `openclaw_recipes.content_intent_router`
-		   and the read-only `npcink-abilities-toolkit/route-content-intent`
-		   ability. The machine-readable playbook is exposed from `GET /help`
-		   and documented in
+		   Before selecting any Gutenberg or block-theme editing recipe, normalize customer wording through the read-only `npcink-abilities-toolkit/route-content-intent` ability (contract: `docs/openclaw-content-intent-router-contract.md`). The playbook is documented in
 		   [OpenClaw Content Intent Router Contract](docs/openclaw-content-intent-router-contract.md).
 		   The router marks customer prompts as untrusted input
 		   (`prompt_is_authorization=false`), defaults unsupported or ambiguous
-		   requests to fail closed, and only routes to existing reviewed recipes:
-		   `openclaw_recipes.pattern_page_plan`,
-		   `openclaw_recipes.article_block_plan`, or
-		   `openclaw_recipes.block_theme_site_plan`. Use
-		   `openclaw_recipes.site_edit_router` as the narrower Site Editor
-		   surface contract.
+		   requests to fail closed, and only routes to the existing reviewed recipes documented in `docs/openclaw-pattern-page-plan-recipe.md`, `docs/openclaw-article-block-plan-recipe.md`, and `docs/openclaw-block-theme-site-builder-recipe.md`. See `docs/openclaw-site-edit-router-contract.md` for the narrower Site Editor surface contract.
 		   The verified page/article/template routing baseline is captured in
 		   [OpenClaw Gutenberg Content Intent Routing Baseline](docs/openclaw-gutenberg-content-intent-routing-baseline.md).
 		   Post-content routes use `npcink-abilities-toolkit/get-post-blocks`
@@ -757,9 +748,7 @@ Plan-to-proposal flow:
 		   `npcink-abilities-toolkit/build-pattern-page-plan`; Core creates one
 	   batch proposal and Adapter later executes only approved
 	   `npcink-abilities-toolkit/create-draft` and
-	   `npcink-abilities-toolkit/update-post-blocks` actions. The machine-readable
-	   playbook is exposed as `openclaw_recipes.pattern_page_plan` from
-	   `GET /help`, including a `visual_acceptance` block with front-end/editor
+	   `npcink-abilities-toolkit/update-post-blocks` actions. The reviewed playbook is documented in `docs/openclaw-pattern-page-plan-recipe.md`, including a `visual_acceptance` block with front-end/editor
 		   targets, 1440/768/390 viewport checks, and the local smoke artifact envs.
 		   Local smoke also machine-checks the generated draft for non-empty
 		   headings, complete image `src`/`alt` attributes,
@@ -780,8 +769,7 @@ Plan-to-proposal flow:
 		   `npcink-abilities-toolkit/update-template-blocks`,
 		   `npcink-abilities-toolkit/upsert-template-blocks`, and
 		   `npcink-abilities-toolkit/update-template-part-blocks` actions. The
-		   machine-readable playbook is exposed as
-		   `openclaw_recipes.block_theme_site_plan` from `GET /help`. The MVP
+		   reviewed playbook is documented in `docs/openclaw-block-theme-site-builder-recipe.md`. The MVP
 		   supports `intent=add_breadcrumbs` and keeps global styles, navigation,
 		   template creation, and generic Site Editor writes outside Adapter
 		   execution profiles. After execution or when the user asks to check a
@@ -794,9 +782,7 @@ Plan-to-proposal flow:
 	   `npcink-abilities-toolkit/build-article-block-plan`; Core creates one
 	   batch proposal and Adapter later executes only approved
 	   `npcink-abilities-toolkit/create-draft` and
-	   `npcink-abilities-toolkit/update-post-blocks` actions. The machine-readable
-	   playbook is exposed as `openclaw_recipes.article_block_plan` from
-	   `GET /help`, including the same browser visual acceptance contract for
+	   `npcink-abilities-toolkit/update-post-blocks` actions. The reviewed playbook is documented in `docs/openclaw-article-block-plan-recipe.md`, including the same browser visual acceptance contract for
 	   responsive Gutenberg article drafts. See
 	   [OpenClaw Article Block Plan Recipe](docs/openclaw-article-block-plan-recipe.md)
 	   and [OpenClaw Gutenberg Visual Acceptance](docs/openclaw-gutenberg-visual-acceptance.md).
@@ -805,8 +791,7 @@ Plan-to-proposal flow:
 	   creates one batch proposal and Adapter later executes only approved
 	   `npcink-abilities-toolkit/upload-media-from-url`, `npcink-abilities-toolkit/update-media-details`, and
 	   optional `npcink-abilities-toolkit/set-post-featured-image` actions. The
-	   machine-readable playbook is exposed as
-	   `openclaw_recipes.image_candidate_adoption_plan` from `GET /help`. See
+	   reviewed playbook is documented in `docs/openclaw-image-candidate-adoption-plan-recipe.md`. See
 	   [OpenClaw Image Candidate Adoption Plan Recipe](docs/openclaw-image-candidate-adoption-plan-recipe.md).
 	   For one reviewed remote visual asset that should be imported, optimized,
 	   and optionally wired into an existing page/post reference, call
@@ -815,11 +800,8 @@ Plan-to-proposal flow:
 	   `npcink-abilities-toolkit/upload-media-from-url`,
 	   `npcink-abilities-toolkit/optimize-media-asset`, and optional
 	   `npcink-abilities-toolkit/patch-post-content` actions. The
-	   machine-readable playbook is exposed as
-	   `openclaw_recipes.media_adoption_enhancement_plan` from `GET /help`.
-	   See [OpenClaw Media Adoption Enhancement Plan Recipe](docs/openclaw-media-adoption-enhancement-plan-recipe.md).
-	   For research-backed Gutenberg landing pages, first use
-	   `openclaw_recipes.pattern_page_research_brief` to request bounded
+	   reviewed playbook is documented in `docs/openclaw-media-adoption-enhancement-plan-recipe.md`. See [OpenClaw Media Adoption Enhancement Plan Recipe](docs/openclaw-media-adoption-enhancement-plan-recipe.md).
+	   For research-backed Gutenberg landing pages, first follow `docs/openclaw-pattern-page-research-brief-recipe.md` to request bounded
 	   Cloud-owned `competitor_research` evidence through Toolbox and produce a
 	   suggestion-only `landing_page_research_brief`. See
 	   [OpenClaw Pattern Page Research Brief Recipe](docs/openclaw-pattern-page-research-brief-recipe.md).
@@ -830,18 +812,14 @@ Plan-to-proposal flow:
 	   crop and convert the selected candidate through the Cloud media derivative path,
 	   adopt the processed result into the local media library through Core, then
 	   pass the approved WordPress media URL as `variables.hero_media_url` with
-	   `media_strategy=existing_media_url`. The machine-readable playbook is
-	   exposed as `openclaw_recipes.pattern_page_with_visual_asset_plan` from
-	   `GET /help`. See
+	   `media_strategy=existing_media_url`. The reviewed playbook is documented in `docs/openclaw-pattern-page-with-visual-asset-recipe.md`. See
 	   [OpenClaw Pattern Page With Visual Asset Recipe](docs/openclaw-pattern-page-with-visual-asset-recipe.md).
 	   For AI-generated visuals whose model output dimensions are unreliable,
 	   choose the page-slot ratio first, prefer existing Cloud-recommended
 	   candidates when available, crop the reviewed candidate through the Cloud
 	   media derivative path, then adopt the cropped preview through
 	   `npcink-abilities-toolkit/build-media-adoption-enhancement-plan` before a
-	   page references the final local media URL. The machine-readable playbook
-	   is exposed as `openclaw_recipes.ai_image_ratio_crop_media_adoption` from
-	   `GET /help`. See
+	   page references the final local media URL. The reviewed playbook is documented in `docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`. See
 	   [OpenClaw AI Image Ratio Crop Media Adoption Recipe](docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md).
 	   For Site Knowledge agent evidence review, call
 	   `npcink-toolbox/build-site-knowledge-review-plan`; Core creates a
