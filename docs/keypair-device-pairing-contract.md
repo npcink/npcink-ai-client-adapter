@@ -189,15 +189,61 @@ semantics, and cleanup is server-randomized, low-frequency, and bounded.
 Adapter does not use a read-then-write transient nonce check or WordPress 7's
 duplicate-update `add_option()` path for the claim.
 
+## Verification Failure Responses
+
+Every signed-request verification failure returns a structured WordPress REST
+error with a stable code, a `reason` key, and an operator-facing `next_step`
+string in the error `data` object. Clients should surface `next_step` (and any
+`operator_feedback`) to the operator instead of retrying blindly.
+
+Key-state-independent checks keep specific codes. Every failure that depends
+on the key record and precedes a verified signature shares one code, so a
+caller holding only an observed key id cannot distinguish live, revoked, and
+unknown keys: key liveness is never an oracle.
+
+- `npcink_openclaw_adapter_authentication_required` (HTTP 401,
+  `reason=credentials_missing`): the request carried no Npcink signature
+  credentials; `data.pairing_route` names the pairing entry point.
+- `npcink_openclaw_adapter_privilege_required` (HTTP 403,
+  `reason=wordpress_account_lacks_manage_options`): a logged-in WordPress
+  account without `manage_options`.
+- `npcink_openclaw_adapter_signed_request_malformed` (HTTP 401,
+  `reason=credentials_incomplete`): one or more signature header fields were
+  missing or the algorithm was not `Ed25519`.
+- `npcink_openclaw_adapter_signed_request_timestamp_skew` (HTTP 401,
+  `reason=timestamp_outside_window`): the timestamp is unparseable or outside
+  the 300-second freshness window.
+- `npcink_openclaw_adapter_signed_request_content_hash_mismatch` (HTTP 401,
+  `reason=content_hash_mismatch`): the signed body hash does not match the
+  received body bytes.
+- `npcink_openclaw_adapter_signed_request_rejected` (HTTP 401,
+  `reason=key_or_signature_rejected`): the key id is not registered, was
+  revoked, its owner can no longer authenticate, or the Ed25519 signature does
+  not verify against the canonical request string. These states share one
+  code and message by design.
+- `npcink_openclaw_adapter_signed_request_scope_denied` (HTTP 403,
+  `reason=scope_not_granted`): the paired key lacks the scope this route
+  requires; reported only after the signature verifies.
+- `npcink_openclaw_adapter_signed_request_nonce_replayed` (HTTP 401,
+  `reason=nonce_already_claimed`): the nonce was already consumed; a retried
+  request must be re-signed with a fresh nonce and timestamp; reported only
+  after the signature verifies.
+- `npcink_openclaw_adapter_sodium_unavailable` (HTTP 501): the PHP sodium
+  extension is missing on the WordPress host.
+
+Pairing rate limits return HTTP 429 with the `Retry-After` response header set
+from the same window reported in the error `data` (`retry_after`), so standard
+HTTP clients can back off without parsing the error body.
+
 ## Local Request Wrapper
 
 OpenClaw-style clients can use the npm CLI after pairing:
 
 ```bash
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter connect --site=https://example.test --profile=local
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter status --profile=local
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local GET /health
-cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter request --profile=local POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter connect --site=https://example.test --profile=local
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter status --profile=local
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=local GET /health
+cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter request --profile=local POST /proposals/from-plan --body-file=/tmp/npcink-proposal.json
 ```
 
 The wrapper:

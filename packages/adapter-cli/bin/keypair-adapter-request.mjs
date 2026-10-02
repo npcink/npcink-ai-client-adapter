@@ -222,6 +222,12 @@ function requestJson(methodValue, url, body, headers) {
             code: parsed && typeof parsed === 'object' ? parsed.code || '' : '',
             message: parsed && typeof parsed === 'object' ? parsed.message || '' : '',
           };
+          // Adapter error data carries reason, next_step, retry_after, and
+          // route-specific operator_feedback; operators need it.
+          const errorData = parsed && typeof parsed === 'object' ? parsed.data : null;
+          if (errorData && typeof errorData === 'object' && !Array.isArray(errorData) && Object.keys(errorData).length > 0) {
+            output.data = redactOutput(errorData);
+          }
           console.log(JSON.stringify(output, null, 2));
           process.exitCode = 1;
           resolve(null);

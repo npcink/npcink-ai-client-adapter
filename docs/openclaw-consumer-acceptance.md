@@ -110,26 +110,27 @@ Run this order for a local acceptance pass:
    - no Adapter-owned `/media-derivative-runs`
    - no Adapter-owned `/media-derivative-artifacts/{artifact_id}/preview`
    - no Adapter-owned `/media-derivative-proposal-payload`
-   - `GET /term`, whose purpose explains term detail uses list row `id` and
-     infers `taxonomy` when possible
    - `route_groups` for human-readable grouped route labels
-   - `openclaw_recipes.article_draft_plan`
-   - `openclaw_recipes.article_batch_draft_plan`
-   - `openclaw_recipes.article_media_batch_plan`
-   - `openclaw_recipes.site_edit_router`
-   - `openclaw_recipes.article_block_plan`
-   - `openclaw_recipes.pattern_page_plan`
-   - `openclaw_recipes.block_theme_site_plan`
-   - `openclaw_recipes.pattern_page_research_brief`
-   - `openclaw_recipes.pattern_page_with_visual_asset_plan`
-   - `openclaw_recipes.ai_image_ratio_crop_media_adoption`
-   - `openclaw_recipes.content_discoverability_suggestions`
-   - `openclaw_recipes.ai_article_draft_with_discoverability`
-   - `openclaw_recipes.media_derivative_cloud`
-   Confirm `openclaw_recipes.pattern_page_plan.visual_acceptance` and
-   `openclaw_recipes.article_block_plan.visual_acceptance` expose
-   `operator_browser_check`, front-end and block-editor targets, and desktop,
-   tablet, and mobile viewport rows.
+   - no `openclaw_recipes` playbook payload: recipe playbooks were removed
+     from `GET /help` in the thin-channel cleanup. Each reviewed recipe is
+     documented under `docs/`; confirm every recipe your flow uses has a
+     current doc and that the client follows its documented steps:
+     - `docs/openclaw-article-draft-plan-recipe.md`
+     - `docs/openclaw-article-batch-draft-plan-recipe.md`
+     - `docs/openclaw-article-media-batch-plan-recipe.md`
+     - `docs/openclaw-site-edit-router-contract.md`
+     - `docs/openclaw-article-block-plan-recipe.md`
+     - `docs/openclaw-pattern-page-plan-recipe.md`
+     - `docs/openclaw-block-theme-site-builder-recipe.md`
+     - `docs/openclaw-pattern-page-research-brief-recipe.md`
+     - `docs/openclaw-pattern-page-with-visual-asset-recipe.md`
+     - `docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`
+     - `docs/openclaw-content-discoverability-recipe.md`
+     - `docs/openclaw-ai-article-writing-pack-recipe.md`
+     - `docs/openclaw-media-derivative-cloud-recipe.md`
+   Confirm the pattern page and article block recipes document their
+   `visual_acceptance` contract with `operator_browser_check`, front-end and
+   block-editor targets, and desktop, tablet, and mobile viewport rows.
    Confirm local Gutenberg smoke verifies post-execution `get-post-blocks`
    readback, complete image `src`/`alt` attributes, non-empty heading and
    paragraph markup, and Gutenberg-native spacing on key sections before
@@ -138,34 +139,38 @@ Run this order for a local acceptance pass:
    page block readback preserves `core/image.attrs.id` or
    `core/media-text.attrs.mediaId`, rendered markup contains `wp-image-{id}`,
    and no generated content references temporary Cloud derivative preview URLs.
-   Confirm `openclaw_recipes.site_edit_router` exposes
+   Confirm the Site Editor router contract
+   (`docs/openclaw-site-edit-router-contract.md`) documents
    `prompt_is_authorization=false`, `default_behavior=fail_closed`, and
    fail-closed surfaces for navigation and global styles before any Gutenberg
    or block-theme editing recipe is selected.
-   Confirm `openclaw_recipes.content_intent_router.negative_acceptance_examples`
-   includes navigation, global styles/theme.json, and custom HTML direct-execute
-   prompts. Each example must route to `unsupported`, keep `plan_ability_id`
-   empty, emit no `write_actions`, and stop before `POST /proposals/from-plan`.
-   Confirm `openclaw_recipes.pattern_page_with_visual_asset_plan.guardrails`
-   keeps `candidate_review_required=true`,
+   Confirm the content intent router contract
+   (`docs/openclaw-content-intent-router-contract.md`) documents
+   negative acceptance examples covering navigation, global styles/theme.json,
+   and custom HTML direct-execute prompts. Each example must route to
+   `unsupported`, keep `plan_ability_id` empty, emit no `write_actions`, and
+   stop before `POST /proposals/from-plan`.
+   Confirm the pattern page with visual asset recipe documents
+   `candidate_review_required=true`,
    `hosted_generation_candidate_only=true`, `cloud_control_plane=false`, and
    `generic_write_executor=false`; OpenClaw must treat hosted image generation
    as a reviewed candidate source, not a direct page write step.
-   Confirm `openclaw_recipes.ai_image_ratio_crop_media_adoption.guardrails`
-   keeps `target_aspect_ratio_required=true`,
+   Confirm the AI image ratio crop recipe
+   (`docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`) documents
+   `target_aspect_ratio_required=true`,
    `ai_generation_dimensions_are_advisory=true`,
    `cloud_crop_required_for_generated_images=true`,
    `signed_preview_is_temporary=true`, `adapter_artifact_registry=false`, and
    `direct_wordpress_write=false`; OpenClaw must adopt the cropped preview
    through a Core media adoption proposal before a page references the final
    local media URL.
-   Confirm `openclaw_recipes.pattern_page_research_brief.default_input`
-   exposes `external_search_intent=competitor_research`,
+   Confirm the pattern page research brief recipe documents
+   `external_search_intent=competitor_research`,
    `search_policy.max_results=5`,
    `search_policy.requires_external_evidence=true`, and
    `search_policy.enhance_with_reader=false`; Adapter must not expose search
    provider keys or treat references as copyable page assets.
-   Confirm the content discoverability and AI article writing recipes expose a
+   Confirm the content discoverability and AI article writing recipes document a
    `default_input.search_policy` with
    `requires_external_evidence=true`, `max_results=3`, `recency_days=30`, and
    `enhance_with_reader=false`; Adapter must only pass this intent to Toolbox

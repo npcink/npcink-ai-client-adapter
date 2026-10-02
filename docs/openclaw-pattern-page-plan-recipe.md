@@ -95,8 +95,7 @@ After execution, verify:
 - modern landing pages show section shape variety instead of repeating the
   same hero-card-grid-CTA composition.
 
-`GET /help` exposes these browser checks as
-`openclaw_recipes.pattern_page_plan.visual_acceptance`. For local browser QA,
+This document defines these browser checks as the recipe's `visual_acceptance` contract. For local browser QA,
 the smoke suite can export retained fixture URLs and viewport targets:
 
 ```bash

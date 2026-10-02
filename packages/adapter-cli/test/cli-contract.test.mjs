@@ -5,8 +5,12 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createServer } from 'node:http';
+import { generateKeyPairSync } from 'node:crypto';
 
-const cliPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin', 'npcink-openclaw-adapter.mjs');
+const packageDir = join(dirname(fileURLToPath(import.meta.url)), '..');
+const cliPath = join(packageDir, 'bin', 'npcink-openclaw-adapter.mjs');
+const requestWrapperPath = join(packageDir, 'bin', 'keypair-adapter-request.mjs');
 
 const EXPECTED_TOOLS = [
   'health',
@@ -30,6 +34,60 @@ function makeProfileDir() {
     private_key_jwk: { kty: 'OKP', crv: 'Ed25519', d: 'AA', x: 'AA' },
   }));
   return profilePath;
+}
+
+function makeSigningProfileDir(baseUrl) {
+  const dir = mkdtempSync(join(tmpdir(), 'npcink-cli-contract-'));
+  const profilePath = join(dir, 'signing.json');
+  const { privateKey } = generateKeyPairSync('ed25519');
+  const jwk = privateKey.export({ format: 'jwk' });
+  writeFileSync(profilePath, JSON.stringify({
+    adapter_base_url: baseUrl,
+    key_id: 'mk_cli_contract_test_key',
+    private_key_jwk: jwk,
+  }));
+  return profilePath;
+}
+
+function runRequestWrapper(profilePath) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [
+      requestWrapperPath,
+      `--profile-file=${profilePath}`,
+      'GET',
+      '/health',
+    ], { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    const timer = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      child.kill('SIGKILL');
+      reject(new Error('request wrapper timed out'));
+    }, 15000);
+    timer.unref();
+    child.stdout.on('data', (chunk) => { stdout += chunk; });
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('error', (error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.on('close', (code) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timer);
+      resolve({ code, stdout, stderr });
+    });
+  });
 }
 
 function startMcpServer(profilePath) {
@@ -140,5 +198,72 @@ test('mcp tool calls fail closed on unknown tools and malformed input', async ()
     assert.equal(badId.result.content[0].text.includes('invalid_params'), true);
   } finally {
     child.kill();
+  }
+});
+
+test('request wrapper failure output keeps the server error data for operators', async () => {
+  const server = createServer((req, res) => {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      code: 'npcink_openclaw_adapter_signed_request_rejected',
+      message: 'The signed request was rejected.',
+      data: {
+        status: 403,
+        reason: 'nonce_replayed',
+        operator_feedback: {
+          reason: 'nonce_replayed',
+          next_step: 'Retry with a fresh nonce from a new request.',
+        },
+      },
+    }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const profilePath = makeSigningProfileDir(`http://127.0.0.1:${server.address().port}/wp-json/npcink-openclaw-adapter/v1`);
+  try {
+    const result = await runRequestWrapper(profilePath);
+    assert.notEqual(result.code, 0);
+    const output = JSON.parse(result.stdout.trim());
+    assert.equal(output.ok, false);
+    assert.equal(output.status, 403);
+    assert.equal(output.code, 'npcink_openclaw_adapter_signed_request_rejected');
+    assert.equal(output.data.reason, 'nonce_replayed');
+    assert.equal(output.data.operator_feedback.next_step, 'Retry with a fresh nonce from a new request.');
+  } finally {
+    server.close();
+  }
+});
+
+test('mcp tool errors carry the operator feedback and redact sensitive error data', async () => {
+  const server = createServer((req, res) => {
+    res.writeHead(403, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      code: 'npcink_openclaw_adapter_signed_request_scope_denied',
+      message: 'The paired client key does not carry the scope required by this route.',
+      data: {
+        status: 403,
+        reason: 'scope_not_granted',
+        next_step: 'Re-pair the client requesting the needed scope.',
+        operator_feedback: {
+          reason: 'scope_not_granted',
+          next_step: 'Re-pair the client requesting the needed scope.',
+        },
+        token: 'super-secret-token-value',
+      },
+    }));
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const profilePath = makeSigningProfileDir(`http://127.0.0.1:${server.address().port}/wp-json/npcink-openclaw-adapter/v1`);
+  const child = startMcpServer(profilePath);
+  try {
+    const response = await rpcCall(child, 9, 'tools/call', { name: 'health', arguments: {} });
+    assert.equal(response.result.isError, true);
+    const text = response.result.content[0].text;
+    assert.equal(text.includes('adapter_request_failed'), true);
+    assert.equal(text.includes('Re-pair the client requesting the needed scope.'), true);
+    assert.equal(text.includes('super-secret-token-value'), false, 'sensitive error data values must not reach the MCP tool error');
+    assert.equal(text.includes('[redacted]'), true, 'sensitive error data keys are replaced with a redaction marker');
+  } finally {
+    child.kill();
+    server.close();
   }
 });

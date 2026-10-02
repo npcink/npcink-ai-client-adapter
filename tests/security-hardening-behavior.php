@@ -11,6 +11,68 @@ define( 'ABSPATH', __DIR__ . '/' );
 define( 'ARRAY_A', 'ARRAY_A' );
 
 $GLOBALS['maa_security_options'] = array();
+$GLOBALS['maa_security_user_can'] = true;
+
+function __( $text, $domain = null ) {
+	return $text;
+}
+
+function absint( $value ): int {
+	return abs( (int) $value );
+}
+
+function current_user_can( $capability ): bool {
+	return false;
+}
+
+function is_user_logged_in(): bool {
+	return false;
+}
+
+function get_userdata( $user_id ) {
+	return $user_id > 0 ? new stdClass() : false;
+}
+
+function user_can( $user, $capability ): bool {
+	return $GLOBALS['maa_security_user_can'];
+}
+
+function wp_set_current_user( $user_id ) {
+	return $user_id;
+}
+
+function update_option( $name, $value, $autoload = null ): bool {
+	$GLOBALS['maa_security_options'][ $name ] = $value;
+	return true;
+}
+
+class WP_Error {
+	private $code;
+	private $message;
+	private $error_data;
+
+	public function __construct( $code = '', $message = '', $data = null ) {
+		$this->code       = $code;
+		$this->message    = $message;
+		$this->error_data = $data;
+	}
+
+	public function get_error_code() {
+		return $this->code;
+	}
+
+	public function get_error_message() {
+		return $this->message;
+	}
+
+	public function get_error_data() {
+		return $this->error_data;
+	}
+}
+
+function is_wp_error( $thing ): bool {
+	return $thing instanceof WP_Error;
+}
 
 function sanitize_key( $key ): string {
 	return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $key ) ) ?: '';
@@ -102,10 +164,16 @@ $GLOBALS['wpdb'] = new MAA_Security_WPDB();
 class WP_REST_Request {
 	private $params;
 	private $route;
+	private $headers;
+	private $body;
+	private $method;
 
-	public function __construct( array $params, string $route ) {
-		$this->params = $params;
-		$this->route  = $route;
+	public function __construct( array $params, string $route, array $headers = array(), string $body = '', string $method = 'GET' ) {
+		$this->params  = $params;
+		$this->route   = $route;
+		$this->headers = $headers;
+		$this->body    = $body;
+		$this->method  = $method;
 	}
 
 	public function get_param( string $key ) {
@@ -114,6 +182,18 @@ class WP_REST_Request {
 
 	public function get_route(): string {
 		return $this->route;
+	}
+
+	public function get_method(): string {
+		return $this->method;
+	}
+
+	public function get_header( string $key ) {
+		return $this->headers[ $key ] ?? null;
+	}
+
+	public function get_body(): string {
+		return $this->body;
 	}
 }
 
@@ -375,5 +455,168 @@ $expired_name  = \Npcink\OpenClawAdapter\Rest\Controller::SIGNATURE_NONCE_OPTION
 $GLOBALS['maa_security_options'][ $expired_name ] = time() - 1;
 maa_security_assert( true === maa_security_invoke( $controller, 'claim_signature_nonce', array( 'mk_test', $expired_nonce ) ), 'Expired nonce claim is conditionally reclaimed.' );
 maa_security_assert( (int) $GLOBALS['maa_security_options'][ $expired_name ] > time(), 'Reclaimed nonce stores a fresh future expiry.' );
+
+/**
+ * Returns base64url for the security behavior fixtures.
+ *
+ * @param string $bytes Raw bytes.
+ * @return string
+ */
+function maa_security_base64url( string $bytes ): string {
+	return rtrim( strtr( base64_encode( $bytes ), '+/', '-_' ), '=' );
+}
+
+/**
+ * Seeds the fixture client key record bound to a real Ed25519 key pair.
+ *
+ * @param array<string,mixed> $overrides Record overrides.
+ * @return void
+ */
+function maa_security_seed_client_key( array $overrides = array() ): void {
+	$GLOBALS['maa_security_options']['npcink_openclaw_adapter_client_keys'] = array(
+		'mk_security_test' => array_merge(
+			array(
+				'user_id'      => 1,
+				'revoked_at'   => '',
+				'scopes'       => array( 'npcink.read', 'npcink.status' ),
+				'public_key'   => maa_security_base64url( sodium_crypto_sign_publickey( $GLOBALS['maa_security_signing_keypair'] ) ),
+				'fingerprint'  => 'sha256:' . str_repeat( 'a', 64 ),
+				'last_used_at' => gmdate( 'c' ),
+			),
+			$overrides
+		),
+	);
+}
+
+/**
+ * Returns signed headers carrying a real Ed25519 signature over the exact
+ * canonical string the Controller verifies.
+ *
+ * @param object  $controller Controller instance.
+ * @param string  $nonce Nonce value.
+ * @param string  $route REST route.
+ * @param string  $body Body bytes.
+ * @param array<string,string> $overrides Header overrides.
+ * @param string  $method HTTP method.
+ * @return array<string,string>
+ */
+function maa_security_valid_signed_headers( object $controller, string $nonce, string $route = '/npcink-openclaw-adapter/v1/health', string $body = '', array $overrides = array(), string $method = 'GET' ): array {
+	$timestamp    = gmdate( 'c' );
+	$content_hash = 'sha256:' . hash( 'sha256', $body );
+	$draft        = new WP_REST_Request( array(), $route, array(), $body, $method );
+	$canonical    = maa_security_invoke( $controller, 'signed_request_canonical_string', array( $draft, $timestamp, $nonce, $content_hash ) );
+	$signature    = maa_security_base64url( sodium_crypto_sign_detached( $canonical, sodium_crypto_sign_secretkey( $GLOBALS['maa_security_signing_keypair'] ) ) );
+
+	return array_merge(
+		array(
+			'x_npcink_key_id'         => 'mk_security_test',
+			'x_npcink_timestamp'      => $timestamp,
+			'x_npcink_nonce'          => $nonce,
+			'x_npcink_content_sha256' => $content_hash,
+			'x_npcink_signature_alg'  => 'Ed25519',
+			'x_npcink_signature'      => $signature,
+		),
+		$overrides
+	);
+}
+
+if ( ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
+	fwrite( STDOUT, "Signed request auth behavior: skipped (PHP sodium extension unavailable)\n" );
+} else {
+	$_GET = array();
+	$GLOBALS['maa_security_signing_keypair'] = sodium_crypto_sign_keypair();
+
+	$nonce_counter = 0;
+	$next_nonce = function () use ( &$nonce_counter ) {
+		++$nonce_counter;
+		return 'sec-nonce-' . $nonce_counter;
+	};
+
+	maa_security_seed_client_key();
+
+	$malformed = maa_security_invoke(
+		$controller,
+		'authenticate_signed_request',
+		array( new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $next_nonce(), '/npcink-openclaw-adapter/v1/health', '', array( 'x_npcink_signature_alg' => '' ) ), '', 'GET' ) )
+	);
+	maa_security_assert( is_wp_error( $malformed ) && 'npcink_openclaw_adapter_signed_request_malformed' === $malformed->get_error_code(), 'Incomplete signature credentials fail with the structured malformed code.' );
+	maa_security_assert( 401 === ( $malformed->get_error_data()['status'] ?? 0 ) && 'credentials_incomplete' === ( $malformed->get_error_data()['reason'] ?? '' ), 'Malformed signed request reports status and reason.' );
+
+	$GLOBALS['maa_security_options']['npcink_openclaw_adapter_client_keys'] = array();
+	$unknown_key = maa_security_invoke(
+		$controller,
+		'authenticate_signed_request',
+		array( new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $next_nonce(), '/npcink-openclaw-adapter/v1/health', '', array( 'x_npcink_key_id' => 'mk_missing' ) ), '', 'GET' ) )
+	);
+	maa_security_assert( is_wp_error( $unknown_key ) && 'npcink_openclaw_adapter_signed_request_rejected' === $unknown_key->get_error_code(), 'Unknown key id fails with the shared pre-verification rejection code.' );
+
+	maa_security_seed_client_key( array( 'revoked_at' => gmdate( 'c' ) ) );
+	$revoked_key = maa_security_invoke(
+		$controller,
+		'authenticate_signed_request',
+		array( new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $next_nonce() ), '', 'GET' ) )
+	);
+	maa_security_assert( is_wp_error( $revoked_key ) && 'npcink_openclaw_adapter_signed_request_rejected' === $revoked_key->get_error_code(), 'Revoked key id shares the pre-verification rejection code and does not confirm key existence.' );
+
+	$GLOBALS['maa_security_user_can'] = false;
+	maa_security_seed_client_key();
+	$owner_demoted = maa_security_invoke(
+		$controller,
+		'authenticate_signed_request',
+		array( new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $next_nonce() ), '', 'GET' ) )
+	);
+	maa_security_assert( is_wp_error( $owner_demoted ) && 'npcink_openclaw_adapter_signed_request_rejected' === $owner_demoted->get_error_code(), 'Key whose owner lost manage_options fails with the shared rejection code.' );
+	$GLOBALS['maa_security_user_can'] = true;
+
+	maa_security_seed_client_key();
+	$scope_denied = maa_security_invoke(
+		$controller,
+		'authenticate_signed_request',
+		array( new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/proposals', maa_security_valid_signed_headers( $controller, $next_nonce(), '/npcink-openclaw-adapter/v1/proposals' ), '', 'GET' ) )
+	);
+	maa_security_assert( is_wp_error( $scope_denied ) && 'npcink_openclaw_adapter_signed_request_scope_denied' === $scope_denied->get_error_code(), 'Route outside the granted scopes fails with the scope-denied code.' );
+	maa_security_assert( 403 === ( $scope_denied->get_error_data()['status'] ?? 0 ), 'Scope denial keeps the forbidden status.' );
+
+	maa_security_seed_client_key();
+	$skewed = maa_security_invoke(
+		$controller,
+		'authenticate_signed_request',
+		array( new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $next_nonce(), '/npcink-openclaw-adapter/v1/health', '', array( 'x_npcink_timestamp' => gmdate( 'c', time() - 3600 ) ) ), '', 'GET' ) )
+	);
+	maa_security_assert( is_wp_error( $skewed ) && 'npcink_openclaw_adapter_signed_request_timestamp_skew' === $skewed->get_error_code() && 'timestamp_outside_window' === ( $skewed->get_error_data()['reason'] ?? '' ), 'Stale signed timestamp fails with the skew code and reason.' );
+
+	maa_security_seed_client_key();
+	$hash_mismatch = maa_security_invoke(
+		$controller,
+		'authenticate_signed_request',
+		array( new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $next_nonce(), '/npcink-openclaw-adapter/v1/health', 'actual-body' ), 'different-body', 'GET' ) )
+	);
+	maa_security_assert( is_wp_error( $hash_mismatch ) && 'npcink_openclaw_adapter_signed_request_content_hash_mismatch' === $hash_mismatch->get_error_code(), 'Body hash mismatch fails with the content-hash code.' );
+
+	maa_security_seed_client_key();
+	$bad_signature = maa_security_invoke(
+		$controller,
+		'authenticate_signed_request',
+		array( new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $next_nonce(), '/npcink-openclaw-adapter/v1/health', '', array( 'x_npcink_signature' => maa_security_base64url( str_repeat( 'c', 64 ) ) ) ), '', 'GET' ) )
+	);
+	maa_security_assert( is_wp_error( $bad_signature ) && 'npcink_openclaw_adapter_signed_request_rejected' === $bad_signature->get_error_code(), 'Failed Ed25519 verification fails with the shared rejection code.' );
+	maa_security_assert( $bad_signature->get_error_code() === $unknown_key->get_error_code() && $bad_signature->get_error_code() === $revoked_key->get_error_code(), 'Key state is not observable before a verified signature: unknown, revoked, and bad-signature failures share one code.' );
+
+	$nonce_value = 'sec-nonce-replay';
+	maa_security_seed_client_key();
+	$first_replay_request  = new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $nonce_value ), '', 'GET' );
+	$second_replay_request = new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $nonce_value ), '', 'GET' );
+	maa_security_invoke( $controller, 'authenticate_signed_request', array( $first_replay_request ) );
+	$replayed = maa_security_invoke( $controller, 'authenticate_signed_request', array( $second_replay_request ) );
+	maa_security_assert( is_wp_error( $replayed ) && 'npcink_openclaw_adapter_signed_request_nonce_replayed' === $replayed->get_error_code(), 'Replayed nonce fails with the nonce-replayed code.' );
+
+	maa_security_seed_client_key();
+	$success_request = new WP_REST_Request( array(), '/npcink-openclaw-adapter/v1/health', maa_security_valid_signed_headers( $controller, $next_nonce() ), '', 'GET' );
+	$success = maa_security_invoke( $controller, 'authenticate_signed_request', array( $success_request ) );
+	maa_security_assert( true === $success, 'Complete valid signed request still authenticates.' );
+	maa_security_assert( $trusted_fingerprint === $fingerprint_property->getValue( $controller ), 'Successful signed request records the client fingerprint.' );
+
+	fwrite( STDOUT, "Signed request auth behavior: ok\n" );
+}
 
 fwrite( STDOUT, "Security hardening behavior: ok\n" );

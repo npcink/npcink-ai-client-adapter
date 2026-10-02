@@ -28,8 +28,8 @@ queue, hosted drafting path, or Cloud article import for this recipe.
 
 ## Recipe
 
-1. Discover the playbook with `GET /help` and read
-   `openclaw_recipes.article_draft_plan`.
+1. Read this reviewed playbook document (Adapter `/help` no longer
+   carries recipe playbooks).
 2. Build the planning artifact:
 
 ```json

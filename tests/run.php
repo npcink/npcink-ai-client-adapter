@@ -805,7 +805,6 @@ foreach (
 			'help_route_groups',
 			'help_routes_flat',
 			'help_route_purpose',
-			'GET /term?id={id}',
 			'normalize_shortcut_input',
 			'boolean_input_value',
 			'include_delete_candidates',
@@ -1313,11 +1312,26 @@ maa_adapter_assert( false === strpos( $controller, "'POST /proposals/{proposal_i
 $key_revoke_route = substr( $controller, (int) strpos( $controller, "'/connection/key-pairs/(?P<key_id>mk_[A-Za-z0-9_-]+)'" ), 360 );
 maa_adapter_assert( false !== strpos( $key_revoke_route, "array( \$this, 'can_use_admin_session' )" ), 'Client key revoke route requires administrator session auth.' );
 maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_use_adapter' )" ), 'Client key revoke route is not available through signed adapter clients.' );
-	$client_key_auth = substr( $controller, (int) strpos( $controller, 'private function authenticate_signed_request' ), 2600 );
+	$client_key_auth = substr( $controller, (int) strpos( $controller, 'private function authenticate_signed_request' ), 6400 );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'should_update_client_key_last_used' ), 'Signed request auth throttles last-used option writes.' );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'current_signed_client_fingerprint' ), 'Signed request auth records the current client fingerprint.' );
 	maa_adapter_assert( false !== strpos( $client_key_auth, 'claim_signature_nonce( $key_id, $nonce )' ), 'Signed request auth atomically claims a nonce only after signature verification.' );
 	maa_adapter_assert( false === strpos( $client_key_auth, 'get_transient( $nonce_key )' ) && false === strpos( $client_key_auth, 'set_transient( $nonce_key' ), 'Signed request auth removes the non-atomic transient nonce check.' );
+	foreach (
+		array(
+			'npcink_openclaw_adapter_signed_request_malformed',
+			'npcink_openclaw_adapter_signed_request_rejected',
+			'npcink_openclaw_adapter_signed_request_scope_denied',
+			'npcink_openclaw_adapter_signed_request_timestamp_skew',
+			'npcink_openclaw_adapter_signed_request_content_hash_mismatch',
+			'npcink_openclaw_adapter_signed_request_nonce_replayed',
+			'npcink_openclaw_adapter_authentication_required',
+			'npcink_openclaw_adapter_privilege_required',
+		) as $structured_signed_auth_code
+	) {
+		maa_adapter_assert( false !== strpos( $controller, $structured_signed_auth_code ), 'Signed request auth exposes a structured failure code: ' . $structured_signed_auth_code );
+	}
+	maa_adapter_assert( false !== strpos( $controller, 'rest_response_with_retry_after' ), 'Pairing rate limit responses carry the standard Retry-After header.' );
 	$nonce_claim = substr( $controller, (int) strpos( $controller, 'private function claim_signature_nonce' ), 5200 );
 	maa_adapter_assert( false !== strpos( $nonce_claim, 'insert_signature_nonce_option( $nonce_key, $expires_at )' ), 'Signature nonce claim uses an insert-only options primitive.' );
 	maa_adapter_assert( false !== strpos( $nonce_claim, 'delete_expired_signature_nonce_option' ), 'Expired nonce reclaim uses conditional deletion.' );
@@ -1592,7 +1606,7 @@ foreach (
 		'local_cli_connect_command',
 		'local_cli_status_command',
 		'LOCAL_CLI_PACKAGE',
-		'@npcink/openclaw-adapter-cli@0.5.0',
+		'@npcink/openclaw-adapter-cli@0.6.0',
 		'--intent=preflight',
 		'--intent=commit',
 		'final execute routes require --intent=commit',
@@ -2062,7 +2076,7 @@ foreach ( $current_boundary_docs as $doc_name => $doc_body ) {
 foreach (
 	array(
 		'"name": "@npcink/openclaw-adapter-cli"',
-		'"version": "0.5.0"',
+		'"version": "0.6.0"',
 		'"bin"',
 		'"npcink-openclaw-adapter": "bin/npcink-openclaw-adapter.mjs"',
 		'"node": ">=20"',
@@ -2127,6 +2141,7 @@ foreach (
 		'wrapper_failed',
 		'redactOutput',
 		'isSensitiveOutputKey',
+		'output.data = redactOutput(errorData)',
 	) as $required
 ) {
 	maa_adapter_assert( false !== strpos( $keypair_request_tool, $required ), 'Packaged keypair request wrapper contains expected behavior: ' . $required );
@@ -2145,10 +2160,12 @@ foreach (
 		'recipe',
 			'ai-image-ratio-crop-media-adoption',
 			'AI_IMAGE_RATIO_CROP_RECIPE_ID',
-			'loadAiImageRatioCropRecipe',
+			'AI_IMAGE_RATIO_CROP_RECIPE_CONTRACT',
+			'aiImageRatioCropRecipeContract',
 			'recipeAiImageAdoptionPlan',
 			'requestJsonViaWrapper',
-			'openclaw_recipes.${AI_IMAGE_RATIO_CROP_RECIPE_ID}',
+			'cli-local-mirror',
+			'docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
 		'target_aspect_ratio_required',
 		'ai_generation_dimensions_are_advisory',
 		'cloud_crop_required_for_generated_images',
@@ -2197,6 +2214,8 @@ foreach (
 		'inputPayloadFromArgs',
 		'redactOutput',
 		'isSensitiveOutputKey',
+		'safeErrorMessage',
+		'JSON.stringify(data).slice(0, 2000)',
 		'read-request create requires --ability-id, --purpose, and --data-classes.',
 		'false values indicate Core keeps final execution authority separate from Adapter diagnostics.',
 	) as $required
@@ -2226,14 +2245,14 @@ foreach (
 		'Tested up to: 7.1',
 		'Requires PHP: 8.0',
 		'Requires Plugins: npcink-abilities-toolkit, npcink-governance-core',
-		'Stable tag: 0.4.0',
+		'Stable tag: 0.4.1',
 		'License: GPL-2.0-or-later',
 		'structured missing dependency error',
 		'machine-readable `client_policy`',
 		'local CLI also redacts profile paths',
 		'Npcink Governance Core remains the governance backend',
 		'npcink-abilities-toolkit/trash-post',
-		'= 0.4.0 =',
+		'= 0.4.1 =',
 		'= 0.3.1 =',
 		'= 0.3.0 =',
 		'Add Adapter-declared Core and Abilities Toolkit compatibility floors to the machine-readable contract metadata',
@@ -2484,7 +2503,7 @@ foreach (
 		'GET /help',
 		'GET /capabilities',
 		'Public Key Device Pairing',
-		'cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.5.0 -- npcink-openclaw-adapter',
+		'cd ~ && npm exec --yes --package @npcink/openclaw-adapter-cli@0.6.0 -- npcink-openclaw-adapter',
 		'does not keep root-level `tools/` compatibility',
 		'connect/device/start',
 		'POST /proposals/from-plan',
@@ -2539,7 +2558,7 @@ foreach (
 		'OpenClaw Connection Model Notes',
 		'Default: simple Application Password connection',
 		'Higher security: local signed key-pair',
-		'@npcink/openclaw-adapter-cli@0.5.0',
+		'@npcink/openclaw-adapter-cli@0.6.0',
 		'sh: npcink-openclaw-adapter: command not found',
 		'Secret Handling Rules',
 		'Plugin-generated private keys',
@@ -2662,9 +2681,9 @@ foreach (
 		'npcink-toolbox/build-article-write-plan',
 		'npcink-toolbox/build-article-batch-write-plan',
 		'npcink-toolbox/build-article-media-batch-write-plan',
-		'openclaw_recipes.article_batch_draft_plan',
-			'openclaw_recipes.article_media_batch_plan',
-			'openclaw_recipes.site_edit_router',
+		'docs/openclaw-article-batch-draft-plan-recipe.md',
+			'docs/openclaw-article-media-batch-plan-recipe.md',
+			'docs/openclaw-site-edit-router-contract.md',
 			'untrusted_user_prompt_to_allowed_recipe',
 			'prompt_is_authorization=false',
 			'fail_closed',
@@ -2745,7 +2764,7 @@ foreach (
 		'status=failed',
 			'failed action metadata',
 			'does not store the full proposal or create a retry queue',
-			'openclaw_recipes.site_edit_router',
+			'docs/openclaw-site-edit-router-contract.md',
 			'prompt_is_authorization=false',
 			'default_behavior=fail_closed',
 			'npcink_openclaw_adapter_write_action_invalid',
@@ -2802,11 +2821,11 @@ foreach (
 		'npcink-toolbox/build-article-write-plan',
 		'npcink-toolbox/build-article-batch-write-plan',
 		'npcink-toolbox/build-article-media-batch-write-plan',
-		'openclaw_recipes.article_batch_draft_plan',
-		'openclaw_recipes.article_media_batch_plan',
-		'openclaw_recipes.pattern_page_plan',
-		'openclaw_recipes.pattern_page_research_brief',
-		'openclaw_recipes.pattern_page_with_visual_asset_plan',
+		'docs/openclaw-article-batch-draft-plan-recipe.md',
+		'docs/openclaw-article-media-batch-plan-recipe.md',
+		'docs/openclaw-pattern-page-plan-recipe.md',
+		'docs/openclaw-pattern-page-research-brief-recipe.md',
+		'docs/openclaw-pattern-page-with-visual-asset-recipe.md',
 		'core/image.attrs.id',
 		'core/media-text.attrs.mediaId',
 		'wp-image-{id}',
@@ -3633,7 +3652,7 @@ foreach (
 		'core/media-text',
 		'core/details',
 		'1440px, 768px, and 390px',
-		'openclaw_recipes.pattern_page_plan.visual_acceptance',
+		'visual_acceptance` contract',
 		'MAA_ADAPTER_VISUAL_ACCEPTANCE_OUT',
 		'MAA_ADAPTER_KEEP_VISUAL_ACCEPTANCE_FIXTURES',
 		'openclaw-gutenberg-visual-acceptance.md',
@@ -3680,7 +3699,7 @@ foreach (
 		'core/image',
 		'core/details',
 		'1440px, 768px, and 390px',
-		'openclaw_recipes.article_block_plan.visual_acceptance',
+		'visual_acceptance` contract',
 		'MAA_ADAPTER_VISUAL_ACCEPTANCE_OUT',
 		'MAA_ADAPTER_KEEP_VISUAL_ACCEPTANCE_FIXTURES',
 		'openclaw-gutenberg-visual-acceptance.md',
