@@ -115,19 +115,19 @@ Run this order for a local acceptance pass:
      from `GET /help` in the thin-channel cleanup. Each reviewed recipe is
      documented under `docs/`; confirm every recipe your flow uses has a
      current doc and that the client follows its documented steps:
-     - `docs/openclaw-article-draft-plan-recipe.md`
-     - `docs/openclaw-article-batch-draft-plan-recipe.md`
-     - `docs/openclaw-article-media-batch-plan-recipe.md`
+     - `docs/recipes/openclaw-article-draft-plan-recipe.md`
+     - `docs/recipes/openclaw-article-batch-draft-plan-recipe.md`
+     - `docs/recipes/openclaw-article-media-batch-plan-recipe.md`
      - `docs/openclaw-site-edit-router-contract.md`
-     - `docs/openclaw-article-block-plan-recipe.md`
-     - `docs/openclaw-pattern-page-plan-recipe.md`
-     - `docs/openclaw-block-theme-site-builder-recipe.md`
-     - `docs/openclaw-pattern-page-research-brief-recipe.md`
-     - `docs/openclaw-pattern-page-with-visual-asset-recipe.md`
-     - `docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`
-     - `docs/openclaw-content-discoverability-recipe.md`
-     - `docs/openclaw-ai-article-writing-pack-recipe.md`
-     - `docs/openclaw-media-derivative-cloud-recipe.md`
+     - `docs/recipes/openclaw-article-block-plan-recipe.md`
+     - `docs/recipes/openclaw-pattern-page-plan-recipe.md`
+     - `docs/recipes/openclaw-block-theme-site-builder-recipe.md`
+     - `docs/recipes/openclaw-pattern-page-research-brief-recipe.md`
+     - `docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md`
+     - `docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`
+     - `docs/recipes/openclaw-content-discoverability-recipe.md`
+     - `docs/recipes/openclaw-ai-article-writing-pack-recipe.md`
+     - `docs/recipes/openclaw-media-derivative-cloud-recipe.md`
    Confirm the pattern page and article block recipes document their
    `visual_acceptance` contract with `operator_browser_check`, front-end and
    block-editor targets, and desktop, tablet, and mobile viewport rows.
@@ -156,7 +156,7 @@ Run this order for a local acceptance pass:
    `generic_write_executor=false`; OpenClaw must treat hosted image generation
    as a reviewed candidate source, not a direct page write step.
    Confirm the AI image ratio crop recipe
-   (`docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`) documents
+   (`docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`) documents
    `target_aspect_ratio_required=true`,
    `ai_generation_dimensions_are_advisory=true`,
    `cloud_crop_required_for_generated_images=true`,

@@ -13,7 +13,7 @@ const AI_IMAGE_RATIO_CROP_RECIPE_ID = 'ai_image_ratio_crop_media_adoption';
 const AI_IMAGE_RATIO_CROP_RECIPE_CLI_ID = 'ai-image-ratio-crop-media-adoption';
 // Adapter /help no longer carries recipe playbooks (thin-channel cleanup).
 // The CLI mirrors the reviewed recipe contract locally; the contract source
-// of truth is docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md.
+// of truth is docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md.
 const AI_IMAGE_RATIO_CROP_RECIPE_CONTRACT = {
   recipe_id: AI_IMAGE_RATIO_CROP_RECIPE_ID,
   title: 'AI image ratio crop media adoption',
@@ -30,7 +30,7 @@ const AI_IMAGE_RATIO_CROP_RECIPE_CONTRACT = {
     adapter_artifact_registry: false,
   },
   contract_source: 'cli-local-mirror',
-  contract_docs: 'docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
+  contract_docs: 'docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
 };
 
 if (!['connect', 'status', 'request', 'read-request', 'read-ability', 'recipe', 'mcp'].includes(command)) {

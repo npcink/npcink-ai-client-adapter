@@ -331,7 +331,7 @@ the atom input contracts, output artifact expectations, and boundary rules.
 
 ## OpenClaw Recipe Discovery
 
-The article draft plan recipe is documented in `docs/openclaw-article-draft-plan-recipe.md` for clients that need a fixed flow. The recipe is channel guidance only:
+The article draft plan recipe is documented in `docs/recipes/openclaw-article-draft-plan-recipe.md` for clients that need a fixed flow. The recipe is channel guidance only:
 
 - entrypoint ability: `npcink-toolbox/build-article-write-plan`
 - plan handoff route: `POST /proposals/from-plan`
@@ -348,7 +348,7 @@ publishes to OpenClaw. Those buttons must mirror the same ability ids, artifact
 types, and Core proposal handoff routes; they do not make Toolbox a second
 OpenClaw recipe owner, proposal truth, approval surface, or write executor.
 
-The article batch draft plan recipe is documented in `docs/openclaw-article-batch-draft-plan-recipe.md` for reviewed 2-5 article draft batches:
+The article batch draft plan recipe is documented in `docs/recipes/openclaw-article-batch-draft-plan-recipe.md` for reviewed 2-5 article draft batches:
 
 - entrypoint ability: `npcink-toolbox/build-article-batch-write-plan`
 - plan handoff route: `POST /proposals/from-plan`
@@ -363,7 +363,7 @@ The batch recipe must keep `batch_approval=true`, declare
 stop after earlier actions have succeeded), `core_proxy_execute=false`,
 `commit_execution=false`, `draft_only=true`, and `publish_allowed=false`.
 
-The article media batch plan recipe is documented in `docs/openclaw-article-media-batch-plan-recipe.md` for reviewed article drafts with selected image-source candidates:
+The article media batch plan recipe is documented in `docs/recipes/openclaw-article-media-batch-plan-recipe.md` for reviewed article drafts with selected image-source candidates:
 
 - entrypoint ability:
   `npcink-toolbox/build-article-media-batch-write-plan`
@@ -399,7 +399,7 @@ not create proposals for `route=unsupported`, and must not treat a customer
 prompt as execution approval. See
 [`docs/openclaw-content-intent-router-contract.md`](openclaw-content-intent-router-contract.md).
 
-The pattern page plan recipe is documented in `docs/openclaw-pattern-page-plan-recipe.md` for reviewed Gutenberg page pattern drafts:
+The pattern page plan recipe is documented in `docs/recipes/openclaw-pattern-page-plan-recipe.md` for reviewed Gutenberg page pattern drafts:
 
 - entrypoint ability:
   `npcink-abilities-toolkit/build-pattern-page-plan`
@@ -433,7 +433,7 @@ project the allowed surface/intent/target shape and then continue through the
 existing recipe, plan, proposal, approval, commit-preflight, execution profile,
 and read-back verification path.
 
-The block theme site builder recipe is documented in `docs/openclaw-block-theme-site-builder-recipe.md` for reviewed conversational block theme Site Editor changes:
+The block theme site builder recipe is documented in `docs/recipes/openclaw-block-theme-site-builder-recipe.md` for reviewed conversational block theme Site Editor changes:
 
 - context abilities:
   `npcink-abilities-toolkit/get-block-theme-context`,
@@ -469,7 +469,7 @@ supports `intent=add_breadcrumbs` plus bounded
 navigation, raw template HTML, and arbitrary unprofiled template composition
 outside the execution profile.
 
-The article block plan recipe is documented in `docs/openclaw-article-block-plan-recipe.md` for reviewed Gutenberg article block drafts:
+The article block plan recipe is documented in `docs/recipes/openclaw-article-block-plan-recipe.md` for reviewed Gutenberg article block drafts:
 
 - entrypoint ability:
   `npcink-abilities-toolkit/build-article-block-plan`
@@ -507,7 +507,7 @@ Adapter commit-preflight.
 The shared browser checklist lives in
 [`openclaw-gutenberg-visual-acceptance.md`](openclaw-gutenberg-visual-acceptance.md).
 
-The pattern page research brief recipe is documented in `docs/openclaw-pattern-page-research-brief-recipe.md` for research-backed Gutenberg landing pages:
+The pattern page research brief recipe is documented in `docs/recipes/openclaw-pattern-page-research-brief-recipe.md` for research-backed Gutenberg landing pages:
 
 - entrypoint ability:
   `npcink-toolbox/build-content-discoverability-brief`
@@ -522,7 +522,7 @@ search intent and guardrails. The research brief must not copy reference-site
 text, images, CSS, pricing claims, customer claims, rankings, or unsupported
 feature claims into the Pattern page plan.
 
-The image candidate adoption plan recipe is documented in `docs/openclaw-image-candidate-adoption-plan-recipe.md` for reviewed adoption of one image candidate into the media library:
+The image candidate adoption plan recipe is documented in `docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md` for reviewed adoption of one image candidate into the media library:
 
 - entrypoint ability:
   `npcink-toolbox/build-image-candidate-adoption-plan`
@@ -542,7 +542,7 @@ The image candidate adoption recipe must preserve source attribution and keep
 search stock providers, generate images, upload media, set featured images, or
 create a media registry by itself.
 
-The pattern page with visual asset recipe is documented in `docs/openclaw-pattern-page-with-visual-asset-recipe.md` for visually richer Gutenberg landing pages. This is a composed two-stage playbook that can follow
+The pattern page with visual asset recipe is documented in `docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md` for visually richer Gutenberg landing pages. This is a composed two-stage playbook that can follow
 `pattern_page_research_brief`:
 
 1. ask the Cloud-backed image source recommender for reviewable
@@ -569,7 +569,7 @@ import media, crop images, or create the page as one direct mutation. The page
 plan must reference the final local WordPress media URL, not a remote source or
 temporary Cloud preview URL.
 
-The AI image ratio crop recipe is documented in `docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md` for AI-generated images that need a stable page-slot ratio before adoption. This is a composed
+The AI image ratio crop recipe is documented in `docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md` for AI-generated images that need a stable page-slot ratio before adoption. This is a composed
 candidate-crop-adoption playbook:
 
 1. collect and review an `image_candidate.v1` from Cloud recommendation first;
