@@ -53,13 +53,13 @@ final class Execution_Input_Validator {
 			return new WP_Error(
 				'npcink_openclaw_adapter_execute_profile_unsupported',
 				__( 'This proposal ability is not implemented by Adapter execution profiles.', 'npcink-ai-client-adapter' ),
-			array(
-				'status'                      => 403,
-				'proposal_id'                 => $proposal_id,
-				'ability_id'                  => $ability_id,
-				'supported_execute_ability_ids' => array_keys( $this->profiles ),
-			)
-		);
+				array(
+					'status'                        => 403,
+					'proposal_id'                   => $proposal_id,
+					'ability_id'                    => $ability_id,
+					'supported_execute_ability_ids' => array_keys( $this->profiles ),
+				)
+			);
 	}
 
 	/**
@@ -169,14 +169,14 @@ final class Execution_Input_Validator {
 					return new WP_Error(
 						'npcink_openclaw_adapter_ability_input_field_unsupported',
 						__( 'Proposal input includes a field outside this ability schema.', 'npcink-ai-client-adapter' ),
-					array_merge(
-						$error_data,
-						array(
-							'field'                => $field,
-							'supported_input_fields' => $supported_input_fields,
+						array_merge(
+							$error_data,
+							array(
+								'field'                  => $field,
+								'supported_input_fields' => $supported_input_fields,
+							)
 						)
-					)
-				);
+					);
 			}
 		}
 
@@ -300,7 +300,7 @@ final class Execution_Input_Validator {
 		}
 
 		if ( ! empty( $profile['validate_attachment_input'] ) ) {
-			$attachment_id = absint( $input['attachment_id'] ?? 0 );
+			$attachment_id          = absint( $input['attachment_id'] ?? 0 );
 			$defer_attachment_check = $allow_output_refs && $this->is_output_reference( $input['attachment_id'] ?? null );
 			if ( ! $defer_attachment_check && function_exists( 'get_post_type' ) && 'attachment' !== get_post_type( $attachment_id ) ) {
 				$attachment_rule = is_array( $profile['validate_attachment_input'] ) ? $profile['validate_attachment_input'] : array();
@@ -353,10 +353,10 @@ final class Execution_Input_Validator {
 				);
 			}
 
-				if ( ! empty( $input['create_missing'] ) ) {
-					return new WP_Error(
-						'npcink_openclaw_adapter_create_missing_terms_unsupported',
-						__( 'set-post-terms execution does not implement creating missing terms.', 'npcink-ai-client-adapter' ),
+			if ( ! empty( $input['create_missing'] ) ) {
+				return new WP_Error(
+					'npcink_openclaw_adapter_create_missing_terms_unsupported',
+					__( 'set-post-terms execution does not implement creating missing terms.', 'npcink-ai-client-adapter' ),
 					$error_data
 				);
 			}
@@ -645,5 +645,4 @@ final class Execution_Input_Validator {
 		}
 		return $resolved;
 	}
-
 }

@@ -644,7 +644,7 @@ foreach (
 			'supported_when_forwarded_by_trusted_adapter',
 			'rest_error_code_from_data',
 		'npcink_openclaw_adapter_contract.v1',
-		"const ADAPTER_CONTRACT_VERSION    = '4'",
+		"const ADAPTER_CONTRACT_VERSION             = '4'",
 		'generic_ai_client',
 		'priority_channel',
 		'workflow_projection_contract',
@@ -1363,9 +1363,9 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	}
 	foreach (
 		array(
-			"const EXECUTION_RECORDS_OPTION  = 'npcink_openclaw_adapter_execution_records'",
-			'const MAX_EXECUTION_RECORDS        = 500',
-			'const EXECUTION_RECORD_RETENTION_TTL = 604800',
+			"const EXECUTION_RECORDS_OPTION             = 'npcink_openclaw_adapter_execution_records';",
+			'const MAX_EXECUTION_RECORDS                = 500;',
+			'const EXECUTION_RECORD_RETENTION_TTL       = 604800',
 			'private function execution_records()',
 			'private function prune_execution_records',
 			'update_option( self::EXECUTION_RECORDS_OPTION, $records, false )',
@@ -1376,9 +1376,9 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	}
 	foreach (
 		array(
-			"const PREFLIGHT_HANDOFFS_OPTION = 'npcink_openclaw_adapter_preflight_handoffs'",
-			'const MAX_PREFLIGHT_HANDOFFS       = 500',
-			'const PREFLIGHT_HANDOFF_RETENTION_TTL = 900',
+			"const PREFLIGHT_HANDOFFS_OPTION            = 'npcink_openclaw_adapter_preflight_handoffs'",
+			'const MAX_PREFLIGHT_HANDOFFS               = 500;',
+			'const PREFLIGHT_HANDOFF_RETENTION_TTL      = 900',
 			'private function preflight_handoffs()',
 			'private function prune_preflight_handoffs',
 			'update_option( self::PREFLIGHT_HANDOFFS_OPTION, $records, false )',
@@ -1413,16 +1413,16 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	maa_adapter_assert( false !== strpos( $requested_scopes, "'npcink.execute' => true" ), 'Device pairing can explicitly request npcink.execute.' );
 	maa_adapter_assert( false !== strpos( $requested_scopes, "\$default_scopes = array( 'npcink.read', 'npcink.propose', 'npcink.status' );" ), 'Device pairing defaults do not silently grant execute scope.' );
 	$plan_batch_metadata = substr( $controller, (int) strpos( $controller, 'private function normalize_plan_batch_metadata' ), 1400 );
-maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['proposal_mode']  = 'batch';" ), 'Adapter makes dependent plan batches explicit before Core from-plan forwarding.' );
-maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['batch_approval'] = true;" ), 'Adapter makes dependent plan batch approval explicit before Core from-plan forwarding.' );
-maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['atomicity'] = 'non_atomic';" ) && false !== strpos( $plan_batch_metadata, "\$plan['partial_success_possible'] = true;" ), 'Adapter declares batch execution as non-atomic with possible partial success.' );
+maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['proposal_mode']            = 'batch';" ), 'Adapter makes dependent plan batches explicit before Core from-plan forwarding.' );
+maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['batch_approval']           = true;" ), 'Adapter makes dependent plan batch approval explicit before Core from-plan forwarding.' );
+maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['atomicity']                = 'non_atomic';" ) && false !== strpos( $plan_batch_metadata, "\$plan['partial_success_possible'] = true;" ), 'Adapter declares batch execution as non-atomic with possible partial success.' );
 $plan_write_input_validation = substr( $controller, (int) strpos( $controller, 'private function validate_plan_write_action_inputs' ), 3000 );
 maa_adapter_assert( false !== strpos( $plan_write_input_validation, "\$proposal_ready = array_key_exists( 'proposal_ready', \$raw_action )" ) && false !== strpos( $plan_write_input_validation, "\$requires_input = array_values( array_map( 'sanitize_key', (array) ( \$raw_action['requires_input'] ?? array() ) ) )" ) && false !== strpos( $plan_write_input_validation, "'npcink_openclaw_adapter_plan_action_input_invalid'" ), 'Adapter rejects malformed and requires-input plan actions before Core proposal forwarding.' );
 maa_adapter_assert( false !== strpos( $controller, 'min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint' ), 'Adapter list routes clamp caller supplied limits.' );
 maa_adapter_assert( false === strpos( $controller, 'HTTP_USER_AGENT' ), 'Public pairing rate limit is not weakened by caller-controlled user agents.' );
 maa_adapter_assert( false !== strpos( $controller, "approve_device_pairing( string \$user_code, string \$admin_label = '' )" ), 'Controller accepts an administrator label during device pairing approval.' );
 maa_adapter_assert( false !== strpos( $controller, '$admin_label = $this->bounded_text_field( $admin_label, 80 );' ), 'Controller bounds administrator device labels before storage.' );
-maa_adapter_assert( false !== strpos( $controller, "'admin_label'   => \$admin_label" ), 'Controller stores administrator device labels with key-pair records.' );
+maa_adapter_assert( false !== strpos( $controller, "'admin_label'    => \$admin_label," ), 'Controller stores administrator device labels with key-pair records.' );
 maa_adapter_assert( false !== strpos( $controller, "'admin_label'   => (string) ( \$record['admin_label'] ?? '' )" ), 'Controller exposes administrator device labels to the current administrator key-pair view.' );
 maa_adapter_assert( false === strpos( $controller, '$supported_execute_ability_ids' ), 'Controller derives execute supported profiles from execution profiles.' );
 maa_adapter_assert( false === strpos( $controller, 'include_log_tail' ), 'Adapter does not implement old include_log_tail compatibility.' );
@@ -1475,7 +1475,7 @@ foreach (
 $connection_page = maa_adapter_read( $root . '/includes/Admin/Connection_Page.php' );
 $admin_css       = maa_adapter_read( $root . '/assets/admin.css' );
 $admin_js        = maa_adapter_read( $root . '/assets/admin.js' );
-maa_adapter_assert( false !== strpos( $connection_page, "const PARENT_MENU_SLUG = 'npcink-ai';" ), 'Connection page targets the shared Npcink AI parent menu slug.' );
+maa_adapter_assert( false !== strpos( $connection_page, "const PARENT_MENU_SLUG                            = 'npcink-ai';" ), 'Connection page targets the shared Npcink AI parent menu slug.' );
 maa_adapter_assert( false !== strpos( $connection_page, "! empty( \$health['dependency_contracts_ready'] )" ), 'Connection page requires dependency contracts before showing Ready.' );
 foreach (
 	array(
@@ -1525,7 +1525,7 @@ foreach (
 		'Copy status URL',
 		'Copy execute URL',
 		'proposal_next_step_text',
-		"DATETIME_DISPLAY_FORMAT = 'Y-m-d H:i:s'",
+		"DATETIME_DISPLAY_FORMAT                     = 'Y-m-d H:i:s'",
 			'display_datetime',
 			'wp_date( self::DATETIME_DISPLAY_FORMAT, $timestamp )',
 			'$this->display_datetime( $created )',
@@ -1750,7 +1750,7 @@ maa_adapter_assert( false !== strpos( $connection_page, 'openclaw_connection_man
 maa_adapter_assert( false === strpos( $connection_page, 'openclaw_created_handoff_text(' ), 'Connection page removes verbose created handoff text builder.' );
 maa_adapter_assert( false === strpos( $connection_page, 'workbuddy_handoff_text(' ), 'Connection page removes WorkBuddy setup text builder.' );
 maa_adapter_assert( false !== strpos( $connection_page, 'connection_page_url()' ) && false !== strpos( $connection_page, "defined( 'NPCINK_TOOLBOX_VERSION' ) ? 'admin.php' : 'options-general.php'" ), 'Adapter return links target the Toolbox submenu or standalone Settings page.' );
-maa_adapter_assert( false !== strpos( $connection_page, "const MENU_SLUG        = 'npcink-ai-client-adapter';" ), 'Connection page uses the canonical Adapter admin slug.' );
+maa_adapter_assert( false !== strpos( $connection_page, "const MENU_SLUG                                   = 'npcink-ai-client-adapter';" ), 'Connection page uses the canonical Adapter admin slug.' );
 maa_adapter_assert( false !== strpos( $connection_page, "__( 'Npcink AI Client Adapter', 'npcink-ai-client-adapter' )" ) && false !== strpos( $connection_page, "__( 'Adapter', 'npcink-ai-client-adapter' )" ), 'Connection page registers the requested page and menu titles.' );
 maa_adapter_assert( false !== strpos( $connection_page, "esc_html( 'Npcink AI Client Adapter' )" ), 'Connection page uses the fixed product name for the primary admin heading.' );
 maa_adapter_assert( false === strpos( $connection_page, 'Developer route details and local testing notes are documented' ), 'Connection page default view does not show developer route notes.' );

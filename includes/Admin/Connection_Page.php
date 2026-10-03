@@ -19,15 +19,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Renders a read-only connection handoff surface for AI clients.
  */
 final class Connection_Page {
-	const PARENT_MENU_SLUG = 'npcink-ai';
-	const MENU_SLUG        = 'npcink-ai-client-adapter';
-	const MENU_CAPABILITY  = 'manage_options';
-	const CREATE_ACTION    = 'npcink_openclaw_adapter_create_openclaw_password';
-	const PAIR_MENU_SLUG   = 'npcink-openclaw-adapter-pair';
-	const PAIR_ACTION      = 'npcink_openclaw_adapter_pairing_decision';
-	const REVOKE_KEY_ACTION = 'npcink_openclaw_adapter_revoke_client_key';
-	const DATETIME_DISPLAY_FORMAT = 'Y-m-d H:i:s';
-	const LOCAL_CLI_PACKAGE = '@npcink/openclaw-adapter-cli@0.6.0';
+	const PARENT_MENU_SLUG                            = 'npcink-ai';
+	const MENU_SLUG                                   = 'npcink-ai-client-adapter';
+	const MENU_CAPABILITY                             = 'manage_options';
+	const CREATE_ACTION                               = 'npcink_openclaw_adapter_create_openclaw_password';
+	const PAIR_MENU_SLUG                              = 'npcink-openclaw-adapter-pair';
+	const PAIR_ACTION                                 = 'npcink_openclaw_adapter_pairing_decision';
+	const REVOKE_KEY_ACTION                           = 'npcink_openclaw_adapter_revoke_client_key';
+	const DATETIME_DISPLAY_FORMAT                     = 'Y-m-d H:i:s';
+	const LOCAL_CLI_PACKAGE                           = '@npcink/openclaw-adapter-cli@0.6.0';
 	const APPLICATION_PASSWORD_FALLBACK_CONFIRM_FIELD = 'confirm_application_password_fallback';
 
 	/**
@@ -377,7 +377,7 @@ final class Connection_Page {
 			<?php endif; ?>
 		</div>
 			<?php
-		}
+	}
 
 		/**
 		 * Returns the page title for the current pairing state.
@@ -385,17 +385,17 @@ final class Connection_Page {
 		 * @param string $status Pairing status.
 		 * @return string
 		 */
-		private function pairing_page_title( string $status ): string {
-			if ( 'approved' === $status ) {
-				return __( 'Npcink client approved', 'npcink-ai-client-adapter' );
-			}
-
-			if ( 'rejected' === $status ) {
-				return __( 'Npcink client rejected', 'npcink-ai-client-adapter' );
-			}
-
-			return __( 'Approve Npcink Client', 'npcink-ai-client-adapter' );
+	private function pairing_page_title( string $status ): string {
+		if ( 'approved' === $status ) {
+			return __( 'Npcink client approved', 'npcink-ai-client-adapter' );
 		}
+
+		if ( 'rejected' === $status ) {
+			return __( 'Npcink client rejected', 'npcink-ai-client-adapter' );
+		}
+
+		return __( 'Approve Npcink Client', 'npcink-ai-client-adapter' );
+	}
 
 		/**
 		 * Returns administrator-readable scope descriptions.
@@ -403,28 +403,28 @@ final class Connection_Page {
 		 * @param array<int,mixed> $scopes Pairing scopes.
 		 * @return array<int,string>
 		 */
-		private function pairing_scope_descriptions( array $scopes ): array {
-			$known = array(
-				'npcink.read'    => __( 'Read approved Adapter and WordPress Abilities API routes.', 'npcink-ai-client-adapter' ),
-				'npcink.propose' => __( 'Create Core-governed proposals for reviewed writes.', 'npcink-ai-client-adapter' ),
-				'npcink.status'  => __( 'Check Adapter, Core proposal, and execution status.', 'npcink-ai-client-adapter' ),
-				'npcink.execute' => __( 'Execute already-approved Adapter write routes after human approval in the Core admin and commit preflight. This scope never includes proposal approval: the client cannot approve its own proposals.', 'npcink-ai-client-adapter' ),
-			);
+	private function pairing_scope_descriptions( array $scopes ): array {
+		$known = array(
+			'npcink.read'    => __( 'Read approved Adapter and WordPress Abilities API routes.', 'npcink-ai-client-adapter' ),
+			'npcink.propose' => __( 'Create Core-governed proposals for reviewed writes.', 'npcink-ai-client-adapter' ),
+			'npcink.status'  => __( 'Check Adapter, Core proposal, and execution status.', 'npcink-ai-client-adapter' ),
+			'npcink.execute' => __( 'Execute already-approved Adapter write routes after human approval in the Core admin and commit preflight. This scope never includes proposal approval: the client cannot approve its own proposals.', 'npcink-ai-client-adapter' ),
+		);
 
-			$descriptions = array();
-			foreach ( $scopes as $scope ) {
-				$scope = (string) $scope;
-				if ( isset( $known[ $scope ] ) ) {
-					$descriptions[] = $known[ $scope ];
-				}
+		$descriptions = array();
+		foreach ( $scopes as $scope ) {
+			$scope = (string) $scope;
+			if ( isset( $known[ $scope ] ) ) {
+				$descriptions[] = $known[ $scope ];
 			}
-
-			if ( empty( $descriptions ) ) {
-				$descriptions[] = __( 'No recognized Adapter scopes were requested.', 'npcink-ai-client-adapter' );
-			}
-
-			return $descriptions;
 		}
+
+		if ( empty( $descriptions ) ) {
+			$descriptions[] = __( 'No recognized Adapter scopes were requested.', 'npcink-ai-client-adapter' );
+		}
+
+		return $descriptions;
+	}
 
 		/**
 		 * Handles device pairing approval or rejection.
@@ -514,11 +514,11 @@ final class Connection_Page {
 			wp_die( esc_html( $this->application_password_unavailable_message() ) );
 		}
 
-		$user_id            = get_current_user_id();
-		$application_name   = isset( $_POST['application_name'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['application_name'] ) ) : '';
-		$application_name   = '' !== $application_name ? $application_name : 'AI client via Npcink AI Client Adapter';
-		$include_local_tls  = ! empty( $_POST['include_local_tls'] );
-		$created            = \WP_Application_Passwords::create_new_application_password(
+		$user_id           = get_current_user_id();
+		$application_name  = isset( $_POST['application_name'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['application_name'] ) ) : '';
+		$application_name  = '' !== $application_name ? $application_name : 'AI client via Npcink AI Client Adapter';
+		$include_local_tls = ! empty( $_POST['include_local_tls'] );
+		$created           = \WP_Application_Passwords::create_new_application_password(
 			$user_id,
 			array(
 				'name'   => $application_name,
@@ -609,7 +609,7 @@ final class Connection_Page {
 	/**
 	 * Returns a sanitized scalar request field without direct superglobal reads.
 	 *
-	 * @param int    $input_type One of the INPUT_* constants.
+	 * @param INPUT_GET|INPUT_POST|INPUT_COOKIE|INPUT_SERVER|INPUT_ENV $input_type One of the PHP INPUT_* constants.
 	 * @param string $key        Request field name.
 	 * @return string
 	 */
@@ -800,7 +800,7 @@ final class Connection_Page {
 				'help'         => rest_url( Controller::NAMESPACE . '/help' ),
 				'capabilities' => rest_url( Controller::NAMESPACE . '/capabilities' ),
 			),
-				'note'             => 'Secret must be stored through the AI client credential store or dedicated secret field, not chat, tools, files, logs, proposal payloads, or copied handoff text.',
+			'note'             => 'Secret must be stored through the AI client credential store or dedicated secret field, not chat, tools, files, logs, proposal payloads, or copied handoff text.',
 		);
 
 		$json = wp_json_encode( $manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
@@ -818,7 +818,7 @@ final class Connection_Page {
 
 		foreach ( $key_records as $record ) {
 			if ( '' === (string) ( $record['revoked_at'] ?? '' ) ) {
-				$active++;
+				++$active;
 			}
 		}
 
@@ -937,7 +937,7 @@ final class Connection_Page {
 				continue;
 			}
 
-			$active++;
+			++$active;
 			$last_used_at = (string) ( $record['last_used_at'] ?? '' );
 			if ( '' !== $last_used_at && ( '' === $latest || strtotime( $last_used_at ) > strtotime( $latest ) ) ) {
 				$latest = $last_used_at;

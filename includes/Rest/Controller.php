@@ -21,46 +21,46 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Exposes a thin OpenClaw adapter surface.
  */
 final class Controller {
-	const NAMESPACE                = 'npcink-openclaw-adapter/v1';
-	const MAX_EXECUTION_ACTIONS    = 200;
-	const DEVICE_PAIRING_OPTION    = 'npcink_openclaw_adapter_device_pairings';
-	const CLIENT_KEYS_OPTION       = 'npcink_openclaw_adapter_client_keys';
-	const EXECUTION_RECORDS_OPTION  = 'npcink_openclaw_adapter_execution_records';
-	const PREFLIGHT_HANDOFFS_OPTION = 'npcink_openclaw_adapter_preflight_handoffs';
-	const DEVICE_PAIRING_TTL       = 600;
-	const SIGNATURE_NONCE_TTL      = 300;
-	const SIGNATURE_NONCE_OPTION_PREFIX = 'npcink_openclaw_adapter_sig_nonce_';
-	const SIGNATURE_NONCE_CLEANUP_BATCH = 100;
-	const DEVICE_PAIRING_RATE_LIMIT_TTL = 60;
-	const DEVICE_PAIRING_POLL_RATE_LIMIT_TTL = 60;
-	const MAX_DEVICE_PAIRINGS          = 100;
+	const NAMESPACE                            = 'npcink-openclaw-adapter/v1';
+	const MAX_EXECUTION_ACTIONS                = 200;
+	const DEVICE_PAIRING_OPTION                = 'npcink_openclaw_adapter_device_pairings';
+	const CLIENT_KEYS_OPTION                   = 'npcink_openclaw_adapter_client_keys';
+	const EXECUTION_RECORDS_OPTION             = 'npcink_openclaw_adapter_execution_records';
+	const PREFLIGHT_HANDOFFS_OPTION            = 'npcink_openclaw_adapter_preflight_handoffs';
+	const DEVICE_PAIRING_TTL                   = 600;
+	const SIGNATURE_NONCE_TTL                  = 300;
+	const SIGNATURE_NONCE_OPTION_PREFIX        = 'npcink_openclaw_adapter_sig_nonce_';
+	const SIGNATURE_NONCE_CLEANUP_BATCH        = 100;
+	const DEVICE_PAIRING_RATE_LIMIT_TTL        = 60;
+	const DEVICE_PAIRING_POLL_RATE_LIMIT_TTL   = 60;
+	const MAX_DEVICE_PAIRINGS                  = 100;
 	const MAX_DEVICE_PAIRING_STARTS_PER_WINDOW = 20;
-	const MAX_DEVICE_PAIRING_POLLS_PER_WINDOW = 60;
-	const MAX_DEVICE_PAIRING_BODY_BYTES = 8192;
-	const MAX_DEVICE_PAIRING_POLL_BODY_BYTES = 1024;
-	const MAX_EXECUTION_RECORDS        = 500;
-	const MAX_PREFLIGHT_HANDOFFS       = 500;
-	const EXECUTION_LOCK_TTL           = 300;
-	const DISCOVERY_CACHE_TTL          = 60;
-	const PREFLIGHT_HANDOFF_RETENTION_TTL = 900;
-	const EXECUTION_RECORD_RETENTION_TTL = 604800;
-	const MAX_UPSTREAM_ERROR_DETAIL_BYTES = 8192;
-	const CLIENT_KEY_LAST_USED_WRITE_TTL = 60;
-	const MAX_REST_BODY_BYTES         = 1048576;
-	const MAX_PROPOSAL_LIST_LIMIT     = 100;
-	const MAX_LIGHT_POST_BODY_BYTES   = 4096;
-	const MAX_LOG_CONTEXT_FIELDS      = 32;
-	const MAX_LOG_CONTEXT_DEPTH       = 2;
-	const MAX_LOG_CONTEXT_STRING_BYTES = 200;
-	const MAX_LOG_CONTEXT_SERIALIZED_BYTES = 8192;
-	const ADAPTER_CONTRACT_VERSION    = '4';
-	const CLIENT_POLICY_VERSION       = '2';
-	const EXECUTION_PROFILE_REGISTRY_VERSION = '2';
-	const SUPPORTED_PLAN_ABILITIES_VERSION   = '1';
-	const CORE_CONTRACT_MIN_VERSION          = '1';
-	const CORE_PLUGIN_MIN_VERSION            = '0.1.0';
-	const TOOLKIT_CONTRACT_MIN_VERSION       = '1';
-	const TOOLKIT_PLUGIN_MIN_VERSION         = '0.5.3';
+	const MAX_DEVICE_PAIRING_POLLS_PER_WINDOW  = 60;
+	const MAX_DEVICE_PAIRING_BODY_BYTES        = 8192;
+	const MAX_DEVICE_PAIRING_POLL_BODY_BYTES   = 1024;
+	const MAX_EXECUTION_RECORDS                = 500;
+	const MAX_PREFLIGHT_HANDOFFS               = 500;
+	const EXECUTION_LOCK_TTL                   = 300;
+	const DISCOVERY_CACHE_TTL                  = 60;
+	const PREFLIGHT_HANDOFF_RETENTION_TTL      = 900;
+	const EXECUTION_RECORD_RETENTION_TTL       = 604800;
+	const MAX_UPSTREAM_ERROR_DETAIL_BYTES      = 8192;
+	const CLIENT_KEY_LAST_USED_WRITE_TTL       = 60;
+	const MAX_REST_BODY_BYTES                  = 1048576;
+	const MAX_PROPOSAL_LIST_LIMIT              = 100;
+	const MAX_LIGHT_POST_BODY_BYTES            = 4096;
+	const MAX_LOG_CONTEXT_FIELDS               = 32;
+	const MAX_LOG_CONTEXT_DEPTH                = 2;
+	const MAX_LOG_CONTEXT_STRING_BYTES         = 200;
+	const MAX_LOG_CONTEXT_SERIALIZED_BYTES     = 8192;
+	const ADAPTER_CONTRACT_VERSION             = '4';
+	const CLIENT_POLICY_VERSION                = '2';
+	const EXECUTION_PROFILE_REGISTRY_VERSION   = '2';
+	const SUPPORTED_PLAN_ABILITIES_VERSION     = '1';
+	const CORE_CONTRACT_MIN_VERSION            = '1';
+	const CORE_PLUGIN_MIN_VERSION              = '0.1.0';
+	const TOOLKIT_CONTRACT_MIN_VERSION         = '1';
+	const TOOLKIT_PLUGIN_MIN_VERSION           = '0.5.3';
 
 	/**
 	 * Current request log context while an ability is running.
@@ -184,8 +184,8 @@ final class Controller {
 				continue;
 			}
 
-			$filter     = sanitize_key( (string) ( $policy['filter'] ?? '' ) );
-			$configured = '' !== $filter && function_exists( 'has_filter' ) && false !== has_filter( $filter );
+			$filter                        = sanitize_key( (string) ( $policy['filter'] ?? '' ) );
+			$configured                    = '' !== $filter && function_exists( 'has_filter' ) && false !== has_filter( $filter );
 			$items[ (string) $ability_id ] = array(
 				'status'                    => $configured ? 'target_dependent' : 'not_configured',
 				'site_policy_configured'    => $configured,
@@ -215,27 +215,27 @@ final class Controller {
 		$plan_ability_ids    = Supported_Plan_Abilities::ids();
 
 		return array(
-			'schema_version'                       => 'npcink_openclaw_adapter_contract.v1',
-			'adapter_contract_version'             => self::ADAPTER_CONTRACT_VERSION,
-			'product_name'                         => 'npcink-ai-client-adapter',
-			'client_contract'                      => 'generic_ai_client',
-			'priority_channel'                     => 'openclaw',
-			'compatibility_rest_namespace'         => self::NAMESPACE,
-			'client_policy_version'                => self::CLIENT_POLICY_VERSION,
-			'execution_profile_registry_version'   => self::EXECUTION_PROFILE_REGISTRY_VERSION,
-			'supported_plan_abilities_version'     => self::SUPPORTED_PLAN_ABILITIES_VERSION,
-			'core_contract_min_version'            => self::CORE_CONTRACT_MIN_VERSION,
-			'core_plugin_min_version'              => self::CORE_PLUGIN_MIN_VERSION,
-			'toolkit_contract_min_version'         => self::TOOLKIT_CONTRACT_MIN_VERSION,
-			'toolkit_plugin_min_version'           => self::TOOLKIT_PLUGIN_MIN_VERSION,
-			'execution_profile_registry_hash'      => $this->contract_sha256( self::execution_profiles() ),
-			'supported_execute_ability_ids_hash'   => $this->contract_sha256( $execute_ability_ids ),
-			'supported_plan_ability_ids_hash'      => $this->contract_sha256( $plan_ability_ids ),
-			'max_execution_actions'                => self::MAX_EXECUTION_ACTIONS,
-			'core_proxy_execute'                   => false,
-			'commit_execution'                     => false,
-			'workflow_projection'                  => $this->workflow_projection_contract(),
-			'execution_handoff_posture'            => $this->execution_handoff_posture(),
+			'schema_version'                     => 'npcink_openclaw_adapter_contract.v1',
+			'adapter_contract_version'           => self::ADAPTER_CONTRACT_VERSION,
+			'product_name'                       => 'npcink-ai-client-adapter',
+			'client_contract'                    => 'generic_ai_client',
+			'priority_channel'                   => 'openclaw',
+			'compatibility_rest_namespace'       => self::NAMESPACE,
+			'client_policy_version'              => self::CLIENT_POLICY_VERSION,
+			'execution_profile_registry_version' => self::EXECUTION_PROFILE_REGISTRY_VERSION,
+			'supported_plan_abilities_version'   => self::SUPPORTED_PLAN_ABILITIES_VERSION,
+			'core_contract_min_version'          => self::CORE_CONTRACT_MIN_VERSION,
+			'core_plugin_min_version'            => self::CORE_PLUGIN_MIN_VERSION,
+			'toolkit_contract_min_version'       => self::TOOLKIT_CONTRACT_MIN_VERSION,
+			'toolkit_plugin_min_version'         => self::TOOLKIT_PLUGIN_MIN_VERSION,
+			'execution_profile_registry_hash'    => $this->contract_sha256( self::execution_profiles() ),
+			'supported_execute_ability_ids_hash' => $this->contract_sha256( $execute_ability_ids ),
+			'supported_plan_ability_ids_hash'    => $this->contract_sha256( $plan_ability_ids ),
+			'max_execution_actions'              => self::MAX_EXECUTION_ACTIONS,
+			'core_proxy_execute'                 => false,
+			'commit_execution'                   => false,
+			'workflow_projection'                => $this->workflow_projection_contract(),
+			'execution_handoff_posture'          => $this->execution_handoff_posture(),
 		);
 	}
 
@@ -251,7 +251,7 @@ final class Controller {
 		return array(
 			'schema_version'                => 'npcink_ai_client_workflow_projection.v1',
 			'definition_owner'              => 'npcink-abilities-toolkit',
-			'definition_discovery_surface' => 'wordpress_abilities_api_via_adapter_read',
+			'definition_discovery_surface'  => 'wordpress_abilities_api_via_adapter_read',
 			'definition_discovery_contract' => 'toolkit_workflow_definition_abilities',
 			'projection_role'               => 'external_ai_client_channel',
 			'supported_channels'            => array( 'openclaw' ),
@@ -278,21 +278,21 @@ final class Controller {
 	 */
 	private function execution_handoff_posture(): array {
 		return array(
-			'schema_version'          => 'npcink_openclaw_adapter_execution_handoff_posture.v1',
-			'channel_owner'           => 'npcink-ai-client-adapter',
-			'governance_truth_owner'  => 'npcink-governance-core',
+			'schema_version'           => 'npcink_openclaw_adapter_execution_handoff_posture.v1',
+			'channel_owner'            => 'npcink-ai-client-adapter',
+			'governance_truth_owner'   => 'npcink-governance-core',
 			'ability_definition_owner' => 'npcink-abilities-toolkit',
-			'approval_truth'          => 'npcink_governance_core',
-			'commit_preflight_truth'  => 'npcink_governance_core',
-			'execution_owner'         => 'adapter_after_core_preflight',
-			'execution_surface'       => 'wp_abilities_rest',
-			'record_execution_route'  => '/npcink-governance-core/v1/proposals/{proposal_id}/record-execution',
-			'core_proxy_execute'      => false,
-			'commit_execution'        => false,
-			'generic_write_executor'  => false,
-			'workflow_runtime'        => false,
-			'queue_or_scheduler'      => false,
-			'required_evidence'       => array(
+			'approval_truth'           => 'npcink_governance_core',
+			'commit_preflight_truth'   => 'npcink_governance_core',
+			'execution_owner'          => 'adapter_after_core_preflight',
+			'execution_surface'        => 'wp_abilities_rest',
+			'record_execution_route'   => '/npcink-governance-core/v1/proposals/{proposal_id}/record-execution',
+			'core_proxy_execute'       => false,
+			'commit_execution'         => false,
+			'generic_write_executor'   => false,
+			'workflow_runtime'         => false,
+			'queue_or_scheduler'       => false,
+			'required_evidence'        => array(
 				'approval_context.approval_commit_authorized',
 				'approval_context.approved_input_hash',
 				'approval_context.policy_version=core-preflight-v1',
@@ -303,7 +303,7 @@ final class Controller {
 				'execution_handoff.correlation_id',
 				'implementation_posture.checked_or_not_declared',
 			),
-			'operator_block_guidance' => 'surface_operator_feedback_and_create_revised_proposal',
+			'operator_block_guidance'  => 'surface_operator_feedback_and_create_revised_proposal',
 		);
 	}
 
@@ -411,18 +411,18 @@ final class Controller {
 		}
 
 		$summary = array(
-			'available'                  => true,
-			'compatible'                 => $schema_supported && $contract_supported && $plugin_supported && $semantics_supported,
-			'route'                      => $route,
-			'status_code'                => $status,
-			'schema_version'             => $schema_version,
-			'contract_version'           => $contract_version,
-			'plugin_version'             => $plugin_version,
-			'minimum_contract_version'   => $min_contract_version,
-			'minimum_plugin_version'     => $min_plugin_version,
-			'schema_supported'           => $schema_supported,
-			'contract_version_supported' => $contract_supported,
-			'plugin_version_supported'   => $plugin_supported,
+			'available'                    => true,
+			'compatible'                   => $schema_supported && $contract_supported && $plugin_supported && $semantics_supported,
+			'route'                        => $route,
+			'status_code'                  => $status,
+			'schema_version'               => $schema_version,
+			'contract_version'             => $contract_version,
+			'plugin_version'               => $plugin_version,
+			'minimum_contract_version'     => $min_contract_version,
+			'minimum_plugin_version'       => $min_plugin_version,
+			'schema_supported'             => $schema_supported,
+			'contract_version_supported'   => $contract_supported,
+			'plugin_version_supported'     => $plugin_supported,
 			'contract_semantics_supported' => $semantics_supported,
 		);
 
@@ -438,32 +438,32 @@ final class Controller {
 	 */
 	private function dependency_contract_boundary_summary( string $dependency, array $contract ): array {
 		if ( 'npcink-governance-core' === $dependency ) {
-			$runtime_controls = is_array( $contract['runtime_controls'] ?? null ) ? $contract['runtime_controls'] : array();
-			$boundary         = is_array( $contract['boundary'] ?? null ) ? $contract['boundary'] : array();
-			$operation_classification = is_array( $contract['operation_classification'] ?? null ) ? $contract['operation_classification'] : array();
-			$classification_values = $this->sanitize_string_list( is_array( $operation_classification['classification_values'] ?? null ) ? $operation_classification['classification_values'] : array() );
-			$pre_classification_exclusions = $this->sanitize_string_list( is_array( $operation_classification['pre_classification_exclusions'] ?? null ) ? $operation_classification['pre_classification_exclusions'] : array() );
-			$context_bindings        = is_array( $contract['context_bindings'] ?? null ) ? $contract['context_bindings'] : array();
-			$site_binding            = is_array( $context_bindings['site_binding'] ?? null ) ? $context_bindings['site_binding'] : array();
-			$client_binding          = is_array( $context_bindings['client_key_fingerprint'] ?? null ) ? $context_bindings['client_key_fingerprint'] : array();
-			$site_fields             = is_array( $site_binding['fields'] ?? null ) ? $site_binding['fields'] : array();
-			$site_emitted_in         = is_array( $site_binding['emitted_in'] ?? null ) ? $site_binding['emitted_in'] : array();
-			$client_aliases          = is_array( $client_binding['aliases'] ?? null ) ? $client_binding['aliases'] : array();
-			$client_emitted_in       = is_array( $client_binding['emitted_in'] ?? null ) ? $client_binding['emitted_in'] : array();
-			$implementation_posture  = is_array( $contract['implementation_posture'] ?? null ) ? $contract['implementation_posture'] : array();
-			$posture_flags           = $this->sanitize_string_list( is_array( $implementation_posture['forbidden_core_ownership_flags'] ?? null ) ? $implementation_posture['forbidden_core_ownership_flags'] : array() );
-			$core_proxy_execute      = (bool) ( $runtime_controls['core_proxy_execute'] ?? true );
-			$commit_execution        = (bool) ( $runtime_controls['commit_execution'] ?? true );
-			$provider_secret_storage = (bool) ( $runtime_controls['provider_secret_storage'] ?? true );
-			$final_write_authority   = (string) ( $boundary['final_write_authority'] ?? '' );
-			$site_binding_supported  = in_array( 'site_url', $site_fields, true )
+			$runtime_controls                         = is_array( $contract['runtime_controls'] ?? null ) ? $contract['runtime_controls'] : array();
+			$boundary                                 = is_array( $contract['boundary'] ?? null ) ? $contract['boundary'] : array();
+			$operation_classification                 = is_array( $contract['operation_classification'] ?? null ) ? $contract['operation_classification'] : array();
+			$classification_values                    = $this->sanitize_string_list( is_array( $operation_classification['classification_values'] ?? null ) ? $operation_classification['classification_values'] : array() );
+			$pre_classification_exclusions            = $this->sanitize_string_list( is_array( $operation_classification['pre_classification_exclusions'] ?? null ) ? $operation_classification['pre_classification_exclusions'] : array() );
+			$context_bindings                         = is_array( $contract['context_bindings'] ?? null ) ? $contract['context_bindings'] : array();
+			$site_binding                             = is_array( $context_bindings['site_binding'] ?? null ) ? $context_bindings['site_binding'] : array();
+			$client_binding                           = is_array( $context_bindings['client_key_fingerprint'] ?? null ) ? $context_bindings['client_key_fingerprint'] : array();
+			$site_fields                              = is_array( $site_binding['fields'] ?? null ) ? $site_binding['fields'] : array();
+			$site_emitted_in                          = is_array( $site_binding['emitted_in'] ?? null ) ? $site_binding['emitted_in'] : array();
+			$client_aliases                           = is_array( $client_binding['aliases'] ?? null ) ? $client_binding['aliases'] : array();
+			$client_emitted_in                        = is_array( $client_binding['emitted_in'] ?? null ) ? $client_binding['emitted_in'] : array();
+			$implementation_posture                   = is_array( $contract['implementation_posture'] ?? null ) ? $contract['implementation_posture'] : array();
+			$posture_flags                            = $this->sanitize_string_list( is_array( $implementation_posture['forbidden_core_ownership_flags'] ?? null ) ? $implementation_posture['forbidden_core_ownership_flags'] : array() );
+			$core_proxy_execute                       = (bool) ( $runtime_controls['core_proxy_execute'] ?? true );
+			$commit_execution                         = (bool) ( $runtime_controls['commit_execution'] ?? true );
+			$provider_secret_storage                  = (bool) ( $runtime_controls['provider_secret_storage'] ?? true );
+			$final_write_authority                    = (string) ( $boundary['final_write_authority'] ?? '' );
+			$site_binding_supported                   = in_array( 'site_url', $site_fields, true )
 				&& in_array( 'home_url', $site_fields, true )
 				&& in_array( 'blog_id', $site_fields, true )
 				&& in_array( 'approval_context', $site_emitted_in, true )
 				&& in_array( 'execution_handoff', $site_emitted_in, true )
 				&& in_array( 'read_authorization_context', $site_emitted_in, true )
 				&& true === (bool) ( $site_binding['fail_closed'] ?? false );
-			$signed_client_fingerprint_binding = true === (bool) ( $client_binding['emitted'] ?? false )
+			$signed_client_fingerprint_binding        = true === (bool) ( $client_binding['emitted'] ?? false )
 				&& 'signed_client_fingerprint' === (string) ( $client_binding['field'] ?? '' )
 				&& in_array( 'client_key_fingerprint', $client_aliases, true )
 				&& in_array( 'approval_context', $client_emitted_in, true )
@@ -471,7 +471,7 @@ final class Controller {
 				&& in_array( 'read_authorization_context', $client_emitted_in, true )
 				&& 'supported_when_forwarded_by_trusted_adapter' === (string) ( $client_binding['status'] ?? '' )
 				&& true === (bool) ( $client_binding['fail_closed'] ?? false );
-			$implementation_posture_supported = 'implementation_posture' === (string) ( $implementation_posture['provider_metadata_field'] ?? '' )
+			$implementation_posture_supported         = 'implementation_posture' === (string) ( $implementation_posture['provider_metadata_field'] ?? '' )
 				&& '/wp-json/npcink-governance-core/v1/capabilities' === (string) ( $implementation_posture['capabilities_surface'] ?? '' )
 				&& true === (bool) ( $implementation_posture['proposal_review_visibility'] ?? false )
 				&& true === (bool) ( $implementation_posture['commit_preflight_contract_validation'] ?? false )
@@ -489,35 +489,35 @@ final class Controller {
 				&& false === (bool) ( $operation_classification['native_editor_commit_core_record_required'] ?? true );
 
 			return array(
-				'core_proxy_execute'                 => $core_proxy_execute,
-				'commit_execution'                   => $commit_execution,
-				'provider_secret_storage'            => $provider_secret_storage,
-				'final_write_authority'              => $final_write_authority,
-				'core_boundary_supported'            => false === $core_proxy_execute
+				'core_proxy_execute'                       => $core_proxy_execute,
+				'commit_execution'                         => $commit_execution,
+				'provider_secret_storage'                  => $provider_secret_storage,
+				'final_write_authority'                    => $final_write_authority,
+				'core_boundary_supported'                  => false === $core_proxy_execute
 					&& false === $commit_execution
 					&& false === $provider_secret_storage
 					&& 'adapter_or_host_after_core_preflight' === $final_write_authority,
-				'site_binding'                       => $site_binding_supported,
-				'signed_client_fingerprint_binding' => $signed_client_fingerprint_binding,
-				'implementation_posture_supported'   => $implementation_posture_supported,
-				'implementation_posture_metadata_only' => true === (bool) ( $implementation_posture['metadata_only'] ?? false ),
+				'site_binding'                             => $site_binding_supported,
+				'signed_client_fingerprint_binding'        => $signed_client_fingerprint_binding,
+				'implementation_posture_supported'         => $implementation_posture_supported,
+				'implementation_posture_metadata_only'     => true === (bool) ( $implementation_posture['metadata_only'] ?? false ),
 				'implementation_posture_core_records_truth' => true === (bool) ( $implementation_posture['core_records_truth'] ?? true ),
 				'implementation_posture_capabilities_surface' => (string) ( $implementation_posture['capabilities_surface'] ?? '' ),
 				'implementation_posture_preflight_validation' => true === (bool) ( $implementation_posture['commit_preflight_contract_validation'] ?? false ),
-				'implementation_posture_forbidden_flags' => $posture_flags,
+				'implementation_posture_forbidden_flags'   => $posture_flags,
 				'native_editor_commit_exclusion_supported' => $native_editor_commit_exclusion_supported,
-				'pre_classification_exclusions' => $pre_classification_exclusions,
+				'pre_classification_exclusions'            => $pre_classification_exclusions,
 			);
 		}
 
 		if ( 'npcink-abilities-toolkit' === $dependency ) {
-			$compatibility      = is_array( $contract['compatibility'] ?? null ) ? $contract['compatibility'] : array();
-			$catalog            = is_array( $contract['catalog'] ?? null ) ? $contract['catalog'] : array();
-			$schema_controls    = is_array( $contract['schema_controls'] ?? null ) ? $contract['schema_controls'] : array();
-			$write_controls     = is_array( $contract['write_controls'] ?? null ) ? $contract['write_controls'] : array();
-			$execution_controls = is_array( $contract['execution_controls'] ?? null ) ? $contract['execution_controls'] : array();
-			$forbidden_payloads = is_array( $contract['forbidden_payloads'] ?? null ) ? $contract['forbidden_payloads'] : array();
-			$forbidden_payload_keys = array(
+			$compatibility              = is_array( $contract['compatibility'] ?? null ) ? $contract['compatibility'] : array();
+			$catalog                    = is_array( $contract['catalog'] ?? null ) ? $contract['catalog'] : array();
+			$schema_controls            = is_array( $contract['schema_controls'] ?? null ) ? $contract['schema_controls'] : array();
+			$write_controls             = is_array( $contract['write_controls'] ?? null ) ? $contract['write_controls'] : array();
+			$execution_controls         = is_array( $contract['execution_controls'] ?? null ) ? $contract['execution_controls'] : array();
+			$forbidden_payloads         = is_array( $contract['forbidden_payloads'] ?? null ) ? $contract['forbidden_payloads'] : array();
+			$forbidden_payload_keys     = array(
 				'callback_internals',
 				'permission_callable_refs',
 				'approval_records',
@@ -536,18 +536,18 @@ final class Controller {
 					break;
 				}
 			}
-			$toolkit_boundary_supported = 'npcink-abilities-toolkit' === (string) ( $catalog['ability_definitions_owner'] ?? '' )
+			$toolkit_boundary_supported           = 'npcink-abilities-toolkit' === (string) ( $catalog['ability_definitions_owner'] ?? '' )
 				&& 'wordpress_abilities_api' === (string) ( $catalog['ability_catalog_source'] ?? '' )
 				&& '/wp-json/wp-abilities/v1/abilities' === (string) ( $catalog['ability_catalog_route'] ?? '' )
 				&& 'namespace/name' === (string) ( $catalog['ability_id_format'] ?? '' )
 				&& true === (bool) ( $compatibility['metadata_only'] ?? false )
 				&& true === (bool) ( $compatibility['wordpress_abilities_api_required'] ?? false );
-			$schema_controls_supported = 'wordpress_abilities_api' === (string) ( $schema_controls['input_schema_source'] ?? '' )
+			$schema_controls_supported            = 'wordpress_abilities_api' === (string) ( $schema_controls['input_schema_source'] ?? '' )
 				&& 'wordpress_abilities_api' === (string) ( $schema_controls['output_schema_source'] ?? '' )
 				&& 'npcink-abilities-toolkit' === (string) ( $schema_controls['normalization_owner'] ?? '' )
 				&& true === (bool) ( $schema_controls['callback_free_hashes'] ?? false )
 				&& true === (bool) ( $schema_controls['stable_contract_hashes'] ?? false );
-			$write_controls_supported = true === (bool) ( $write_controls['dry_run_default'] ?? false )
+			$write_controls_supported             = true === (bool) ( $write_controls['dry_run_default'] ?? false )
 				&& false === (bool) ( $write_controls['commit_default'] ?? true )
 				&& true === (bool) ( $write_controls['host_governed_writes'] ?? false )
 				&& 'host_runtime_after_governance' === (string) ( $write_controls['final_commit_owner'] ?? '' )
@@ -561,33 +561,33 @@ final class Controller {
 				&& 0 === strpos( (string) ( $contract['workflow_recipes_hash'] ?? '' ), 'sha256:' );
 
 			return array(
-				'ability_count'          => absint( $contract['ability_count'] ?? 0 ),
-				'ability_ids_hash'       => (string) ( $contract['ability_ids_hash'] ?? '' ),
-				'ability_contracts_hash' => (string) ( $contract['ability_contracts_hash'] ?? '' ),
-				'workflow_recipes_hash'  => (string) ( $contract['workflow_recipes_hash'] ?? '' ),
-				'ability_definitions_owner' => (string) ( $catalog['ability_definitions_owner'] ?? '' ),
-				'ability_catalog_source' => (string) ( $catalog['ability_catalog_source'] ?? '' ),
-				'ability_catalog_route'  => (string) ( $catalog['ability_catalog_route'] ?? '' ),
-				'ability_id_format'      => (string) ( $catalog['ability_id_format'] ?? '' ),
-				'input_schema_source'    => (string) ( $schema_controls['input_schema_source'] ?? '' ),
-				'output_schema_source'   => (string) ( $schema_controls['output_schema_source'] ?? '' ),
-				'normalization_owner'    => (string) ( $schema_controls['normalization_owner'] ?? '' ),
-				'callback_free_hashes'   => true === (bool) ( $schema_controls['callback_free_hashes'] ?? false ),
-				'stable_contract_hashes' => true === (bool) ( $schema_controls['stable_contract_hashes'] ?? false ),
-				'dry_run_default'        => (bool) ( $write_controls['dry_run_default'] ?? false ),
-				'commit_default'         => (bool) ( $write_controls['commit_default'] ?? true ),
-				'host_governed_writes'   => (bool) ( $write_controls['host_governed_writes'] ?? false ),
-				'final_commit_owner'     => (string) ( $write_controls['final_commit_owner'] ?? '' ),
-				'read_execution_surface' => (string) ( $execution_controls['read_execution_surface'] ?? '' ),
-				'write_execution_surface' => (string) ( $execution_controls['write_execution_surface'] ?? '' ),
-				'approval_context_required' => true === (bool) ( $execution_controls['approval_context_required'] ?? false ),
-				'approval_storage'       => true === (bool) ( $execution_controls['approval_storage'] ?? true ),
-				'audit_truth'            => true === (bool) ( $execution_controls['audit_truth'] ?? true ),
-				'final_write_authorization' => true === (bool) ( $execution_controls['final_write_authorization'] ?? true ),
-				'toolkit_boundary_supported' => $toolkit_boundary_supported,
-				'schema_controls_supported' => $schema_controls_supported,
-				'write_controls_supported' => $write_controls_supported,
-				'forbidden_payloads_omitted' => $forbidden_payloads_omitted,
+				'ability_count'                        => absint( $contract['ability_count'] ?? 0 ),
+				'ability_ids_hash'                     => (string) ( $contract['ability_ids_hash'] ?? '' ),
+				'ability_contracts_hash'               => (string) ( $contract['ability_contracts_hash'] ?? '' ),
+				'workflow_recipes_hash'                => (string) ( $contract['workflow_recipes_hash'] ?? '' ),
+				'ability_definitions_owner'            => (string) ( $catalog['ability_definitions_owner'] ?? '' ),
+				'ability_catalog_source'               => (string) ( $catalog['ability_catalog_source'] ?? '' ),
+				'ability_catalog_route'                => (string) ( $catalog['ability_catalog_route'] ?? '' ),
+				'ability_id_format'                    => (string) ( $catalog['ability_id_format'] ?? '' ),
+				'input_schema_source'                  => (string) ( $schema_controls['input_schema_source'] ?? '' ),
+				'output_schema_source'                 => (string) ( $schema_controls['output_schema_source'] ?? '' ),
+				'normalization_owner'                  => (string) ( $schema_controls['normalization_owner'] ?? '' ),
+				'callback_free_hashes'                 => true === (bool) ( $schema_controls['callback_free_hashes'] ?? false ),
+				'stable_contract_hashes'               => true === (bool) ( $schema_controls['stable_contract_hashes'] ?? false ),
+				'dry_run_default'                      => (bool) ( $write_controls['dry_run_default'] ?? false ),
+				'commit_default'                       => (bool) ( $write_controls['commit_default'] ?? true ),
+				'host_governed_writes'                 => (bool) ( $write_controls['host_governed_writes'] ?? false ),
+				'final_commit_owner'                   => (string) ( $write_controls['final_commit_owner'] ?? '' ),
+				'read_execution_surface'               => (string) ( $execution_controls['read_execution_surface'] ?? '' ),
+				'write_execution_surface'              => (string) ( $execution_controls['write_execution_surface'] ?? '' ),
+				'approval_context_required'            => true === (bool) ( $execution_controls['approval_context_required'] ?? false ),
+				'approval_storage'                     => true === (bool) ( $execution_controls['approval_storage'] ?? true ),
+				'audit_truth'                          => true === (bool) ( $execution_controls['audit_truth'] ?? true ),
+				'final_write_authorization'            => true === (bool) ( $execution_controls['final_write_authorization'] ?? true ),
+				'toolkit_boundary_supported'           => $toolkit_boundary_supported,
+				'schema_controls_supported'            => $schema_controls_supported,
+				'write_controls_supported'             => $write_controls_supported,
+				'forbidden_payloads_omitted'           => $forbidden_payloads_omitted,
 				'workflow_projection_source_supported' => $workflow_projection_source_supported,
 			);
 		}
@@ -720,20 +720,20 @@ final class Controller {
 					'callback'            => array( $this, 'run_read_ability_route' ),
 					'permission_callback' => array( $this, 'can_use_adapter' ),
 					'args'                => array(
-						'ability_id' => array(
+						'ability_id'                 => array(
 							'type'              => 'string',
 							'required'          => true,
 							'sanitize_callback' => 'sanitize_text_field',
 						),
-						'input'      => array(
+						'input'                      => array(
 							'type'    => 'object',
 							'default' => array(),
 						),
-						'log_context' => array(
+						'log_context'                => array(
 							'type'    => 'object',
 							'default' => array(),
 						),
-						'read_request_id' => array(
+						'read_request_id'            => array(
 							'type'              => 'string',
 							'default'           => '',
 							'sanitize_callback' => 'sanitize_text_field',
@@ -773,16 +773,16 @@ final class Controller {
 					'callback'            => array( $this, 'create_read_request' ),
 					'permission_callback' => array( $this, 'can_use_adapter' ),
 					'args'                => array(
-						'ability_id' => array(
+						'ability_id'              => array(
 							'type'              => 'string',
 							'required'          => true,
 							'sanitize_callback' => 'sanitize_text_field',
 						),
-						'input'      => array(
+						'input'                   => array(
 							'type'    => 'object',
 							'default' => array(),
 						),
-						'input_hash' => array(
+						'input_hash'              => array(
 							'type'              => 'string',
 							'default'           => '',
 							'sanitize_callback' => 'sanitize_text_field',
@@ -792,25 +792,25 @@ final class Controller {
 							'default'           => '',
 							'sanitize_callback' => 'sanitize_textarea_field',
 						),
-						'data_classes' => array(
+						'data_classes'            => array(
 							'type'    => 'array',
 							'default' => array(),
 						),
-						'purpose'    => array(
+						'purpose'                 => array(
 							'type'              => 'string',
 							'default'           => '',
 							'sanitize_callback' => 'sanitize_textarea_field',
 						),
-						'redaction_level' => array(
+						'redaction_level'         => array(
 							'type'              => 'string',
 							'default'           => 'strict',
 							'sanitize_callback' => 'sanitize_key',
 						),
-						'bounds'     => array(
+						'bounds'                  => array(
 							'type'    => 'object',
 							'default' => array(),
 						),
-						'caller'     => array(
+						'caller'                  => array(
 							'type'    => 'object',
 							'default' => array(),
 						),
@@ -1007,40 +1007,39 @@ final class Controller {
 				self::NAMESPACE,
 				'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)',
 				array(
-				array(
-					'methods'             => WP_REST_Server::READABLE,
-					'callback'            => array( $this, 'get_proposal' ),
-					'permission_callback' => array( $this, 'can_use_adapter' ),
-					'args'                => array(
-						'proposal_id' => array(
-							'type'              => 'string',
-							'required'          => true,
-							'sanitize_callback' => 'sanitize_text_field',
+					array(
+						'methods'             => WP_REST_Server::READABLE,
+						'callback'            => array( $this, 'get_proposal' ),
+						'permission_callback' => array( $this, 'can_use_adapter' ),
+						'args'                => array(
+							'proposal_id' => array(
+								'type'              => 'string',
+								'required'          => true,
+								'sanitize_callback' => 'sanitize_text_field',
+							),
 						),
 					),
-				),
 				)
 			);
 
 			register_rest_route(
 				self::NAMESPACE,
 				'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/commit-preflight',
-			array(
 				array(
-					'methods'             => WP_REST_Server::CREATABLE,
-					'callback'            => array( $this, 'commit_preflight' ),
-					'permission_callback' => array( $this, 'can_use_adapter' ),
-					'args'                => array(
-						'proposal_id' => array(
-							'type'              => 'string',
-							'required'          => true,
-							'sanitize_callback' => 'sanitize_text_field',
+					array(
+						'methods'             => WP_REST_Server::CREATABLE,
+						'callback'            => array( $this, 'commit_preflight' ),
+						'permission_callback' => array( $this, 'can_use_adapter' ),
+						'args'                => array(
+							'proposal_id' => array(
+								'type'              => 'string',
+								'required'          => true,
+								'sanitize_callback' => 'sanitize_text_field',
+							),
 						),
 					),
-				),
-			)
-		);
-
+				)
+			);
 	}
 
 	/**
@@ -1057,7 +1056,7 @@ final class Controller {
 	 */
 	public function can_use_adapter( ?WP_REST_Request $request = null ) {
 		$this->current_signed_client_fingerprint = '';
-		$this->current_signed_authenticated       = false;
+		$this->current_signed_authenticated      = false;
 
 		if ( current_user_can( 'manage_options' ) ) {
 			return true;
@@ -1069,10 +1068,10 @@ final class Controller {
 					'npcink_openclaw_adapter_privilege_required',
 					__( 'This WordPress account cannot use the Adapter channel. Adapter routes require an administrator session or a paired signed client.', 'npcink-ai-client-adapter' ),
 					array(
-						'status'         => 403,
-						'reason'         => 'wordpress_account_lacks_manage_options',
-						'next_step'      => __( 'Use an administrator account, or pair a signed client key through POST /connect/device/start.', 'npcink-ai-client-adapter' ),
-						'pairing_route'  => 'POST /' . self::NAMESPACE . '/connect/device/start',
+						'status'        => 403,
+						'reason'        => 'wordpress_account_lacks_manage_options',
+						'next_step'     => __( 'Use an administrator account, or pair a signed client key through POST /connect/device/start.', 'npcink-ai-client-adapter' ),
+						'pairing_route' => 'POST /' . self::NAMESPACE . '/connect/device/start',
 					)
 				);
 			}
@@ -1170,7 +1169,7 @@ final class Controller {
 	 */
 	public function can_use_unified_approve_and_execute( ?WP_REST_Request $request = null ) {
 		$this->current_signed_client_fingerprint = '';
-		$this->current_signed_authenticated       = false;
+		$this->current_signed_authenticated      = false;
 
 		if ( current_user_can( 'manage_options' ) ) {
 			return true;
@@ -1181,10 +1180,10 @@ final class Controller {
 				'npcink_openclaw_adapter_approve_requires_admin_session',
 				__( 'The unified approve-and-execute action requires a WordPress administrator session. Signed AI clients must wait for human approval in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute.', 'npcink-ai-client-adapter' ),
 				array(
-					'status' => 403,
+					'status'            => 403,
 					'operator_feedback' => array(
-						'reason'     => 'signed_client_cannot_self_approve',
-						'next_step'  => 'Approve the proposal in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute from the same signed client.',
+						'reason'             => 'signed_client_cannot_self_approve',
+						'next_step'          => 'Approve the proposal in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute from the same signed client.',
 						'authorized_surface' => 'wordpress_admin_session_only',
 					),
 				)
@@ -1211,7 +1210,7 @@ final class Controller {
 	 */
 	public function start_device_pairing( WP_REST_Request $request ) {
 		$started = microtime( true );
-		$body = $this->request_json_body( $request, self::MAX_DEVICE_PAIRING_BODY_BYTES );
+		$body    = $this->request_json_body( $request, self::MAX_DEVICE_PAIRING_BODY_BYTES );
 		if ( is_wp_error( $body ) ) {
 			$this->emit_operation_event( 'adapter.device_pairing.start', $started, $body );
 			return $body;
@@ -1233,11 +1232,11 @@ final class Controller {
 			return $error;
 		}
 
-		$client = is_array( $body['client'] ?? null ) ? $body['client'] : array();
-		$key    = is_array( $body['key'] ?? null ) ? $body['key'] : array();
-		$name   = $this->bounded_text_field( (string) ( $client['name'] ?? '' ), 120 );
+		$client     = is_array( $body['client'] ?? null ) ? $body['client'] : array();
+		$key        = is_array( $body['key'] ?? null ) ? $body['key'] : array();
+		$name       = $this->bounded_text_field( (string) ( $client['name'] ?? '' ), 120 );
 		$public_key = $this->bounded_text_field( (string) ( $key['public_key'] ?? '' ), 128 );
-		$scopes = $this->connection_requested_scopes( is_array( $body['requested_scopes'] ?? null ) ? $body['requested_scopes'] : array() );
+		$scopes     = $this->connection_requested_scopes( is_array( $body['requested_scopes'] ?? null ) ? $body['requested_scopes'] : array() );
 
 		if ( '' === $name || 'Ed25519' !== (string) ( $key['alg'] ?? '' ) || 32 !== strlen( $this->base64url_decode( $public_key ) ) ) {
 			$error = new WP_Error(
@@ -1249,11 +1248,19 @@ final class Controller {
 			return $error;
 		}
 
-		$device_code = 'dev_' . $this->base64url_encode( random_bytes( 32 ) );
-		$user_code   = strtoupper( substr( $this->base64url_encode( random_bytes( 5 ) ), 0, 4 ) . '-' . substr( $this->base64url_encode( random_bytes( 5 ) ), 0, 4 ) );
-		$expires_at  = time() + self::DEVICE_PAIRING_TTL;
-		$pairings    = $this->device_pairings();
-		$fingerprint = 'sha256:' . hash( 'sha256', $this->canonical_json( array( 'alg' => 'Ed25519', 'public_key' => $public_key ) ) );
+		$device_code            = 'dev_' . $this->base64url_encode( random_bytes( 32 ) );
+		$user_code              = strtoupper( substr( $this->base64url_encode( random_bytes( 5 ) ), 0, 4 ) . '-' . substr( $this->base64url_encode( random_bytes( 5 ) ), 0, 4 ) );
+		$expires_at             = time() + self::DEVICE_PAIRING_TTL;
+		$pairings               = $this->device_pairings();
+		$fingerprint            = 'sha256:' . hash(
+			'sha256',
+			$this->canonical_json(
+				array(
+					'alg'        => 'Ed25519',
+					'public_key' => $public_key,
+				)
+			)
+		);
 		$pairings[ $user_code ] = array(
 			'user_code'        => $user_code,
 			'device_code_hash' => hash( 'sha256', $device_code ),
@@ -1300,7 +1307,7 @@ final class Controller {
 	 */
 	public function poll_device_pairing( WP_REST_Request $request ) {
 		$started = microtime( true );
-		$body = $this->request_json_body( $request, self::MAX_DEVICE_PAIRING_POLL_BODY_BYTES );
+		$body    = $this->request_json_body( $request, self::MAX_DEVICE_PAIRING_POLL_BODY_BYTES );
 		if ( is_wp_error( $body ) ) {
 			$this->emit_operation_event( 'adapter.device_pairing.poll', $started, $body );
 			return $body;
@@ -1313,7 +1320,7 @@ final class Controller {
 			return $this->rest_response_with_retry_after( $rate_limit );
 		}
 
-		$pairing     = $this->device_pairing_by_device_code( $device_code );
+		$pairing = $this->device_pairing_by_device_code( $device_code );
 
 		if ( empty( $pairing ) || time() > (int) ( $pairing['expires_at'] ?? 0 ) ) {
 			$error = new WP_Error(
@@ -1373,7 +1380,7 @@ final class Controller {
 		$user_id = get_current_user_id();
 		$records = array();
 		foreach ( $this->client_key_records() as $record ) {
-			if ( $user_id === (int) ( $record['user_id'] ?? 0 ) ) {
+			if ( (int) ( $record['user_id'] ?? 0 ) === $user_id ) {
 				$records[] = $this->public_client_key_record( $record );
 			}
 		}
@@ -1408,7 +1415,7 @@ final class Controller {
 		$key_id = sanitize_text_field( $key_id );
 		$keys   = $this->client_key_records();
 		$record = is_array( $keys[ $key_id ] ?? null ) ? $keys[ $key_id ] : array();
-		if ( empty( $record ) || $user_id !== (int) ( $record['user_id'] ?? 0 ) ) {
+		if ( empty( $record ) || (int) ( $record['user_id'] ?? 0 ) !== $user_id ) {
 			return new WP_Error(
 				'npcink_openclaw_adapter_client_key_not_found',
 				__( 'Client key was not found for the current user.', 'npcink-ai-client-adapter' ),
@@ -1417,7 +1424,7 @@ final class Controller {
 		}
 
 		$record['revoked_at'] = gmdate( 'c' );
-		$keys[ $key_id ]     = $record;
+		$keys[ $key_id ]      = $record;
 		update_option( self::CLIENT_KEYS_OPTION, $keys, false );
 
 		return $this->public_client_key_record( $record );
@@ -1467,34 +1474,34 @@ final class Controller {
 		$key_id        = 'mk_' . substr( hash( 'sha256', rest_url( self::NAMESPACE ) . '|' . $user_id . '|' . $fingerprint ), 0, 24 );
 		$connection_id = 'npcink_conn_' . substr( hash( 'sha256', home_url() . '|' . $key_id ), 0, 24 );
 		$record        = array(
-				'key_id'        => $key_id,
-				'connection_id' => $connection_id,
-				'admin_label'   => $admin_label,
-				'user_id'       => $user_id,
-				'client_name'   => (string) ( $client['name'] ?? '' ),
-			'device_name'   => (string) ( $client['device_name'] ?? '' ),
-			'broker'        => (string) ( $client['broker'] ?? '' ),
+			'key_id'         => $key_id,
+			'connection_id'  => $connection_id,
+			'admin_label'    => $admin_label,
+			'user_id'        => $user_id,
+			'client_name'    => (string) ( $client['name'] ?? '' ),
+			'device_name'    => (string) ( $client['device_name'] ?? '' ),
+			'broker'         => (string) ( $client['broker'] ?? '' ),
 			'broker_version' => (string) ( $client['broker_version'] ?? '' ),
-			'public_key'    => $public_key,
-			'fingerprint'   => $fingerprint,
-			'scopes'        => is_array( $pairing['scopes'] ?? null ) ? array_values( $pairing['scopes'] ) : array(),
-			'created_at'    => gmdate( 'c' ),
-			'last_used_at'  => '',
-			'revoked_at'    => '',
+			'public_key'     => $public_key,
+			'fingerprint'    => $fingerprint,
+			'scopes'         => is_array( $pairing['scopes'] ?? null ) ? array_values( $pairing['scopes'] ) : array(),
+			'created_at'     => gmdate( 'c' ),
+			'last_used_at'   => '',
+			'revoked_at'     => '',
 		);
 
 		$keys            = $this->client_key_records();
 		$keys[ $key_id ] = $record;
 		update_option( self::CLIENT_KEYS_OPTION, $keys, false );
 
-		$pairing['status']           = 'approved';
-		$pairing['approved_at']      = gmdate( 'c' );
+		$pairing['status']               = 'approved';
+		$pairing['approved_at']          = gmdate( 'c' );
 			$pairing['approved_user_id'] = $user_id;
 			$pairing['key_id']           = $key_id;
 			$pairing['connection_id']    = $connection_id;
 			$pairing['admin_label']      = $admin_label;
 			$pairing['scopes_effective'] = $record['scopes'];
-		$pairings[ $user_code ]      = $pairing;
+		$pairings[ $user_code ]          = $pairing;
 		update_option( self::DEVICE_PAIRING_OPTION, $this->prune_device_pairings( $pairings ), false );
 
 		$this->emit_operation_event( 'adapter.device_pairing.approve', $started, null );
@@ -1509,7 +1516,7 @@ final class Controller {
 	 * @return bool
 	 */
 	public function reject_device_pairing( string $user_code ): bool {
-		$started = microtime( true );
+		$started   = microtime( true );
 		$user_code = strtoupper( sanitize_text_field( $user_code ) );
 		$pairings  = $this->device_pairings();
 		if ( ! is_array( $pairings[ $user_code ] ?? null ) ) {
@@ -1539,7 +1546,7 @@ final class Controller {
 	public function admin_client_keys( int $user_id ): array {
 		$records = array();
 		foreach ( $this->client_key_records() as $record ) {
-			if ( $user_id === (int) ( $record['user_id'] ?? 0 ) ) {
+			if ( (int) ( $record['user_id'] ?? 0 ) === $user_id ) {
 				$records[] = $this->public_client_key_record( $record );
 			}
 		}
@@ -1671,7 +1678,7 @@ final class Controller {
 	 * @return string
 	 */
 	private function bounded_text_field( string $value, int $max_length ): string {
-		$value = sanitize_text_field( $value );
+		$value  = sanitize_text_field( $value );
 		$length = function_exists( 'mb_strlen' ) ? mb_strlen( $value ) : strlen( $value );
 		if ( $max_length > 0 && $length > $max_length ) {
 			$value = function_exists( 'mb_substr' )
@@ -1692,11 +1699,11 @@ final class Controller {
 		$user     = $user_id > 0 ? get_userdata( $user_id ) : wp_get_current_user();
 		$username = $user && $user->exists() ? (string) $user->user_login : '';
 		$base     = array(
-			'schema_version' => 'npcink_openclaw_adapter_connection.v1',
-			'kind'           => 'npcink.ai/wordpress-adapter-connection',
-			'manifest_id'    => 'npcink_manifest_' . substr( hash( 'sha256', rest_url( self::NAMESPACE ) . '|' . $username ), 0, 24 ),
-			'connection_id'  => 'local-wordpress',
-			'site'           => array(
+			'schema_version'              => 'npcink_openclaw_adapter_connection.v1',
+			'kind'                        => 'npcink.ai/wordpress-adapter-connection',
+			'manifest_id'                 => 'npcink_manifest_' . substr( hash( 'sha256', rest_url( self::NAMESPACE ) . '|' . $username ), 0, 24 ),
+			'connection_id'               => 'local-wordpress',
+			'site'                        => array(
 				'site_url'         => home_url(),
 				'rest_url'         => rest_url(),
 				'adapter_base_url' => rest_url( self::NAMESPACE ),
@@ -1706,17 +1713,17 @@ final class Controller {
 					'version' => NPCINK_OPENCLAW_ADAPTER_VERSION,
 				),
 			),
-			'user'           => array(
+			'user'                        => array(
 				'username' => $username,
 			),
-			'auth'           => array(
+			'auth'                        => array(
 				'preferred_method'  => 'key_pair_device_pairing',
 				'supported_methods' => array(
 					array(
-						'type'            => 'key_pair_device_pairing',
-						'protocol'        => 'npcink-key-pair-auth.v1',
-						'key_type'        => 'ed25519',
-						'secret_delivery' => 'none',
+						'type'                    => 'key_pair_device_pairing',
+						'protocol'                => 'npcink-key-pair-auth.v1',
+						'key_type'                => 'ed25519',
+						'secret_delivery'         => 'none',
 						'requires_admin_approval' => true,
 					),
 					array(
@@ -1727,7 +1734,7 @@ final class Controller {
 					),
 				),
 			),
-			'urls'           => array(
+			'urls'                        => array(
 				'health'       => rest_url( self::NAMESPACE . '/health' ),
 				'help'         => rest_url( self::NAMESPACE . '/help' ),
 				'capabilities' => rest_url( self::NAMESPACE . '/capabilities' ),
@@ -1735,20 +1742,20 @@ final class Controller {
 				'device_poll'  => rest_url( self::NAMESPACE . '/connect/device/poll' ),
 				'key_pairs'    => rest_url( self::NAMESPACE . '/connection/key-pairs' ),
 			),
-			'capabilities'   => array(
+			'capabilities'                => array(
 				'read'  => array(
 					'requires_adapter_auth' => true,
 				),
 				'write' => array(
-					'mode'                         => 'proposal_only',
-					'direct_wordpress_write_allowed' => false,
-					'requires_npcink_governance_core'      => true,
+					'mode'                            => 'proposal_only',
+					'direct_wordpress_write_allowed'  => false,
+					'requires_npcink_governance_core' => true,
 				),
 			),
-			'client_policy'  => $this->client_policy( false ),
-			'contract'       => $this->adapter_contract_metadata(),
+			'client_policy'               => $this->client_policy( false ),
+			'contract'                    => $this->adapter_contract_metadata(),
 			'execution_profile_readiness' => $this->execution_profile_readiness(),
-			'dependency_contracts' => $this->dependency_contracts(),
+			'dependency_contracts'        => $this->dependency_contracts(),
 		);
 
 		$base['integrity'] = array(
@@ -1770,11 +1777,11 @@ final class Controller {
 	 */
 	private function client_policy( bool $include_request_scoped_policy = true ): array {
 		$policy = array(
-			'schema_version' => 'npcink_openclaw_adapter_client_policy.v1',
-			'policy_version' => self::CLIENT_POLICY_VERSION,
-			'policy_owner'   => 'npcink-ai-client-adapter',
-			'client_posture' => 'adapter_only_fail_closed',
-			'forbidden_outputs' => array(
+			'schema_version'         => 'npcink_openclaw_adapter_client_policy.v1',
+			'policy_version'         => self::CLIENT_POLICY_VERSION,
+			'policy_owner'           => 'npcink-ai-client-adapter',
+			'client_posture'         => 'adapter_only_fail_closed',
+			'forbidden_outputs'      => array(
 				'profile_path',
 				'profile_json',
 				'private_key',
@@ -1800,49 +1807,49 @@ final class Controller {
 				'custom_scripts_for_wordpress_data',
 				'direct_wordpress_internals',
 			),
-			'allowed_transport' => array(
-				'adapter_cli_only' => true,
-				'adapter_relative_routes_only' => true,
+			'allowed_transport'      => array(
+				'adapter_cli_only'               => true,
+				'adapter_relative_routes_only'   => true,
 				'direct_database_access_allowed' => false,
 				'filesystem_secret_read_allowed' => false,
 			),
-			'sensitive_read_flow' => array(
-				'required' => true,
-				'trigger_fields' => array(
+			'sensitive_read_flow'    => array(
+				'required'              => true,
+				'trigger_fields'        => array(
 					'read_authorization_required=true',
 					'requires_read_authorization=true',
 					'read_policy=core_read_authorization_required',
 					'governance_mode=core_read_authorization_required',
 					'authorization_mode=core_read_request',
 				),
-				'steps' => array(
+				'steps'                 => array(
 					'create'  => 'POST /read-requests',
 					'status'  => 'GET /read-requests/{request_id}',
 					'execute' => 'POST /run-read-ability with identical ability_id, input, and read_request_id',
 				),
-				'grant_binding' => 'ability_id_plus_input_hash',
+				'grant_binding'         => 'ability_id_plus_input_hash',
 				'input_change_behavior' => 'create_new_read_request',
 			),
-			'write_flow' => array(
-				'required'                  => true,
-				'proposal_required'         => true,
-				'approval_surface'          => 'npcink_governance_core_admin',
+			'write_flow'             => array(
+				'required'                    => true,
+				'proposal_required'           => true,
+				'approval_surface'            => 'npcink_governance_core_admin',
 				'signed_client_self_approval' => 'forbidden',
-				'commit_intent_required'    => true,
-				'execution_handoff_posture' => $this->execution_handoff_posture(),
-				'final_write_routes'        => array(
+				'commit_intent_required'      => true,
+				'execution_handoff_posture'   => $this->execution_handoff_posture(),
+				'final_write_routes'          => array(
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
 				),
-				'admin_session_only_routes' => array(
+				'admin_session_only_routes'   => array(
 					'POST /proposals/{proposal_id}/approve-and-execute' => 'unified approve-and-execute holds approval authority and requires a WordPress administrator session',
 				),
 			),
-			'recommended_cli' => array(
-				'status' => 'npcink-openclaw-adapter status --profile=local',
+			'recommended_cli'        => array(
+				'status'              => 'npcink-openclaw-adapter status --profile=local',
 				'read_request_create' => 'npcink-openclaw-adapter read-request create --profile=local --ability-id=ABILITY_ID --input-file=/tmp/input.json --purpose=PURPOSE --data-classes=CLASS[,CLASS]',
 				'read_request_status' => 'npcink-openclaw-adapter read-request status --profile=local REQUEST_ID',
-				'read_ability' => 'npcink-openclaw-adapter read-ability --profile=local --ability-id=ABILITY_ID --input-file=/tmp/input.json [--read-request-id=REQUEST_ID]',
+				'read_ability'        => 'npcink-openclaw-adapter read-ability --profile=local --ability-id=ABILITY_ID --input-file=/tmp/input.json [--read-request-id=REQUEST_ID]',
 			),
 		);
 
@@ -1965,14 +1972,14 @@ final class Controller {
 	 * @return array<int,string>
 	 */
 	private function connection_requested_scopes( array $requested ): array {
-		$allowed = array(
+		$allowed        = array(
 			'npcink.read'    => true,
 			'npcink.propose' => true,
 			'npcink.status'  => true,
 			'npcink.execute' => true,
 		);
 		$default_scopes = array( 'npcink.read', 'npcink.propose', 'npcink.status' );
-		$scopes  = array();
+		$scopes         = array();
 
 		foreach ( $requested as $scope ) {
 			$scope = sanitize_text_field( (string) $scope );
@@ -2079,10 +2086,10 @@ final class Controller {
 	 */
 	private function public_client_key_record( array $record ): array {
 		return array(
-				'key_id'        => (string) ( $record['key_id'] ?? '' ),
-				'connection_id' => (string) ( $record['connection_id'] ?? '' ),
-				'admin_label'   => (string) ( $record['admin_label'] ?? '' ),
-				'client_name'   => (string) ( $record['client_name'] ?? '' ),
+			'key_id'        => (string) ( $record['key_id'] ?? '' ),
+			'connection_id' => (string) ( $record['connection_id'] ?? '' ),
+			'admin_label'   => (string) ( $record['admin_label'] ?? '' ),
+			'client_name'   => (string) ( $record['client_name'] ?? '' ),
 			'device_name'   => (string) ( $record['device_name'] ?? '' ),
 			'fingerprint'   => (string) ( $record['fingerprint'] ?? '' ),
 			'scopes'        => is_array( $record['scopes'] ?? null ) ? array_values( $record['scopes'] ) : array(),
@@ -2108,7 +2115,7 @@ final class Controller {
 	 */
 	private function authenticate_signed_request( WP_REST_Request $request ) {
 		$this->current_signed_client_fingerprint = '';
-		$this->current_signed_authenticated       = false;
+		$this->current_signed_authenticated      = false;
 
 		if ( ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
 			return new WP_Error(
@@ -2159,12 +2166,12 @@ final class Controller {
 			);
 		}
 
-		$keys   = $this->client_key_records();
-		$record = is_array( $keys[ $key_id ] ?? null ) ? $keys[ $key_id ] : array();
-		$user   = ! empty( $record ) ? get_userdata( (int) ( $record['user_id'] ?? 0 ) ) : false;
-		$public_key     = $this->base64url_decode( (string) ( $record['public_key'] ?? '' ) );
+		$keys            = $this->client_key_records();
+		$record          = is_array( $keys[ $key_id ] ?? null ) ? $keys[ $key_id ] : array();
+		$user            = ! empty( $record ) ? get_userdata( (int) ( $record['user_id'] ?? 0 ) ) : false;
+		$public_key      = $this->base64url_decode( (string) ( $record['public_key'] ?? '' ) );
 		$signature_bytes = $this->base64url_decode( $signature );
-		$canonical = $this->signed_request_canonical_string( $request, $timestamp, $nonce, $content_sha256 );
+		$canonical       = $this->signed_request_canonical_string( $request, $timestamp, $nonce, $content_sha256 );
 		if (
 			empty( $record )
 			|| '' !== (string) ( $record['revoked_at'] ?? '' )
@@ -2209,7 +2216,7 @@ final class Controller {
 		}
 		wp_set_current_user( (int) ( $record['user_id'] ?? 0 ) );
 		$this->current_signed_client_fingerprint = $this->sanitize_signed_client_fingerprint( (string) ( $record['fingerprint'] ?? '' ) );
-		$this->current_signed_authenticated       = true;
+		$this->current_signed_authenticated      = true;
 
 		return true;
 	}
@@ -2226,7 +2233,7 @@ final class Controller {
 	 * @return bool
 	 */
 	private function claim_signature_nonce( string $key_id, string $nonce ): bool {
-		$nonce_key = self::SIGNATURE_NONCE_OPTION_PREFIX . hash( 'sha256', $key_id . '|' . $nonce );
+		$nonce_key  = self::SIGNATURE_NONCE_OPTION_PREFIX . hash( 'sha256', $key_id . '|' . $nonce );
 		$expires_at = time() + self::SIGNATURE_NONCE_TTL;
 
 		if ( $this->insert_signature_nonce_option( $nonce_key, $expires_at ) ) {
@@ -2257,6 +2264,8 @@ final class Controller {
 	 * WordPress 7 add_option() uses ON DUPLICATE KEY UPDATE, so it cannot be the
 	 * strict insert-only primitive required for replay protection.
 	 *
+	 * @phpstan-impure Re-running the same insert can return a different result once
+	 *                 an expired claim is reclaimed by a concurrent request.
 	 * @param string $option_name Nonce option name.
 	 * @param int    $expires_at Expiry epoch.
 	 * @return bool
@@ -2351,7 +2360,7 @@ final class Controller {
 		);
 
 		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			$option_name = is_array( $row ) ? (string) ( $row['option_name'] ?? '' ) : '';
+			$option_name  = is_array( $row ) ? (string) ( $row['option_name'] ?? '' ) : '';
 			$option_value = is_array( $row ) ? (string) ( $row['option_value'] ?? '' ) : '';
 			if ( '' === $option_name || 0 !== strpos( $option_name, self::SIGNATURE_NONCE_OPTION_PREFIX ) || ! is_numeric( $option_value ) || (int) $option_value >= time() ) {
 				continue;
@@ -2529,32 +2538,32 @@ final class Controller {
 	 * @return WP_REST_Response
 	 */
 	public function health(): WP_REST_Response {
-		$dependencies = $this->dependency_status();
+		$dependencies         = $this->dependency_status();
 		$dependency_contracts = $this->dependency_contracts();
 
 		return new WP_REST_Response(
 			array(
-				'adapter'                => 'npcink-ai-client-adapter',
-				'version'                => NPCINK_OPENCLAW_ADAPTER_VERSION,
-				'distribution_mode'      => 'adapter_entry_with_separate_governance_and_ability_plugins',
-				'core_capabilities'      => (bool) ( $dependencies['items']['npcink-governance-core']['available'] ?? false ),
-				'abilities_catalog'      => (bool) ( $dependencies['items']['wordpress-abilities-api']['available'] ?? false ),
-				'abilities_toolkit'      => (bool) ( $dependencies['items']['npcink-abilities-toolkit']['available'] ?? false ),
-				'dependencies_ready'     => empty( $dependencies['missing'] ),
-				'dependencies'           => $dependencies['items'],
-				'dependency_contracts_ready' => (bool) ( $dependency_contracts['ready'] ?? false ),
-				'dependency_contracts'   => $dependency_contracts,
-				'dependency_count'       => count( $dependencies['items'] ),
-					'missing_dependencies'   => $dependencies['missing'],
-					'core_proxy_execute'     => false,
-					'commit_execution'       => false,
-					'approval_surface'       => 'npcink_governance_core_admin',
-						'core_app_token_configured' => 'none' !== $this->core_app_token_source(),
-						'core_app_token_source' => $this->core_app_token_source(),
-					'contract'                   => $this->adapter_contract_metadata(),
-					'execution_handoff_posture'  => $this->execution_handoff_posture(),
-					'client_policy'              => $this->client_policy(),
-				'ai_request_log_context_fields' => array(
+				'adapter'                             => 'npcink-ai-client-adapter',
+				'version'                             => NPCINK_OPENCLAW_ADAPTER_VERSION,
+				'distribution_mode'                   => 'adapter_entry_with_separate_governance_and_ability_plugins',
+				'core_capabilities'                   => (bool) ( $dependencies['items']['npcink-governance-core']['available'] ?? false ),
+				'abilities_catalog'                   => (bool) ( $dependencies['items']['wordpress-abilities-api']['available'] ?? false ),
+				'abilities_toolkit'                   => (bool) ( $dependencies['items']['npcink-abilities-toolkit']['available'] ?? false ),
+				'dependencies_ready'                  => empty( $dependencies['missing'] ),
+				'dependencies'                        => $dependencies['items'],
+				'dependency_contracts_ready'          => (bool) ( $dependency_contracts['ready'] ?? false ),
+				'dependency_contracts'                => $dependency_contracts,
+				'dependency_count'                    => count( $dependencies['items'] ),
+				'missing_dependencies'                => $dependencies['missing'],
+				'core_proxy_execute'                  => false,
+				'commit_execution'                    => false,
+				'approval_surface'                    => 'npcink_governance_core_admin',
+				'core_app_token_configured'           => 'none' !== $this->core_app_token_source(),
+				'core_app_token_source'               => $this->core_app_token_source(),
+				'contract'                            => $this->adapter_contract_metadata(),
+				'execution_handoff_posture'           => $this->execution_handoff_posture(),
+				'client_policy'                       => $this->client_policy(),
+				'ai_request_log_context_fields'       => array(
 					'proposal_id',
 					'correlation_id',
 					'external_thread_id',
@@ -2562,11 +2571,11 @@ final class Controller {
 					'ability_id',
 					'adapter_request_id',
 					'adapter_route',
-						'governance_source',
+					'governance_source',
 					'npcink_governance_core.proposal_id',
 					'npcink_governance_core.correlation_id',
 				),
-				'core_app_token_required_scopes' => array(
+				'core_app_token_required_scopes'      => array(
 					'capabilities:read',
 					'proposals:read',
 					'proposals:create',
@@ -2575,17 +2584,17 @@ final class Controller {
 					'read_requests:read',
 					'read_requests:preflight',
 				),
-				'sensitive_read_authorization' => array(
-					'core_truth'                    => true,
-					'required_field'                => 'read_authorization_required',
-					'required_policy'               => 'core_read_authorization_required',
-					'error_code'                    => 'npcink_openclaw_adapter_core_read_authorization_required',
-					'request_route'                 => 'POST /read-requests',
-					'status_route'                  => 'GET /read-requests/{request_id}',
-					'execution_route'               => 'POST /run-read-ability with read_request_id',
+				'sensitive_read_authorization'        => array(
+					'core_truth'                     => true,
+					'required_field'                 => 'read_authorization_required',
+					'required_policy'                => 'core_read_authorization_required',
+					'error_code'                     => 'npcink_openclaw_adapter_core_read_authorization_required',
+					'request_route'                  => 'POST /read-requests',
+					'status_route'                   => 'GET /read-requests/{request_id}',
+					'execution_route'                => 'POST /run-read-ability with read_request_id',
 					'unsupported_without_core_grant' => 'fail_closed',
 				),
-				'approved_proposal_execution_routes' => array(
+				'approved_proposal_execution_routes'  => array(
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
 					'POST /proposals/{proposal_id}/approve-and-execute',
@@ -2593,104 +2602,104 @@ final class Controller {
 				'admin_session_only_execution_routes' => array(
 					'POST /proposals/{proposal_id}/approve-and-execute',
 				),
-				'signed_client_execution_routes' => array(
+				'signed_client_execution_routes'      => array(
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
 				),
-				'supported_execute_ability_ids' => self::supported_execute_ability_ids(),
-				'execution_profile_readiness' => $this->execution_profile_readiness(),
-				'execution_input_contract' => array(
-					'single' => 'proposal.input, with ability-specific required fields',
-					'batch'  => 'proposal.input.write_actions[].target_ability_id + proposal.input.write_actions[].input',
-					'max_actions' => self::MAX_EXECUTION_ACTIONS,
-					'partial_success' => false,
-					'execute_commit_policy' => 'Adapter execute routes are final write paths and normalize ability input to dry_run=false and commit=true.',
+				'supported_execute_ability_ids'       => self::supported_execute_ability_ids(),
+				'execution_profile_readiness'         => $this->execution_profile_readiness(),
+				'execution_input_contract'            => array(
+					'single'                      => 'proposal.input, with ability-specific required fields',
+					'batch'                       => 'proposal.input.write_actions[].target_ability_id + proposal.input.write_actions[].input',
+					'max_actions'                 => self::MAX_EXECUTION_ACTIONS,
+					'partial_success'             => false,
+					'execute_commit_policy'       => 'Adapter execute routes are final write paths and normalize ability input to dry_run=false and commit=true.',
 					'dry_run_verification_policy' => 'Dry-run proposal verification stops at Adapter commit-preflight; do not call execute for a dry-run-only check.',
 				),
-				'plan_proposal_routes' => array(
+				'plan_proposal_routes'                => array(
 					'POST /proposals/from-plan',
 				),
-				'supported_plan_ability_ids' => Supported_Plan_Abilities::ids(),
-				'proposal_status_routes' => array(
+				'supported_plan_ability_ids'          => Supported_Plan_Abilities::ids(),
+				'proposal_status_routes'              => array(
 					'GET /proposals',
 					'GET /proposals/{proposal_id}',
 					'GET /proposals/{proposal_id}/media-optimization-readiness',
 				),
-					'supported_guidance'     => array(
-					'read'  => array(
-						'governance_mode'           => 'direct_read',
-						'execution_surface'         => 'wp_abilities_rest',
-						'read_policy_values'        => array(
+				'supported_guidance'                  => array(
+					'read'                        => array(
+						'governance_mode'              => 'direct_read',
+						'execution_surface'            => 'wp_abilities_rest',
+						'read_policy_values'           => array(
 							'direct_read_public',
 							'direct_read_internal',
 							'direct_read_sensitive',
 							'core_read_authorization_required',
 						),
-						'sensitivity_values'        => array( 'public', 'internal', 'sensitive' ),
-						'redaction_required_field' => 'redaction_required',
-						'read_audit_mode'           => 'adapter_read_envelope',
+						'sensitivity_values'           => array( 'public', 'internal', 'sensitive' ),
+						'redaction_required_field'     => 'redaction_required',
+						'read_audit_mode'              => 'adapter_read_envelope',
 						'sensitive_read_authorization' => array(
-							'core_truth'                    => true,
-							'required_field'                => 'read_authorization_required',
-							'required_policy'               => 'core_read_authorization_required',
-							'request_route'                 => 'POST /read-requests',
-							'status_route'                  => 'GET /read-requests/{request_id}',
-							'execution_route'               => 'POST /run-read-ability with read_request_id',
+							'core_truth'      => true,
+							'required_field'  => 'read_authorization_required',
+							'required_policy' => 'core_read_authorization_required',
+							'request_route'   => 'POST /read-requests',
+							'status_route'    => 'GET /read-requests/{request_id}',
+							'execution_route' => 'POST /run-read-ability with read_request_id',
 							'unsupported_without_core_grant' => 'fail_closed',
 						),
 					),
-						'proposal_status' => array(
-							'governance_mode'     => 'core_proposal_read_proxy',
-							'execution_surface'   => 'npcink_governance_core_rest',
-							'core_required_scope' => 'proposals:read',
-							'approval_surface'    => 'npcink_governance_core_admin',
+					'proposal_status'             => array(
+						'governance_mode'        => 'core_proposal_read_proxy',
+						'execution_surface'      => 'npcink_governance_core_rest',
+						'core_required_scope'    => 'proposals:read',
+						'approval_surface'       => 'npcink_governance_core_admin',
 						'proposal_status_routes' => array(
 							'GET /proposals',
 							'GET /proposals/{proposal_id}',
 							'GET /proposals/{proposal_id}/media-optimization-readiness',
 						),
 					),
-					'write' => array(
+					'write'                       => array(
 						'governance_mode'   => 'proposal_required',
 						'execution_surface' => 'adapter_after_core_preflight',
 					),
 					'approved_proposal_execution' => array(
-						'governance_mode'      => 'core_approved_commit_preflight_required',
-						'execution_surface'    => 'wp_abilities_rest_after_core_preflight',
-						'core_required_scope'  => 'commit:preflight',
-						'core_commit_execution' => false,
-						'supported_ability_ids'  => self::supported_execute_ability_ids(),
+						'governance_mode'          => 'core_approved_commit_preflight_required',
+						'execution_surface'        => 'wp_abilities_rest_after_core_preflight',
+						'core_required_scope'      => 'commit:preflight',
+						'core_commit_execution'    => false,
+						'supported_ability_ids'    => self::supported_execute_ability_ids(),
 						'execution_input_contract' => array(
-							'single' => 'proposal.input',
-							'batch'  => 'proposal.input.write_actions[]',
-							'max_actions' => self::MAX_EXECUTION_ACTIONS,
-							'partial_success' => false,
-							'execute_commit_policy' => 'final_write_normalizes_dry_run_false_commit_true',
+							'single'                     => 'proposal.input',
+							'batch'                      => 'proposal.input.write_actions[]',
+							'max_actions'                => self::MAX_EXECUTION_ACTIONS,
+							'partial_success'            => false,
+							'execute_commit_policy'      => 'final_write_normalizes_dry_run_false_commit_true',
 							'dry_run_verification_route' => 'POST /proposals/{proposal_id}/commit-preflight',
 						),
 					),
 					'unified_approve_and_execute' => array(
-						'governance_mode'      => 'core_approval_then_adapter_execution',
-						'execution_surface'    => 'wp_abilities_rest_after_core_preflight',
-						'approval_surface'     => 'npcink_governance_core_admin',
-						'authorization'        => 'wordpress_admin_session_only',
-						'signed_client_access' => 'forbidden_use_execute_after_human_approval',
-						'core_commit_execution' => false,
-						'supported_ability_ids'  => self::supported_execute_ability_ids(),
+						'governance_mode'          => 'core_approval_then_adapter_execution',
+						'execution_surface'        => 'wp_abilities_rest_after_core_preflight',
+						'approval_surface'         => 'npcink_governance_core_admin',
+						'authorization'            => 'wordpress_admin_session_only',
+						'signed_client_access'     => 'forbidden_use_execute_after_human_approval',
+						'core_commit_execution'    => false,
+						'supported_ability_ids'    => self::supported_execute_ability_ids(),
 						'execution_input_contract' => array(
-							'single' => 'proposal.input',
-							'batch'  => 'proposal.input.write_actions[]',
-							'max_actions' => self::MAX_EXECUTION_ACTIONS,
-							'partial_success' => false,
-							'execute_commit_policy' => 'final_write_normalizes_dry_run_false_commit_true',
+							'single'                     => 'proposal.input',
+							'batch'                      => 'proposal.input.write_actions[]',
+							'max_actions'                => self::MAX_EXECUTION_ACTIONS,
+							'partial_success'            => false,
+							'execute_commit_policy'      => 'final_write_normalizes_dry_run_false_commit_true',
 							'dry_run_verification_route' => 'POST /proposals/{proposal_id}/commit-preflight',
 						),
 					),
-					'plan_to_proposal' => array(
-						'governance_mode'   => 'direct_read_plan_to_core_proposals',
-						'execution_surface' => 'npcink_governance_core_rest',
-						'core_required_scope' => 'proposals:create',
-						'core_route'        => 'POST /npcink-governance-core/v1/proposals/from-plan',
+					'plan_to_proposal'            => array(
+						'governance_mode'       => 'direct_read_plan_to_core_proposals',
+						'execution_surface'     => 'npcink_governance_core_rest',
+						'core_required_scope'   => 'proposals:create',
+						'core_route'            => 'POST /npcink-governance-core/v1/proposals/from-plan',
 						'plan_fields_preserved' => array(
 							'batch_id',
 							'issue_types',
@@ -2709,20 +2718,20 @@ final class Controller {
 						),
 					),
 				),
-				'permission_capability'  => 'manage_options',
-				'current_user_authorized' => current_user_can( 'manage_options' ),
-				'adapter_base_url'        => rest_url( self::NAMESPACE ),
-				'health_url'              => rest_url( self::NAMESPACE . '/health' ),
-				'help_url'                => rest_url( self::NAMESPACE . '/help' ),
-				'capabilities_url'        => rest_url( self::NAMESPACE . '/capabilities' ),
-					'proposal_list_url'       => rest_url( self::NAMESPACE . '/proposals' ),
-					'proposal_detail_url'     => rest_url( self::NAMESPACE . '/proposals/{proposal_id}' ),
-					'auth'                    => array(
+				'permission_capability'               => 'manage_options',
+				'current_user_authorized'             => current_user_can( 'manage_options' ),
+				'adapter_base_url'                    => rest_url( self::NAMESPACE ),
+				'health_url'                          => rest_url( self::NAMESPACE . '/health' ),
+				'help_url'                            => rest_url( self::NAMESPACE . '/help' ),
+				'capabilities_url'                    => rest_url( self::NAMESPACE . '/capabilities' ),
+				'proposal_list_url'                   => rest_url( self::NAMESPACE . '/proposals' ),
+				'proposal_detail_url'                 => rest_url( self::NAMESPACE . '/proposals/{proposal_id}' ),
+				'auth'                                => array(
 					'type'        => 'wordpress_rest_application_password',
 					'header'      => 'Authorization: Basic base64(username:application_password)',
 					'recommended' => 'dedicated_administrator_application_password_for_initial_openclaw_poc',
 				),
-				),
+			),
 			200
 		);
 	}
@@ -2737,40 +2746,40 @@ final class Controller {
 
 		return new WP_REST_Response(
 			array(
-				'adapter'       => 'npcink-ai-client-adapter',
-				'namespace'     => self::NAMESPACE,
-				'base_url'      => rest_url( self::NAMESPACE ),
-				'auth'          => array(
-					'type'        => 'wordpress_rest_application_password',
-					'capability'  => 'manage_options',
-					'header'      => 'Authorization: Basic base64(username:application_password)',
+				'adapter'                             => 'npcink-ai-client-adapter',
+				'namespace'                           => self::NAMESPACE,
+				'base_url'                            => rest_url( self::NAMESPACE ),
+				'auth'                                => array(
+					'type'       => 'wordpress_rest_application_password',
+					'capability' => 'manage_options',
+					'header'     => 'Authorization: Basic base64(username:application_password)',
 				),
-				'routes'        => $this->help_routes_flat( $route_groups ),
-				'route_groups'  => $route_groups,
-						'core_required_scopes' => array(
-						'proposal_status'  => 'proposals:read',
-						'proposal_create'  => 'proposals:create',
-						'proposal_from_plan' => 'proposals:create',
-						'commit_preflight' => 'commit:preflight',
-					),
-					'approval_surface' => 'npcink_governance_core_admin',
-				'core_app_token_configured' => 'none' !== $this->core_app_token_source(),
-				'core_app_token_source' => $this->core_app_token_source(),
-					'contract'                  => $this->adapter_contract_metadata(),
-					'execution_handoff_posture' => $this->execution_handoff_posture(),
-					'dependency_contracts'      => $this->dependency_contracts(),
-				'client_policy' => $this->client_policy(),
-				'distribution_mode' => 'adapter_entry_with_separate_governance_and_ability_plugins',
-				'dependencies' => $this->dependency_status()['items'],
-				'ai_request_log_context' => array(
-					'accepted_param' => 'log_context',
-					'query_fields'   => array(
+				'routes'                              => $this->help_routes_flat( $route_groups ),
+				'route_groups'                        => $route_groups,
+				'core_required_scopes'                => array(
+					'proposal_status'    => 'proposals:read',
+					'proposal_create'    => 'proposals:create',
+					'proposal_from_plan' => 'proposals:create',
+					'commit_preflight'   => 'commit:preflight',
+				),
+				'approval_surface'                    => 'npcink_governance_core_admin',
+				'core_app_token_configured'           => 'none' !== $this->core_app_token_source(),
+				'core_app_token_source'               => $this->core_app_token_source(),
+				'contract'                            => $this->adapter_contract_metadata(),
+				'execution_handoff_posture'           => $this->execution_handoff_posture(),
+				'dependency_contracts'                => $this->dependency_contracts(),
+				'client_policy'                       => $this->client_policy(),
+				'distribution_mode'                   => 'adapter_entry_with_separate_governance_and_ability_plugins',
+				'dependencies'                        => $this->dependency_status()['items'],
+				'ai_request_log_context'              => array(
+					'accepted_param'  => 'log_context',
+					'query_fields'    => array(
 						'proposal_id',
 						'correlation_id',
 						'external_thread_id',
 						'openclaw_thread_id',
 					),
-					'target'         => 'wpai_request_log_context',
+					'target'          => 'wpai_request_log_context',
 					'required_fields' => array(
 						'proposal_id',
 						'correlation_id',
@@ -2780,7 +2789,7 @@ final class Controller {
 						'governance_source',
 					),
 				),
-				'core_app_token_required_scopes' => array(
+				'core_app_token_required_scopes'      => array(
 					'capabilities:read',
 					'proposals:read',
 					'proposals:create',
@@ -2789,7 +2798,7 @@ final class Controller {
 					'read_requests:read',
 					'read_requests:preflight',
 				),
-				'approved_proposal_execution_routes' => array(
+				'approved_proposal_execution_routes'  => array(
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
 					'POST /proposals/{proposal_id}/approve-and-execute',
@@ -2797,33 +2806,33 @@ final class Controller {
 				'admin_session_only_execution_routes' => array(
 					'POST /proposals/{proposal_id}/approve-and-execute',
 				),
-				'signed_client_execution_routes' => array(
+				'signed_client_execution_routes'      => array(
 					'POST /execute-approved-proposal',
 					'POST /proposals/{proposal_id}/execute',
 				),
-				'supported_execute_ability_ids' => self::supported_execute_ability_ids(),
-				'execution_profile_readiness' => $this->execution_profile_readiness(),
-				'execution_input_contract' => array(
-					'single' => 'proposal.input, with ability-specific required fields',
-					'batch'  => 'proposal.input.write_actions[].target_ability_id + proposal.input.write_actions[].input',
-					'max_actions' => self::MAX_EXECUTION_ACTIONS,
-					'partial_success' => false,
-					'execute_commit_policy' => 'Adapter execute routes are final write paths and normalize ability input to dry_run=false and commit=true.',
+				'supported_execute_ability_ids'       => self::supported_execute_ability_ids(),
+				'execution_profile_readiness'         => $this->execution_profile_readiness(),
+				'execution_input_contract'            => array(
+					'single'                      => 'proposal.input, with ability-specific required fields',
+					'batch'                       => 'proposal.input.write_actions[].target_ability_id + proposal.input.write_actions[].input',
+					'max_actions'                 => self::MAX_EXECUTION_ACTIONS,
+					'partial_success'             => false,
+					'execute_commit_policy'       => 'Adapter execute routes are final write paths and normalize ability input to dry_run=false and commit=true.',
 					'dry_run_verification_policy' => 'Dry-run proposal verification stops at Adapter commit-preflight; do not call execute for a dry-run-only check.',
 				),
-				'plan_proposal_routes' => array(
+				'plan_proposal_routes'                => array(
 					'POST /proposals/from-plan',
 				),
-				'supported_plan_ability_ids' => Supported_Plan_Abilities::ids(),
-				'proposal_status_routes' => array(
+				'supported_plan_ability_ids'          => Supported_Plan_Abilities::ids(),
+				'proposal_status_routes'              => array(
 					'GET /proposals',
 					'GET /proposals/{proposal_id}',
 					'GET /proposals/{proposal_id}/media-optimization-readiness',
 				),
-					'non_goals'     => array(
-						'workflow_runtime'       => false,
-						'mcp_runtime'            => false,
-						'final_commit_execution' => false,
+				'non_goals'                           => array(
+					'workflow_runtime'       => false,
+					'mcp_runtime'            => false,
+					'final_commit_execution' => false,
 				),
 			),
 			200
@@ -2837,7 +2846,7 @@ final class Controller {
 	 */
 	private function help_route_groups(): array {
 		return array(
-			'connection'      => array(
+			'connection'                   => array(
 				'GET /health',
 				'GET /help',
 				'GET /capabilities',
@@ -2847,7 +2856,7 @@ final class Controller {
 				'GET /connection/key-pairs',
 				'DELETE /connection/key-pairs/{key_id}',
 			),
-			'generic_read'    => array(
+			'generic_read'                 => array(
 				'POST /run-read-ability',
 			),
 			'sensitive_read_authorization' => array(
@@ -2855,12 +2864,12 @@ final class Controller {
 				'GET /read-requests',
 				'GET /read-requests/{request_id}',
 			),
-			'proposal_status' => array(
+			'proposal_status'              => array(
 				'GET /proposals',
 				'GET /proposals/{proposal_id}',
 				'GET /proposals/{proposal_id}/media-optimization-readiness',
 			),
-			'governance'      => array(
+			'governance'                   => array(
 				'POST /proposals',
 				'POST /proposals/from-plan',
 				'POST /proposals/{proposal_id}/commit-preflight',
@@ -2920,28 +2929,28 @@ final class Controller {
 	private function help_route_purpose( string $method, string $path, string $group ): string {
 		$key      = $method . ' ' . $path;
 		$purposes = array(
-			'GET /health' => 'Check adapter health and connection state.',
-			'GET /help' => 'Discover adapter routes and handoff guidance.',
-			'GET /capabilities' => 'List Core capabilities and governance guidance.',
-			'GET /connection/manifest' => 'Return the non-secret local broker connection manifest.',
-			'POST /connect/device/start' => 'Start a public-key device pairing session.',
-			'POST /connect/device/poll' => 'Poll a public-key device pairing session.',
-			'GET /connection/key-pairs' => 'List registered key-pair clients for the current user.',
+			'GET /health'                           => 'Check adapter health and connection state.',
+			'GET /help'                             => 'Discover adapter routes and handoff guidance.',
+			'GET /capabilities'                     => 'List Core capabilities and governance guidance.',
+			'GET /connection/manifest'              => 'Return the non-secret local broker connection manifest.',
+			'POST /connect/device/start'            => 'Start a public-key device pairing session.',
+			'POST /connect/device/poll'             => 'Poll a public-key device pairing session.',
+			'GET /connection/key-pairs'             => 'List registered key-pair clients for the current user.',
 			'DELETE /connection/key-pairs/{key_id}' => 'Revoke a registered key-pair client.',
-			'POST /run-read-ability' => 'Run a direct-read ability by ability_id.',
-			'GET /read-requests' => 'List Core sensitive read request statuses through Adapter.',
-			'POST /read-requests' => 'Create a Core sensitive read authorization request through Adapter.',
-			'GET /read-requests/{request_id}' => 'Read one Core sensitive read request status through Adapter.',
-			'GET /proposals' => 'List Core proposal statuses for polling.',
-			'GET /proposals/{proposal_id}' => 'Read one Core proposal status by proposal_id.',
-				'GET /proposals/{proposal_id}/media-optimization-readiness' => 'Read Adapter-owned execution readiness checks for one media optimization proposal.',
-				'POST /proposals' => 'Create a Core proposal for governed work.',
-				'POST /proposals/from-plan' => 'Forward a read-only plan output to Core plan-to-proposal intake.',
-				'POST /proposals/{proposal_id}/commit-preflight' => 'Advanced diagnostic route: run Core commit preflight without final writes and cache the one-time handoff for the next Adapter execute call; dry-run verification stops here.',
-				'POST /execute-approved-proposal' => 'Final write route: execute one approved proposal after Core commit preflight or a cached Adapter preflight handoff; normalizes ability input to dry_run=false and commit=true.',
-				'POST /proposals/{proposal_id}/execute' => 'Final write route: execute one approved proposal by id after Core commit preflight or a cached Adapter preflight handoff; normalizes ability input to dry_run=false and commit=true.',
-				'POST /proposals/{proposal_id}/approve-and-execute' => 'Final write route for WordPress administrator sessions only: approve a pending proposal through Core, then preflight and execute one supported single input or write_actions payload with dry_run=false and commit=true. Signed AI clients must not call this route; wait for human approval in the Core admin and use POST /proposals/{proposal_id}/execute.',
-			);
+			'POST /run-read-ability'                => 'Run a direct-read ability by ability_id.',
+			'GET /read-requests'                    => 'List Core sensitive read request statuses through Adapter.',
+			'POST /read-requests'                   => 'Create a Core sensitive read authorization request through Adapter.',
+			'GET /read-requests/{request_id}'       => 'Read one Core sensitive read request status through Adapter.',
+			'GET /proposals'                        => 'List Core proposal statuses for polling.',
+			'GET /proposals/{proposal_id}'          => 'Read one Core proposal status by proposal_id.',
+			'GET /proposals/{proposal_id}/media-optimization-readiness' => 'Read Adapter-owned execution readiness checks for one media optimization proposal.',
+			'POST /proposals'                       => 'Create a Core proposal for governed work.',
+			'POST /proposals/from-plan'             => 'Forward a read-only plan output to Core plan-to-proposal intake.',
+			'POST /proposals/{proposal_id}/commit-preflight' => 'Advanced diagnostic route: run Core commit preflight without final writes and cache the one-time handoff for the next Adapter execute call; dry-run verification stops here.',
+			'POST /execute-approved-proposal'       => 'Final write route: execute one approved proposal after Core commit preflight or a cached Adapter preflight handoff; normalizes ability input to dry_run=false and commit=true.',
+			'POST /proposals/{proposal_id}/execute' => 'Final write route: execute one approved proposal by id after Core commit preflight or a cached Adapter preflight handoff; normalizes ability input to dry_run=false and commit=true.',
+			'POST /proposals/{proposal_id}/approve-and-execute' => 'Final write route for WordPress administrator sessions only: approve a pending proposal through Core, then preflight and execute one supported single input or write_actions payload with dry_run=false and commit=true. Signed AI clients must not call this route; wait for human approval in the Core admin and use POST /proposals/{proposal_id}/execute.',
+		);
 
 		if ( isset( $purposes[ $key ] ) ) {
 			return $purposes[ $key ];
@@ -3004,15 +3013,15 @@ final class Controller {
 
 		$ability_id = sanitize_text_field( (string) $request->get_param( 'ability_id' ) );
 		$payload    = array(
-			'ability_id'               => $ability_id,
-			'input'                    => $this->request_input( $request ),
-			'input_hash'               => sanitize_text_field( (string) $request->get_param( 'input_hash' ) ),
-			'requested_input_summary'  => sanitize_textarea_field( (string) $request->get_param( 'requested_input_summary' ) ),
-			'data_classes'             => $this->sanitize_string_list( is_array( $request->get_param( 'data_classes' ) ) ? (array) $request->get_param( 'data_classes' ) : array() ),
-			'purpose'                  => sanitize_textarea_field( (string) $request->get_param( 'purpose' ) ),
-			'redaction_level'          => sanitize_key( (string) $request->get_param( 'redaction_level' ) ),
-			'bounds'                   => $this->object_param( $request, 'bounds' ),
-			'caller'                   => $this->proposal_caller_context( $request, $ability_id ),
+			'ability_id'              => $ability_id,
+			'input'                   => $this->request_input( $request ),
+			'input_hash'              => sanitize_text_field( (string) $request->get_param( 'input_hash' ) ),
+			'requested_input_summary' => sanitize_textarea_field( (string) $request->get_param( 'requested_input_summary' ) ),
+			'data_classes'            => $this->sanitize_string_list( is_array( $request->get_param( 'data_classes' ) ) ? (array) $request->get_param( 'data_classes' ) : array() ),
+			'purpose'                 => sanitize_textarea_field( (string) $request->get_param( 'purpose' ) ),
+			'redaction_level'         => sanitize_key( (string) $request->get_param( 'redaction_level' ) ),
+			'bounds'                  => $this->object_param( $request, 'bounds' ),
+			'caller'                  => $this->proposal_caller_context( $request, $ability_id ),
 		);
 
 		return $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/read-requests', $payload, false, true );
@@ -3122,13 +3131,13 @@ final class Controller {
 					'checks'             => array(),
 					'artifact'           => null,
 				),
-				'adapter_status'              => $status,
-				'execution_status'            => $status['execution_status'],
-				'effective_status'            => $status['effective_status'],
-				'executable'                  => $status['executable'],
-				'non_executable_reason'       => $status['non_executable_reason'],
-				'preflight_status'            => $status['preflight_status'],
-				'commit_execution'            => false,
+				'adapter_status'               => $status,
+				'execution_status'             => $status['execution_status'],
+				'effective_status'             => $status['effective_status'],
+				'executable'                   => $status['executable'],
+				'non_executable_reason'        => $status['non_executable_reason'],
+				'preflight_status'             => $status['preflight_status'],
+				'commit_execution'             => false,
 			),
 			200
 		);
@@ -3281,33 +3290,33 @@ final class Controller {
 				'ready'  => function_exists( 'npcink_cloud_addon_receive_media_derivative_artifact' ),
 				'status' => function_exists( 'npcink_cloud_addon_receive_media_derivative_artifact' ) ? 'available' : 'missing',
 			),
-			'cloud_addon_configured'            => array(
+			'cloud_addon_configured'           => array(
 				'ready'  => ! function_exists( 'npcink_cloud_addon_is_configured' ) || (bool) npcink_cloud_addon_is_configured(),
 				'status' => function_exists( 'npcink_cloud_addon_is_configured' ) ? ( (bool) npcink_cloud_addon_is_configured() ? 'configured' : 'not_configured' ) : 'unknown',
 			),
-			'artifact_present'                  => array(
+			'artifact_present'                 => array(
 				'ready'       => 1 === preg_match( '/^art_[0-9a-f]{32}$/D', $artifact_id ),
 				'status'      => 1 === preg_match( '/^art_[0-9a-f]{32}$/D', $artifact_id ) ? 'present' : 'missing',
 				'artifact_id' => $artifact_id,
 			),
-			'artifact_contract_valid'           => array(
+			'artifact_contract_valid'          => array(
 				'ready'  => $artifact_contract_valid,
 				'status' => $artifact_contract_valid ? 'valid' : 'invalid',
 			),
-			'artifact_not_expired'              => $artifact_check,
-			'adapter_validator_aligned'         => array(
+			'artifact_not_expired'             => $artifact_check,
+			'adapter_validator_aligned'        => array(
 				'ready'  => ! is_wp_error( $valid_actions ),
 				'status' => is_wp_error( $valid_actions ) ? 'invalid' : 'valid',
 				'code'   => is_wp_error( $valid_actions ) ? $valid_actions->get_error_code() : '',
 			),
-			'content_reference_scan_completed'  => array(
-				'ready'                     => is_array( $repairs ) && array_key_exists( 'scanned_count', $repairs ),
-				'status'                    => is_array( $repairs ) && array_key_exists( 'scanned_count', $repairs ) ? 'completed' : 'missing',
-				'scanned_count'             => absint( $repairs['scanned_count'] ?? 0 ),
-				'post_count'                => absint( $repairs['post_count'] ?? 0 ),
-				'replacement_rule_count'    => absint( $repairs['replacement_rule_count'] ?? 0 ),
-				'actual_replacement_count'  => absint( $repairs['actual_replacement_count'] ?? 0 ),
-				'unmatched_rules'           => is_array( $repairs['unmatched_rules'] ?? null ) ? $repairs['unmatched_rules'] : array(),
+			'content_reference_scan_completed' => array(
+				'ready'                    => is_array( $repairs ) && array_key_exists( 'scanned_count', $repairs ),
+				'status'                   => is_array( $repairs ) && array_key_exists( 'scanned_count', $repairs ) ? 'completed' : 'missing',
+				'scanned_count'            => absint( $repairs['scanned_count'] ?? 0 ),
+				'post_count'               => absint( $repairs['post_count'] ?? 0 ),
+				'replacement_rule_count'   => absint( $repairs['replacement_rule_count'] ?? 0 ),
+				'actual_replacement_count' => absint( $repairs['actual_replacement_count'] ?? 0 ),
+				'unmatched_rules'          => is_array( $repairs['unmatched_rules'] ?? null ) ? $repairs['unmatched_rules'] : array(),
 			),
 		);
 
@@ -3407,9 +3416,9 @@ final class Controller {
 			}
 			if ( isset( $action_input['expected_content_reference_replacement_count'] ) ) {
 				return array(
-					'scanned_count'      => 0,
-					'post_count'         => absint( $action_input['expected_content_reference_post_count'] ?? 0 ),
-					'replacement_count'  => absint( $action_input['expected_content_reference_replacement_count'] ?? 0 ),
+					'scanned_count'     => 0,
+					'post_count'        => absint( $action_input['expected_content_reference_post_count'] ?? 0 ),
+					'replacement_count' => absint( $action_input['expected_content_reference_replacement_count'] ?? 0 ),
 				);
 			}
 		}
@@ -3464,10 +3473,10 @@ final class Controller {
 						if ( ! is_array( $row ) ) {
 							continue;
 						}
-						$applied = absint( $row['applied'] ?? 0 );
+						$applied               = absint( $row['applied'] ?? 0 );
 						$derived_actual_count += $applied;
 						if ( 0 === $applied ) {
-							$operation = is_array( $operations[ $index ] ?? null ) ? $operations[ $index ] : array();
+							$operation           = is_array( $operations[ $index ] ?? null ) ? $operations[ $index ] : array();
 							$derived_unmatched[] = array(
 								'post_id'         => $post_id,
 								'operation_index' => absint( $index ),
@@ -3486,7 +3495,7 @@ final class Controller {
 			return $repairs;
 		}
 
-		$fallback_count = absint( $repairs['replacement_count'] ?? 0 );
+		$fallback_count                      = absint( $repairs['replacement_count'] ?? 0 );
 		$repairs['replacement_rule_count']   = null === $replacement_rule_count ? $fallback_count : $replacement_rule_count;
 		$repairs['actual_replacement_count'] = null === $actual_replacement_count ? $fallback_count : $actual_replacement_count;
 		$repairs['unmatched_rules']          = $unmatched_rules;
@@ -3505,15 +3514,15 @@ final class Controller {
 			return array();
 		}
 
-		$input        = is_array( $proposal['input'] ?? null ) ? $proposal['input'] : array();
-		$preview      = is_array( $proposal['preview'] ?? null ) ? $proposal['preview'] : array();
-		$media        = is_array( $preview['media_optimization'] ?? null ) ? $preview['media_optimization'] : array();
-		$derivative   = is_array( $media['derivative_preview'] ?? null ) ? $media['derivative_preview'] : array();
-		$before       = is_array( $derivative['before'] ?? null ) ? $derivative['before'] : array();
-		$after        = is_array( $derivative['after'] ?? null ) ? $derivative['after'] : array();
-		$artifact     = $this->media_optimization_derivative_artifact( $proposal );
-		$repairs      = $this->normalize_media_optimization_reference_repairs( $this->media_optimization_reference_repairs( $proposal ) );
-		$adopt_input  = array();
+		$input          = is_array( $proposal['input'] ?? null ) ? $proposal['input'] : array();
+		$preview        = is_array( $proposal['preview'] ?? null ) ? $proposal['preview'] : array();
+		$media          = is_array( $preview['media_optimization'] ?? null ) ? $preview['media_optimization'] : array();
+		$derivative     = is_array( $media['derivative_preview'] ?? null ) ? $media['derivative_preview'] : array();
+		$before         = is_array( $derivative['before'] ?? null ) ? $derivative['before'] : array();
+		$after          = is_array( $derivative['after'] ?? null ) ? $derivative['after'] : array();
+		$artifact       = $this->media_optimization_derivative_artifact( $proposal );
+		$repairs        = $this->normalize_media_optimization_reference_repairs( $this->media_optimization_reference_repairs( $proposal ) );
+		$adopt_input    = array();
 		$metadata_input = array();
 
 		foreach ( (array) ( $input['write_actions'] ?? array() ) as $action ) {
@@ -3563,9 +3572,9 @@ final class Controller {
 		}
 
 		if ( is_array( $repairs ) ) {
-			$post_ids = array_values( array_filter( array_map( 'absint', (array) ( $adopt_input['expected_content_reference_post_ids'] ?? array() ) ) ) );
+			$post_ids   = array_values( array_filter( array_map( 'absint', (array) ( $adopt_input['expected_content_reference_post_ids'] ?? array() ) ) ) );
 			$post_count = absint( $repairs['post_count'] ?? ( $adopt_input['expected_content_reference_post_count'] ?? count( $post_ids ) ) );
-			$lines[] = sprintf(
+			$lines[]    = sprintf(
 				/* translators: 1: post count, 2: actual replacement count, 3: rule count. */
 				__( 'Repair post-content media references in %1$d post(s): %2$d actual replacement(s) from %3$d reviewed rule(s).', 'npcink-ai-client-adapter' ),
 				$post_count,
@@ -3650,7 +3659,7 @@ final class Controller {
 			'filename_basis',
 			'processing_warnings',
 		);
-		$actual_keys = array_keys( $artifact );
+		$actual_keys   = array_keys( $artifact );
 		sort( $actual_keys );
 		sort( $expected_keys );
 		if ( $actual_keys !== $expected_keys ) {
@@ -3670,8 +3679,8 @@ final class Controller {
 			'image/jpeg' => 'jpeg',
 			'image/png'  => 'png',
 		);
-		$mime_type = is_string( $artifact['mime_type'] ) ? $artifact['mime_type'] : '';
-		$format    = is_string( $artifact['format'] ) ? $artifact['format'] : '';
+		$mime_type      = is_string( $artifact['mime_type'] ) ? $artifact['mime_type'] : '';
+		$format         = is_string( $artifact['format'] ) ? $artifact['format'] : '';
 		if ( ! isset( $format_by_mime[ $mime_type ] ) || $format_by_mime[ $mime_type ] !== $format ) {
 			return false;
 		}
@@ -3698,7 +3707,7 @@ final class Controller {
 			return false;
 		}
 
-		$filename_basis = is_array( $artifact['filename_basis'] ) ? $artifact['filename_basis'] : array();
+		$filename_basis      = is_array( $artifact['filename_basis'] ) ? $artifact['filename_basis'] : array();
 		$filename_basis_keys = array_keys( $filename_basis );
 		sort( $filename_basis_keys );
 		if (
@@ -3730,7 +3739,7 @@ final class Controller {
 	 * @return int
 	 */
 	private function media_derivative_expiry_timestamp( string $value ): int {
-		$utc = new \DateTimeZone( 'UTC' );
+		$utc     = new \DateTimeZone( 'UTC' );
 		$formats = array(
 			'!Y-m-d\TH:i:s\Z'   => 'Y-m-d\TH:i:s\Z',
 			'!Y-m-d\TH:i:sP'    => 'Y-m-d\TH:i:sP',
@@ -3738,8 +3747,8 @@ final class Controller {
 			'!Y-m-d\TH:i:s.uP'  => 'Y-m-d\TH:i:s.uP',
 		);
 		foreach ( $formats as $parse_format => $roundtrip_format ) {
-			$parsed = \DateTimeImmutable::createFromFormat( $parse_format, $value, $utc );
-			$errors = \DateTimeImmutable::getLastErrors();
+			$parsed     = \DateTimeImmutable::createFromFormat( $parse_format, $value, $utc );
+			$errors     = \DateTimeImmutable::getLastErrors();
 			$has_errors = is_array( $errors ) && ( (int) ( $errors['warning_count'] ?? 0 ) > 0 || (int) ( $errors['error_count'] ?? 0 ) > 0 );
 			if (
 				$parsed instanceof \DateTimeImmutable
@@ -3811,11 +3820,11 @@ final class Controller {
 			return $body_size;
 		}
 
-		$started    = microtime( true );
-		$ability_id  = (string) $request->get_param( 'ability_id' );
+		$started       = microtime( true );
+		$ability_id    = (string) $request->get_param( 'ability_id' );
 		$event_context = $this->observability_request_context( $request, array( 'ability_id' => $ability_id ) );
-		$input       = $this->object_param( $request, 'input' );
-		$valid_input = $this->validate_proposal_create_input( $ability_id, $input );
+		$input         = $this->object_param( $request, 'input' );
+		$valid_input   = $this->validate_proposal_create_input( $ability_id, $input );
 		if ( is_wp_error( $valid_input ) ) {
 			$this->emit_operation_event( 'adapter.proposal.create', $started, $valid_input, $event_context );
 			return $valid_input;
@@ -3868,15 +3877,15 @@ final class Controller {
 			return $body_size;
 		}
 
-		$started = microtime( true );
+		$started         = microtime( true );
 		$plan_ability_id = sanitize_text_field( (string) $request->get_param( 'plan_ability_id' ) );
-		$event_context = $this->observability_request_context( $request, array( 'ability_id' => $plan_ability_id ) );
-			if ( ! Supported_Plan_Abilities::contains( $plan_ability_id ) ) {
-				$error = new WP_Error(
-					'npcink_openclaw_adapter_plan_ability_unsupported',
-					__( 'This planning ability is not implemented by the adapter plan-to-proposal bridge.', 'npcink-ai-client-adapter' ),
+		$event_context   = $this->observability_request_context( $request, array( 'ability_id' => $plan_ability_id ) );
+		if ( ! Supported_Plan_Abilities::contains( $plan_ability_id ) ) {
+			$error = new WP_Error(
+				'npcink_openclaw_adapter_plan_ability_unsupported',
+				__( 'This planning ability is not implemented by the adapter plan-to-proposal bridge.', 'npcink-ai-client-adapter' ),
 				array(
-					'status'                   => 400,
+					'status'                     => 400,
 					'supported_plan_ability_ids' => Supported_Plan_Abilities::ids(),
 				)
 			);
@@ -3885,7 +3894,7 @@ final class Controller {
 			return $error;
 		}
 
-		$plan            = $this->normalize_plan_batch_metadata( $this->object_param( $request, 'plan' ) );
+		$plan             = $this->normalize_plan_batch_metadata( $this->object_param( $request, 'plan' ) );
 		$valid_plan_input = $this->validate_plan_write_action_inputs( $plan );
 		if ( is_wp_error( $valid_plan_input ) ) {
 			$valid_plan_input = $this->error_with_operator_feedback( $valid_plan_input, $this->plan_handoff_operator_feedback( $valid_plan_input, $plan_ability_id ) );
@@ -3929,7 +3938,7 @@ final class Controller {
 		$plan        = $is_envelope ? (array) $plan_payload['data'] : $plan_payload;
 		$actions     = is_array( $plan['write_actions'] ?? null ) ? array_values( $plan['write_actions'] ) : array();
 		if ( count( $actions ) > 1 ) {
-			$plan['atomicity'] = 'non_atomic';
+			$plan['atomicity']                = 'non_atomic';
 			$plan['partial_success_possible'] = true;
 		}
 
@@ -3940,9 +3949,9 @@ final class Controller {
 
 			$depends_on = is_array( $action['depends_on'] ?? null ) ? array_filter( $action['depends_on'] ) : array();
 			if ( ! empty( $depends_on ) || ! empty( $this->execution_input_validator->collect_output_references( $action['input'] ?? array() ) ) ) {
-				$plan['proposal_mode']  = 'batch';
-				$plan['batch_approval'] = true;
-				$plan['atomicity']      = 'non_atomic';
+				$plan['proposal_mode']            = 'batch';
+				$plan['batch_approval']           = true;
+				$plan['atomicity']                = 'non_atomic';
 				$plan['partial_success_possible'] = true;
 				break;
 			}
@@ -4074,9 +4083,9 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function commit_preflight( WP_REST_Request $request ) {
-		$started = microtime( true );
+		$started     = microtime( true );
 		$proposal_id = (string) $request->get_param( 'proposal_id' );
-		$response = $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight' );
+		$response    = $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight' );
 		if ( ! is_wp_error( $response ) && $response instanceof WP_REST_Response ) {
 			$data = $response->get_data();
 			if ( is_array( $data ) ) {
@@ -4088,7 +4097,7 @@ final class Controller {
 					}
 				}
 
-				$handoff = $this->store_preflight_handoff( $proposal_id, $proposal, $data );
+				$handoff                                  = $this->store_preflight_handoff( $proposal_id, $proposal, $data );
 				$data['adapter_preflight_handoff_cached'] = is_array( $handoff );
 				$data['adapter_execution_route']          = '/wp-json/' . self::NAMESPACE . '/proposals/' . rawurlencode( $proposal_id ) . '/execute';
 				$data['execution_handoff_posture']        = $this->execution_handoff_posture();
@@ -4116,14 +4125,14 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function execute_approved_proposal_route( WP_REST_Request $request ) {
-		$started = microtime( true );
+		$started   = microtime( true );
 		$body_size = $this->validate_request_body_size( $request, self::MAX_LIGHT_POST_BODY_BYTES );
 		if ( is_wp_error( $body_size ) ) {
 			$this->emit_operation_event( 'adapter.proposal.execute', $started, $body_size );
 			return $body_size;
 		}
 
-		$proposal_id = sanitize_text_field( (string) $request->get_param( 'proposal_id' ) );
+		$proposal_id   = sanitize_text_field( (string) $request->get_param( 'proposal_id' ) );
 		$event_context = $this->observability_request_context( $request, array( 'proposal_id' => $proposal_id ) );
 		if ( '' === $proposal_id ) {
 			$error = new WP_Error(
@@ -4151,18 +4160,18 @@ final class Controller {
 			'adapter.proposal.execute',
 			$started,
 			null,
-				array_merge(
-					$event_context,
-					array(
-						'proposal_id'        => $proposal_id,
-						'ability_id'         => (string) ( $execution['ability_id'] ?? '' ),
-						'correlation_id'     => (string) ( $execution['correlation_id'] ?? '' ),
-						'adapter_request_id' => (string) ( $execution['adapter_request_id'] ?? '' ),
-						'executed_count'     => (int) ( $execution['executed_count'] ?? 0 ),
-						'failed_count'       => (int) ( $execution['failed_count'] ?? 0 ),
-					),
-				)
-			);
+			array_merge(
+				$event_context,
+				array(
+					'proposal_id'        => $proposal_id,
+					'ability_id'         => (string) ( $execution['ability_id'] ?? '' ),
+					'correlation_id'     => (string) ( $execution['correlation_id'] ?? '' ),
+					'adapter_request_id' => (string) ( $execution['adapter_request_id'] ?? '' ),
+					'executed_count'     => (int) ( $execution['executed_count'] ?? 0 ),
+					'failed_count'       => (int) ( $execution['failed_count'] ?? 0 ),
+				),
+			)
+		);
 
 		return new WP_REST_Response(
 			$this->public_execution_response_payload(
@@ -4188,14 +4197,14 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function approve_and_execute_proposal_route( WP_REST_Request $request ) {
-		$started = microtime( true );
+		$started   = microtime( true );
 		$body_size = $this->validate_request_body_size( $request, self::MAX_LIGHT_POST_BODY_BYTES );
 		if ( is_wp_error( $body_size ) ) {
 			$this->emit_operation_event( 'adapter.proposal.execute', $started, $body_size );
 			return $body_size;
 		}
 
-		$proposal_id = sanitize_text_field( (string) $request->get_param( 'proposal_id' ) );
+		$proposal_id   = sanitize_text_field( (string) $request->get_param( 'proposal_id' ) );
 		$event_context = $this->observability_request_context( $request, array( 'proposal_id' => $proposal_id ) );
 		if ( '' === $proposal_id ) {
 			$error = new WP_Error(
@@ -4212,10 +4221,10 @@ final class Controller {
 				'npcink_openclaw_adapter_approve_requires_admin_session',
 				__( 'The unified approve-and-execute action requires a WordPress administrator session. Signed AI clients must wait for human approval in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute.', 'npcink-ai-client-adapter' ),
 				array(
-					'status' => 403,
+					'status'            => 403,
 					'operator_feedback' => array(
-						'reason'     => 'signed_client_cannot_self_approve',
-						'next_step'  => 'Approve the proposal in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute from the same signed client.',
+						'reason'             => 'signed_client_cannot_self_approve',
+						'next_step'          => 'Approve the proposal in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute from the same signed client.',
 						'authorized_surface' => 'wordpress_admin_session_only',
 					),
 				)
@@ -4237,9 +4246,9 @@ final class Controller {
 			return $error;
 		}
 
-		$ability_id = sanitize_text_field( (string) ( $proposal['ability_id'] ?? '' ) );
+		$ability_id                  = sanitize_text_field( (string) ( $proposal['ability_id'] ?? '' ) );
 		$event_context['ability_id'] = $ability_id;
-		$execution_actions = $this->normalize_execution_actions( $proposal_id, $proposal );
+		$execution_actions           = $this->normalize_execution_actions( $proposal_id, $proposal );
 		if ( is_wp_error( $execution_actions ) ) {
 			$this->emit_operation_event( 'adapter.proposal.execute', $started, $execution_actions, $event_context );
 			return $execution_actions;
@@ -4284,7 +4293,7 @@ final class Controller {
 
 			$approved_by_adapter = true;
 		} elseif ( 'approved' !== $status_before ) {
-			$code = 'rejected' === $status_before ? 'npcink_openclaw_adapter_proposal_rejected' : 'npcink_openclaw_adapter_proposal_not_executable';
+			$code  = 'rejected' === $status_before ? 'npcink_openclaw_adapter_proposal_rejected' : 'npcink_openclaw_adapter_proposal_not_executable';
 			$error = new WP_Error(
 				$code,
 				__( 'This proposal cannot be approved and executed from its current status.', 'npcink-ai-client-adapter' ),
@@ -4381,52 +4390,52 @@ final class Controller {
 		$payload = array_merge(
 			$extra,
 			array(
-				'correlation_id'          => (string) ( $execution['correlation_id'] ?? '' ),
-				'ability_id'               => (string) ( $execution['ability_id'] ?? '' ),
-				'post_id'                  => absint( $execution['post_id'] ?? 0 ),
-				'post_ids'                 => array_values( array_map( 'absint', is_array( $execution['post_ids'] ?? null ) ? $execution['post_ids'] : array() ) ),
-				'execution_mode'           => sanitize_key( (string) ( $execution['execution_mode'] ?? '' ) ),
-				'adapter_request_id'       => sanitize_text_field( (string) ( $execution['adapter_request_id'] ?? '' ) ),
-				'preflight_source'         => sanitize_key( (string) ( $execution['preflight_source'] ?? '' ) ),
-				'commit_execution'         => false,
-				'core_commit_execution'    => false,
-				'execution_surface'        => 'wp_abilities_rest',
-				'execution_handoff_posture' => $this->execution_handoff_posture(),
-				'selected_count'           => absint( $execution['selected_count'] ?? 0 ),
-				'submitted_count'          => absint( $execution['submitted_count'] ?? 0 ),
-				'executed_count'           => absint( $execution['executed_count'] ?? 0 ),
-				'failed_count'             => absint( $execution['failed_count'] ?? 0 ),
-				'blocked_count'            => absint( $execution['blocked_count'] ?? 0 ),
-				'partial_success'          => (bool) ( $execution['partial_success'] ?? false ),
-				'retryable'                => (bool) ( $execution['retryable'] ?? false ),
-				'operator_next_action'     => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
-				'batch_review_feedback'    => is_array( $execution['batch_review_feedback'] ?? null ) ? $execution['batch_review_feedback'] : array(),
-				'core_preflight_evidence'  => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
+				'correlation_id'                  => (string) ( $execution['correlation_id'] ?? '' ),
+				'ability_id'                      => (string) ( $execution['ability_id'] ?? '' ),
+				'post_id'                         => absint( $execution['post_id'] ?? 0 ),
+				'post_ids'                        => array_values( array_map( 'absint', is_array( $execution['post_ids'] ?? null ) ? $execution['post_ids'] : array() ) ),
+				'execution_mode'                  => sanitize_key( (string) ( $execution['execution_mode'] ?? '' ) ),
+				'adapter_request_id'              => sanitize_text_field( (string) ( $execution['adapter_request_id'] ?? '' ) ),
+				'preflight_source'                => sanitize_key( (string) ( $execution['preflight_source'] ?? '' ) ),
+				'commit_execution'                => false,
+				'core_commit_execution'           => false,
+				'execution_surface'               => 'wp_abilities_rest',
+				'execution_handoff_posture'       => $this->execution_handoff_posture(),
+				'selected_count'                  => absint( $execution['selected_count'] ?? 0 ),
+				'submitted_count'                 => absint( $execution['submitted_count'] ?? 0 ),
+				'executed_count'                  => absint( $execution['executed_count'] ?? 0 ),
+				'failed_count'                    => absint( $execution['failed_count'] ?? 0 ),
+				'blocked_count'                   => absint( $execution['blocked_count'] ?? 0 ),
+				'partial_success'                 => (bool) ( $execution['partial_success'] ?? false ),
+				'retryable'                       => (bool) ( $execution['retryable'] ?? false ),
+				'operator_next_action'            => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
+				'batch_review_feedback'           => is_array( $execution['batch_review_feedback'] ?? null ) ? $execution['batch_review_feedback'] : array(),
+				'core_preflight_evidence'         => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
 				'implementation_posture_evidence' => is_array( $execution['implementation_posture_evidence'] ?? null ) ? $execution['implementation_posture_evidence'] : array(),
-				'media_alt_live_preflight' => is_array( $execution['media_alt_live_preflight'] ?? null ) ? $execution['media_alt_live_preflight'] : array(),
-				'execution_record'         => is_array( $execution['execution_record'] ?? null ) ? $execution['execution_record'] : array(),
-				'approval_context'         => is_array( $execution['approval_context'] ?? null ) ? $execution['approval_context'] : array(),
-				'execution_detail_included' => $include_detail,
+				'media_alt_live_preflight'        => is_array( $execution['media_alt_live_preflight'] ?? null ) ? $execution['media_alt_live_preflight'] : array(),
+				'execution_record'                => is_array( $execution['execution_record'] ?? null ) ? $execution['execution_record'] : array(),
+				'approval_context'                => is_array( $execution['approval_context'] ?? null ) ? $execution['approval_context'] : array(),
+				'execution_detail_included'       => $include_detail,
 			)
 		);
 
 		$payload['results']   = is_array( $execution['results'] ?? null ) ? $execution['results'] : array();
 		$payload['result']    = is_array( $execution['result'] ?? null ) ? $execution['result'] : array();
 		$payload['execution'] = array(
-			'success'              => true,
-			'post_status_before'   => (string) ( $execution['post_status_before'] ?? '' ),
-			'post_status_after'    => (string) ( $execution['post_status_after'] ?? '' ),
-			'selected_count'       => absint( $execution['selected_count'] ?? 0 ),
-			'submitted_count'      => absint( $execution['submitted_count'] ?? 0 ),
-			'executed_count'       => absint( $execution['executed_count'] ?? 0 ),
-			'failed_count'         => absint( $execution['failed_count'] ?? 0 ),
-			'blocked_count'        => absint( $execution['blocked_count'] ?? 0 ),
-			'partial_success'      => (bool) ( $execution['partial_success'] ?? false ),
-			'retryable'            => (bool) ( $execution['retryable'] ?? false ),
-			'operator_next_action' => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
+			'success'                  => true,
+			'post_status_before'       => (string) ( $execution['post_status_before'] ?? '' ),
+			'post_status_after'        => (string) ( $execution['post_status_after'] ?? '' ),
+			'selected_count'           => absint( $execution['selected_count'] ?? 0 ),
+			'submitted_count'          => absint( $execution['submitted_count'] ?? 0 ),
+			'executed_count'           => absint( $execution['executed_count'] ?? 0 ),
+			'failed_count'             => absint( $execution['failed_count'] ?? 0 ),
+			'blocked_count'            => absint( $execution['blocked_count'] ?? 0 ),
+			'partial_success'          => (bool) ( $execution['partial_success'] ?? false ),
+			'retryable'                => (bool) ( $execution['retryable'] ?? false ),
+			'operator_next_action'     => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
 			'media_alt_live_preflight' => $payload['media_alt_live_preflight'],
-			'result'               => $payload['result'],
-			'results'              => $payload['results'],
+			'result'                   => $payload['result'],
+			'results'                  => $payload['results'],
 		);
 
 		if ( $include_detail ) {
@@ -4580,8 +4589,8 @@ final class Controller {
 					return $valid_refs;
 				}
 
-				$post_id      = absint( $action_input['post_id'] ?? 0 );
-				$valid_input  = $this->execution_input_validator->validate_execute_action_input( $proposal_id, $target_ability_id, $action_input, $post_id, $index, true, true );
+				$post_id     = absint( $action_input['post_id'] ?? 0 );
+				$valid_input = $this->execution_input_validator->validate_execute_action_input( $proposal_id, $target_ability_id, $action_input, $post_id, $index, true, true );
 				if ( is_wp_error( $valid_input ) ) {
 					return $valid_input;
 				}
@@ -4610,10 +4619,10 @@ final class Controller {
 					);
 				}
 
-					if ( array_key_exists( 'commit_execution', $raw_action ) && false !== (bool) $raw_action['commit_execution'] ) {
-						return new WP_Error(
-							'npcink_openclaw_adapter_write_action_commit_execution_unsupported',
-							__( 'Write actions must keep commit_execution=false before Adapter execution.', 'npcink-ai-client-adapter' ),
+				if ( array_key_exists( 'commit_execution', $raw_action ) && false !== (bool) $raw_action['commit_execution'] ) {
+					return new WP_Error(
+						'npcink_openclaw_adapter_write_action_commit_execution_unsupported',
+						__( 'Write actions must keep commit_execution=false before Adapter execution.', 'npcink-ai-client-adapter' ),
 						array(
 							'status'       => 409,
 							'proposal_id'  => $proposal_id,
@@ -4642,15 +4651,15 @@ final class Controller {
 						'npcink_openclaw_adapter_write_action_not_ready',
 						__( 'Write action is not marked ready for execution.', 'npcink-ai-client-adapter' ),
 						array(
-							'status'              => 409,
-							'proposal_id'         => $proposal_id,
-							'action_index'        => $index,
-							'preflight_blockers'  => $preflight_blockers,
+							'status'             => 409,
+							'proposal_id'        => $proposal_id,
+							'action_index'       => $index,
+							'preflight_blockers' => $preflight_blockers,
 						)
 					);
 				}
 
-				$actions[] = array(
+				$actions[]                       = array(
 					'action_id'         => $action_id,
 					'action_index'      => $index,
 					'ability_id'        => $target_ability_id,
@@ -4789,16 +4798,17 @@ final class Controller {
 				'via'               => 'npcink-ai-client-adapter-media-alt-live-preflight',
 			)
 		);
-		$route    = '/wp-abilities/v1/abilities/' . $ability_id . '/run';
-		$response = $this->dispatch_upstream_with_runtime_context( $context, 'POST', $route, array( 'input' => $dry_run_input ), false, true );
+		$route                    = '/wp-abilities/v1/abilities/' . $ability_id . '/run';
+		$response                 = $this->dispatch_upstream_with_runtime_context( $context, 'POST', $route, array( 'input' => $dry_run_input ), false, true );
 		if ( is_wp_error( $response ) ) {
-			$data = $response->get_error_data();
-			$data = is_array( $data ) ? $data : array();
+			$data         = $response->get_error_data();
+			$data         = is_array( $data ) ? $data : array();
+			$error_status = absint( $data['status'] ?? 409 );
 			$response->add_data(
 				array_merge(
 					$data,
 					array(
-						'status'               => absint( $data['status'] ?? 409 ) ?: 409,
+						'status'               => $error_status > 0 ? $error_status : 409,
 						'proposal_id'          => $proposal_id,
 						'media_alt_live_check' => 'failed',
 						'operator_next_action' => 'refresh_media_alt_review_and_create_revised_proposal',
@@ -4809,13 +4819,13 @@ final class Controller {
 		}
 
 		return array(
-			'checked'                  => true,
-			'contract_version'         => 'media_alt_apply_plan.v1',
-			'attachment_id'            => absint( $input['attachment_id'] ?? 0 ),
-			'expected_current_alt'     => '',
-			'visual_review_confirmed'  => true,
+			'checked'                   => true,
+			'contract_version'          => 'media_alt_apply_plan.v1',
+			'attachment_id'             => absint( $input['attachment_id'] ?? 0 ),
+			'expected_current_alt'      => '',
+			'visual_review_confirmed'   => true,
 			'toolkit_dry_run_succeeded' => true,
-			'live_value_check_owner'   => 'adapter_toolkit_dry_run_before_commit',
+			'live_value_check_owner'    => 'adapter_toolkit_dry_run_before_commit',
 		);
 	}
 
@@ -4864,19 +4874,19 @@ final class Controller {
 			return array();
 		}
 
-		$read_context = $base_request_context;
+		$read_context                        = $base_request_context;
 		$read_context['verification_source'] = 'post_execution_block_readback';
 		$read_context['write_ability_id']    = $ability_id;
 		$read_context['ability_id']          = $read_ability_id;
-		$response = $this->run_read_ability( $read_ability_id, $read_input, $read_context );
+		$response                            = $this->run_read_ability( $read_ability_id, $read_input, $read_context );
 		if ( is_wp_error( $response ) ) {
 			$error_data = $response->get_error_data();
 			$error_data = is_array( $error_data ) ? $error_data : array();
 
 			return array(
-				'block_readback_status'     => 'readback_failed',
-				'block_readback_ability_id' => $read_ability_id,
-				'block_readback_error_code' => sanitize_key( $response->get_error_code() ),
+				'block_readback_status'      => 'readback_failed',
+				'block_readback_ability_id'  => $read_ability_id,
+				'block_readback_error_code'  => sanitize_key( $response->get_error_code() ),
 				'block_readback_status_code' => absint( $error_data['status'] ?? 0 ),
 			);
 		}
@@ -4887,17 +4897,17 @@ final class Controller {
 		$validation  = is_array( $ability_result['validation'] ?? null ) ? $ability_result['validation'] : array();
 
 		return array(
-			'block_readback_status'          => 'verified',
-			'block_readback_ability_id'      => $read_ability_id,
-			'block_readback_post_id'         => absint( $read_result['post_id'] ?? ( $read_input['post_id'] ?? 0 ) ),
-			'block_readback_post_type'       => sanitize_key( (string) ( $read_result['post_type'] ?? ( $ability_result['post_type'] ?? '' ) ) ),
-			'block_readback_slug'            => sanitize_key( (string) ( $read_result['slug'] ?? ( $ability_result['slug'] ?? ( $read_input['slug'] ?? '' ) ) ) ),
-			'block_readback_block_count'     => absint( $read_result['block_count'] ?? 0 ),
-			'block_readback_content_length'  => absint( $read_result['content_length'] ?? 0 ),
-			'block_write_block_count_after'  => absint( $ability_result['block_count_after'] ?? 0 ),
-			'block_write_validation_valid'   => (bool) ( $validation['valid'] ?? false ),
-			'block_write_roundtrip_checked'  => (bool) ( $validation['roundtrip_checked'] ?? false ),
-			'block_write_roundtrip_ok'       => (bool) ( $validation['roundtrip_ok'] ?? false ),
+			'block_readback_status'         => 'verified',
+			'block_readback_ability_id'     => $read_ability_id,
+			'block_readback_post_id'        => absint( $read_result['post_id'] ?? ( $read_input['post_id'] ?? 0 ) ),
+			'block_readback_post_type'      => sanitize_key( (string) ( $read_result['post_type'] ?? ( $ability_result['post_type'] ?? '' ) ) ),
+			'block_readback_slug'           => sanitize_key( (string) ( $read_result['slug'] ?? ( $ability_result['slug'] ?? ( $read_input['slug'] ?? '' ) ) ) ),
+			'block_readback_block_count'    => absint( $read_result['block_count'] ?? 0 ),
+			'block_readback_content_length' => absint( $read_result['content_length'] ?? 0 ),
+			'block_write_block_count_after' => absint( $ability_result['block_count_after'] ?? 0 ),
+			'block_write_validation_valid'  => (bool) ( $validation['valid'] ?? false ),
+			'block_write_roundtrip_checked' => (bool) ( $validation['roundtrip_checked'] ?? false ),
+			'block_write_roundtrip_ok'      => (bool) ( $validation['roundtrip_ok'] ?? false ),
 		);
 	}
 
@@ -4937,7 +4947,7 @@ final class Controller {
 			return $this->execution_already_completed_error( $proposal_id, $existing_record );
 		}
 
-		$actions             = $this->normalize_execution_actions( $proposal_id, $proposal );
+		$actions = $this->normalize_execution_actions( $proposal_id, $proposal );
 		if ( is_wp_error( $actions ) ) {
 			return $actions;
 		}
@@ -4975,10 +4985,10 @@ final class Controller {
 			);
 		}
 
-			if ( false !== (bool) ( $preflight['commit_execution'] ?? true ) ) {
-				return new WP_Error(
-					'npcink_openclaw_adapter_core_execution_unsupported',
-					__( 'Core commit preflight must not execute final writes.', 'npcink-ai-client-adapter' ),
+		if ( false !== (bool) ( $preflight['commit_execution'] ?? true ) ) {
+			return new WP_Error(
+				'npcink_openclaw_adapter_core_execution_unsupported',
+				__( 'Core commit preflight must not execute final writes.', 'npcink-ai-client-adapter' ),
 				array(
 					'status'      => 409,
 					'proposal_id' => $proposal_id,
@@ -5023,18 +5033,18 @@ final class Controller {
 		}
 		$preflight['implementation_posture_evidence'] = $implementation_posture_evidence;
 
-		$base_request_context = $this->request_log_context( $request, '' !== $proposal_ability_id ? $proposal_ability_id : (string) ( $actions[0]['ability_id'] ?? '' ) );
-		$base_request_context['proposal_id']    = $proposal_id;
-		$base_request_context['correlation_id'] = $correlation_id;
-		$npcink_governance_core = is_array( $base_request_context['npcink_governance_core'] ?? null ) ? $base_request_context['npcink_governance_core'] : array();
-		$npcink_governance_core['proposal_id']    = $proposal_id;
-		$npcink_governance_core['correlation_id'] = $correlation_id;
+		$base_request_context                           = $this->request_log_context( $request, '' !== $proposal_ability_id ? $proposal_ability_id : (string) ( $actions[0]['ability_id'] ?? '' ) );
+		$base_request_context['proposal_id']            = $proposal_id;
+		$base_request_context['correlation_id']         = $correlation_id;
+		$npcink_governance_core                         = is_array( $base_request_context['npcink_governance_core'] ?? null ) ? $base_request_context['npcink_governance_core'] : array();
+		$npcink_governance_core['proposal_id']          = $proposal_id;
+		$npcink_governance_core['correlation_id']       = $correlation_id;
 		$base_request_context['npcink_governance_core'] = $npcink_governance_core;
 
 		$results = array();
 		$outputs = array();
 		foreach ( $actions as $action ) {
-			$action_index = absint( $action['action_index'] ?? 0 );
+			$action_index   = absint( $action['action_index'] ?? 0 );
 			$resolved_input = $this->execution_input_validator->resolve_output_references(
 				is_array( $action['input'] ?? null ) ? $action['input'] : array(),
 				$outputs,
@@ -5043,7 +5053,7 @@ final class Controller {
 			);
 			if ( is_wp_error( $resolved_input ) ) {
 				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$execution_record = $this->store_failed_execution_record(
+				$execution_record  = $this->store_failed_execution_record(
 					$proposal_id,
 					$proposal,
 					$actions,
@@ -5058,21 +5068,21 @@ final class Controller {
 					array_merge(
 						(array) $resolved_input->get_error_data(),
 						array(
-							'correlation_id'   => $correlation_id,
-							'action_id'        => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'     => $action_index,
-							'execution_profile' => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'  => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'   => $execution_summary['selected_count'],
-							'submitted_count'  => $execution_summary['submitted_count'],
-							'executed_count'   => $execution_summary['executed_count'],
-							'failed_count'     => $execution_summary['failed_count'],
-							'blocked_count'    => $execution_summary['blocked_count'],
-							'partial_success'  => $execution_summary['partial_success'],
-							'retryable'        => $execution_summary['retryable'],
+							'correlation_id'       => $correlation_id,
+							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+							'action_index'         => $action_index,
+							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+							'selected_count'       => $execution_summary['selected_count'],
+							'submitted_count'      => $execution_summary['submitted_count'],
+							'executed_count'       => $execution_summary['executed_count'],
+							'failed_count'         => $execution_summary['failed_count'],
+							'blocked_count'        => $execution_summary['blocked_count'],
+							'partial_success'      => $execution_summary['partial_success'],
+							'retryable'            => $execution_summary['retryable'],
 							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results' => $results,
-							'execution_record' => $execution_record,
+							'executed_results'     => $results,
+							'execution_record'     => $execution_record,
 						)
 					)
 				);
@@ -5092,7 +5102,7 @@ final class Controller {
 			);
 			if ( is_wp_error( $valid_input ) ) {
 				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$execution_record = $this->store_failed_execution_record(
+				$execution_record  = $this->store_failed_execution_record(
 					$proposal_id,
 					$proposal,
 					$actions,
@@ -5107,21 +5117,21 @@ final class Controller {
 					array_merge(
 						(array) $valid_input->get_error_data(),
 						array(
-							'correlation_id'   => $correlation_id,
-							'action_id'        => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'     => $action_index,
-							'execution_profile' => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'  => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'   => $execution_summary['selected_count'],
-							'submitted_count'  => $execution_summary['submitted_count'],
-							'executed_count'   => $execution_summary['executed_count'],
-							'failed_count'     => $execution_summary['failed_count'],
-							'blocked_count'    => $execution_summary['blocked_count'],
-							'partial_success'  => $execution_summary['partial_success'],
-							'retryable'        => $execution_summary['retryable'],
+							'correlation_id'       => $correlation_id,
+							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+							'action_index'         => $action_index,
+							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+							'selected_count'       => $execution_summary['selected_count'],
+							'submitted_count'      => $execution_summary['submitted_count'],
+							'executed_count'       => $execution_summary['executed_count'],
+							'failed_count'         => $execution_summary['failed_count'],
+							'blocked_count'        => $execution_summary['blocked_count'],
+							'partial_success'      => $execution_summary['partial_success'],
+							'retryable'            => $execution_summary['retryable'],
 							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results' => $results,
-							'execution_record' => $execution_record,
+							'executed_results'     => $results,
+							'execution_record'     => $execution_record,
 						)
 					)
 				);
@@ -5156,9 +5166,9 @@ final class Controller {
 			$result = $this->execution_action_runner->execute( $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
 			if ( is_wp_error( $result ) ) {
 				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$error_data = $result->get_error_data();
-				$error_data = is_array( $error_data ) ? $error_data : array();
-				$status     = absint( $error_data['status'] ?? 0 );
+				$error_data        = $result->get_error_data();
+				$error_data        = is_array( $error_data ) ? $error_data : array();
+				$status            = absint( $error_data['status'] ?? 0 );
 				if ( 0 === $status ) {
 					$status = 409;
 				}
@@ -5178,23 +5188,23 @@ final class Controller {
 					array_merge(
 						$error_data,
 						array(
-							'status'           => $status,
-							'proposal_id'      => $proposal_id,
-							'correlation_id'   => $correlation_id,
-							'action_id'        => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'     => absint( $action['action_index'] ?? 0 ),
-							'execution_profile' => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'  => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'   => $execution_summary['selected_count'],
-							'submitted_count'  => $execution_summary['submitted_count'],
-							'executed_count'   => $execution_summary['executed_count'],
-							'failed_count'     => $execution_summary['failed_count'],
-							'blocked_count'    => $execution_summary['blocked_count'],
-							'partial_success'  => $execution_summary['partial_success'],
-							'retryable'        => $execution_summary['retryable'],
+							'status'               => $status,
+							'proposal_id'          => $proposal_id,
+							'correlation_id'       => $correlation_id,
+							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+							'action_index'         => absint( $action['action_index'] ?? 0 ),
+							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+							'selected_count'       => $execution_summary['selected_count'],
+							'submitted_count'      => $execution_summary['submitted_count'],
+							'executed_count'       => $execution_summary['executed_count'],
+							'failed_count'         => $execution_summary['failed_count'],
+							'blocked_count'        => $execution_summary['blocked_count'],
+							'partial_success'      => $execution_summary['partial_success'],
+							'retryable'            => $execution_summary['retryable'],
 							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results' => $results,
-							'execution_record' => $execution_record,
+							'executed_results'     => $results,
+							'execution_record'     => $execution_record,
 						)
 					)
 				);
@@ -5205,14 +5215,14 @@ final class Controller {
 			$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
 		}
 
-		$first_result      = is_array( $results[0] ?? null ) ? $results[0] : array();
-		$post_ids          = array_values(
+		$first_result        = is_array( $results[0] ?? null ) ? $results[0] : array();
+		$post_ids            = array_values(
 			array_map(
 				'absint',
 				array_column( $results, 'post_id' )
 			)
 		);
-		$target_ability_ids = array_values(
+		$target_ability_ids  = array_values(
 			array_unique(
 				array_map(
 					static function ( $result ) {
@@ -5222,58 +5232,58 @@ final class Controller {
 				)
 			)
 		);
-		$target_ability_ids = array_values( array_filter( $target_ability_ids ) );
-		$execution_mode     = count( $actions ) > 1 || 'batch_write_actions' === (string) ( $actions[0]['execution_mode'] ?? '' ) ? 'batch_write_actions' : 'single_post';
+		$target_ability_ids  = array_values( array_filter( $target_ability_ids ) );
+		$execution_mode      = count( $actions ) > 1 || 'batch_write_actions' === (string) ( $actions[0]['execution_mode'] ?? '' ) ? 'batch_write_actions' : 'single_post';
 		$response_ability_id = 1 === count( $target_ability_ids ) ? $target_ability_ids[0] : $proposal_ability_id;
-		$execution_summary  = $this->selected_batch_execution_summary( $actions, $results );
+		$execution_summary   = $this->selected_batch_execution_summary( $actions, $results );
 
-		$execution = array(
-			'ability_id'          => $response_ability_id,
-			'post_id'             => absint( $first_result['post_id'] ?? 0 ),
-			'post_ids'            => $post_ids,
-			'correlation_id'      => $correlation_id,
-			'adapter_request_id'  => (string) ( $base_request_context['adapter_request_id'] ?? '' ),
-			'approval_context'    => $approval_context,
-			'preflight_source'    => $preflight_source,
-			'preflight'           => $preflight,
-			'core_preflight_evidence' => array(
-				'authorized'              => true,
-				'policy_version'          => sanitize_text_field( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) ),
-				'approved_input_hash'     => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
-				'correlation_id'          => $correlation_id,
-				'preflight_source'        => $preflight_source,
-				'commit_execution'        => false,
-				'adapter_preflight_source' => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? $preflight_source ) ),
-				'implementation_posture_status' => sanitize_key( (string) ( $implementation_posture_evidence['status'] ?? '' ) ),
+		$execution                     = array(
+			'ability_id'                      => $response_ability_id,
+			'post_id'                         => absint( $first_result['post_id'] ?? 0 ),
+			'post_ids'                        => $post_ids,
+			'correlation_id'                  => $correlation_id,
+			'adapter_request_id'              => (string) ( $base_request_context['adapter_request_id'] ?? '' ),
+			'approval_context'                => $approval_context,
+			'preflight_source'                => $preflight_source,
+			'preflight'                       => $preflight,
+			'core_preflight_evidence'         => array(
+				'authorized'                           => true,
+				'policy_version'                       => sanitize_text_field( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) ),
+				'approved_input_hash'                  => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
+				'correlation_id'                       => $correlation_id,
+				'preflight_source'                     => $preflight_source,
+				'commit_execution'                     => false,
+				'adapter_preflight_source'             => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? $preflight_source ) ),
+				'implementation_posture_status'        => sanitize_key( (string) ( $implementation_posture_evidence['status'] ?? '' ) ),
 				'implementation_posture_checked_count' => absint( $implementation_posture_evidence['checked_count'] ?? 0 ),
 			),
 			'implementation_posture_evidence' => $implementation_posture_evidence,
-			'media_alt_live_preflight' => is_array( $first_result['media_alt_live_preflight'] ?? null ) ? $first_result['media_alt_live_preflight'] : array(),
-			'batch_review_feedback' => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
-			'execution_mode'      => $execution_mode,
-			'selected_count'      => $execution_summary['selected_count'],
-			'submitted_count'     => $execution_summary['submitted_count'],
-			'executed_count'      => $execution_summary['executed_count'],
-			'failed_count'        => $execution_summary['failed_count'],
-			'blocked_count'       => $execution_summary['blocked_count'],
-			'partial_success'     => $execution_summary['partial_success'],
-			'retryable'           => $execution_summary['retryable'],
-			'operator_next_action' => $execution_summary['operator_next_action'],
-			'results'             => $results,
-			'post_status_before'  => (string) ( $first_result['post_status_before'] ?? '' ),
-			'post_status_after'   => (string) ( $first_result['post_status_after'] ?? '' ),
-			'result'              => 1 === count( $results ) ? ( $first_result['result'] ?? array() ) : array(
-				'success'        => true,
-				'execution_mode' => $execution_mode,
-				'selected_count' => $execution_summary['selected_count'],
-				'submitted_count' => $execution_summary['submitted_count'],
-				'executed_count' => $execution_summary['executed_count'],
-				'failed_count'   => $execution_summary['failed_count'],
-				'blocked_count'  => $execution_summary['blocked_count'],
-				'partial_success' => $execution_summary['partial_success'],
-				'retryable'      => $execution_summary['retryable'],
+			'media_alt_live_preflight'        => is_array( $first_result['media_alt_live_preflight'] ?? null ) ? $first_result['media_alt_live_preflight'] : array(),
+			'batch_review_feedback'           => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
+			'execution_mode'                  => $execution_mode,
+			'selected_count'                  => $execution_summary['selected_count'],
+			'submitted_count'                 => $execution_summary['submitted_count'],
+			'executed_count'                  => $execution_summary['executed_count'],
+			'failed_count'                    => $execution_summary['failed_count'],
+			'blocked_count'                   => $execution_summary['blocked_count'],
+			'partial_success'                 => $execution_summary['partial_success'],
+			'retryable'                       => $execution_summary['retryable'],
+			'operator_next_action'            => $execution_summary['operator_next_action'],
+			'results'                         => $results,
+			'post_status_before'              => (string) ( $first_result['post_status_before'] ?? '' ),
+			'post_status_after'               => (string) ( $first_result['post_status_after'] ?? '' ),
+			'result'                          => 1 === count( $results ) ? ( $first_result['result'] ?? array() ) : array(
+				'success'              => true,
+				'execution_mode'       => $execution_mode,
+				'selected_count'       => $execution_summary['selected_count'],
+				'submitted_count'      => $execution_summary['submitted_count'],
+				'executed_count'       => $execution_summary['executed_count'],
+				'failed_count'         => $execution_summary['failed_count'],
+				'blocked_count'        => $execution_summary['blocked_count'],
+				'partial_success'      => $execution_summary['partial_success'],
+				'retryable'            => $execution_summary['retryable'],
 				'operator_next_action' => $execution_summary['operator_next_action'],
-				'results'        => $results,
+				'results'              => $results,
 			),
 		);
 		$execution['execution_record'] = $this->store_completed_execution_record( $proposal_id, $proposal, $execution );
@@ -5323,14 +5333,14 @@ final class Controller {
 			return array();
 		}
 
-		$blocked_count = 0;
-		$needs_input_count = 0;
-		$retryable = false;
+		$blocked_count        = 0;
+		$needs_input_count    = 0;
+		$retryable            = false;
 		$operator_next_action = 'review_and_approve_or_reject';
 		foreach ( $items as $item ) {
-			$blocked_count += absint( $item['blocked_count'] ?? 0 );
+			$blocked_count     += absint( $item['blocked_count'] ?? 0 );
 			$needs_input_count += absint( $item['needs_input_count'] ?? 0 );
-			$retryable = $retryable || true === (bool) ( $item['retryable'] ?? false );
+			$retryable          = $retryable || true === (bool) ( $item['retryable'] ?? false );
 			if ( 'resolve_blocked_items_before_commit_preflight' === (string) ( $item['operator_next_action'] ?? '' ) ) {
 				$operator_next_action = 'resolve_blocked_items_before_commit_preflight';
 			}
@@ -5517,11 +5527,11 @@ final class Controller {
 			$preflight = $this->upstream_error_detail( $error );
 		}
 
-		$item_preflight = is_array( $preflight['proposal_item_preflight'] ?? null ) ? $preflight['proposal_item_preflight'] : array();
-		$blocked        = is_array( $item_preflight['blocked_items'] ?? null ) ? $item_preflight['blocked_items'] : array();
-		$needs_input    = array_values( array_map( 'sanitize_key', (array) ( $item_preflight['needs_input'] ?? array() ) ) );
+		$item_preflight        = is_array( $preflight['proposal_item_preflight'] ?? null ) ? $preflight['proposal_item_preflight'] : array();
+		$blocked               = is_array( $item_preflight['blocked_items'] ?? null ) ? $item_preflight['blocked_items'] : array();
+		$needs_input           = array_values( array_map( 'sanitize_key', (array) ( $item_preflight['needs_input'] ?? array() ) ) );
 		$batch_review_feedback = $this->batch_review_feedback_from_preflight( $preflight, $proposal );
-		$reasons        = $this->operator_reasons_from_blocked_items( $blocked );
+		$reasons               = $this->operator_reasons_from_blocked_items( $blocked );
 
 		foreach ( $needs_input as $field ) {
 			$reasons[] = sprintf(
@@ -5724,7 +5734,7 @@ final class Controller {
 		if (
 			true !== (bool) ( $approval_context['approval_commit_authorized'] ?? false )
 			|| false !== (bool) ( $preflight['commit_execution'] ?? true )
-			|| $proposal_id !== (string) ( $approval_context['proposal_id'] ?? $proposal_id )
+			|| (string) ( $approval_context['proposal_id'] ?? $proposal_id ) !== $proposal_id
 			|| '' === $approved_hash
 			|| $approved_hash !== $current_hash
 			|| 'core-preflight-v1' !== $policy_version
@@ -5790,8 +5800,8 @@ final class Controller {
 		$policy_version   = sanitize_key( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) );
 		if (
 			'issued' !== (string) ( $record['status'] ?? '' )
-			|| $proposal_id !== (string) ( $record['proposal_id'] ?? '' )
-			|| $proposal_id !== (string) ( $approval_context['proposal_id'] ?? $proposal_id )
+			|| (string) ( $record['proposal_id'] ?? '' ) !== $proposal_id
+			|| (string) ( $approval_context['proposal_id'] ?? $proposal_id ) !== $proposal_id
 			|| true !== (bool) ( $approval_context['approval_commit_authorized'] ?? false )
 			|| false !== (bool) ( $preflight['commit_execution'] ?? true )
 			|| '' === $approved_hash
@@ -5960,15 +5970,15 @@ final class Controller {
 		}
 
 		return array(
-			'schema_version'     => 'npcink_openclaw_adapter_implementation_posture_evidence.v1',
-			'status'             => $checked_count > 0 ? 'checked' : 'not_declared',
-			'checked_count'      => $checked_count,
-			'not_declared_count' => $not_declared_count,
-			'ability_count'      => count( $ability_ids ),
-			'capabilities_surface' => '/wp-json/npcink-governance-core/v1/capabilities',
+			'schema_version'                     => 'npcink_openclaw_adapter_implementation_posture_evidence.v1',
+			'status'                             => $checked_count > 0 ? 'checked' : 'not_declared',
+			'checked_count'                      => $checked_count,
+			'not_declared_count'                 => $not_declared_count,
+			'ability_count'                      => count( $ability_ids ),
+			'capabilities_surface'               => '/wp-json/npcink-governance-core/v1/capabilities',
 			'core_preflight_contract_validation' => true,
-			'metadata_only'      => true,
-			'items'              => $items,
+			'metadata_only'                      => true,
+			'items'                              => $items,
 		);
 	}
 
@@ -6000,8 +6010,9 @@ final class Controller {
 		}
 
 		$preflight_capability = is_array( $preflight['capability'] ?? null ) ? $preflight['capability'] : array();
-		if ( $ability_id === (string) ( $preflight_capability['ability_id'] ?? '' ) ) {
+		if ( (string) ( $preflight_capability['ability_id'] ?? '' ) === $ability_id ) {
 			$preflight_posture = is_array( $preflight_capability['implementation_posture'] ?? null ) ? $preflight_capability['implementation_posture'] : array();
+			// phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- loose array comparison tolerates numeric-string/int drift between Core payload views.
 			if ( ! empty( $preflight_posture ) && $posture != $preflight_posture ) {
 				return $this->implementation_posture_mismatch_error( $proposal_id, $ability_id, 'capability' );
 			}
@@ -6009,26 +6020,27 @@ final class Controller {
 
 		$contract_preflight = is_array( $preflight['contract_preflight'] ?? null ) ? $preflight['contract_preflight'] : array();
 		$current_contract   = is_array( $contract_preflight['current_contract'] ?? null ) ? $contract_preflight['current_contract'] : array();
-		if ( $ability_id === (string) ( $current_contract['ability_id'] ?? '' ) ) {
+		if ( (string) ( $current_contract['ability_id'] ?? '' ) === $ability_id ) {
 			$contract_posture = is_array( $current_contract['implementation_posture'] ?? null ) ? $current_contract['implementation_posture'] : array();
+			// phpcs:ignore Universal.Operators.StrictComparisons.LooseNotEqual -- loose array comparison tolerates numeric-string/int drift between Core payload views.
 			if ( ! empty( $contract_posture ) && $posture != $contract_posture ) {
 				return $this->implementation_posture_mismatch_error( $proposal_id, $ability_id, 'contract_preflight' );
 			}
 		}
 
 		return array(
-			'ability_id'              => $ability_id,
-			'status'                  => 'checked',
-			'schema_version'          => sanitize_text_field( (string) ( $posture['schema_version'] ?? '' ) ),
-			'write_posture'           => sanitize_key( (string) ( $posture['write_posture'] ?? '' ) ),
-			'commit_authority'        => sanitize_key( (string) ( $posture['commit_authority'] ?? '' ) ),
-			'final_authorization_owner' => sanitize_key( (string) ( $posture['final_authorization_owner'] ?? '' ) ),
-			'approval_truth_owner'    => sanitize_key( (string) ( $posture['approval_truth_owner'] ?? '' ) ),
-			'audit_truth_owner'       => sanitize_key( (string) ( $posture['audit_truth_owner'] ?? '' ) ),
-			'dry_run_default'         => true === (bool) ( $posture['dry_run_default'] ?? false ),
-			'commit_default'          => true === (bool) ( $posture['commit_default'] ?? false ),
+			'ability_id'                     => $ability_id,
+			'status'                         => 'checked',
+			'schema_version'                 => sanitize_text_field( (string) ( $posture['schema_version'] ?? '' ) ),
+			'write_posture'                  => sanitize_key( (string) ( $posture['write_posture'] ?? '' ) ),
+			'commit_authority'               => sanitize_key( (string) ( $posture['commit_authority'] ?? '' ) ),
+			'final_authorization_owner'      => sanitize_key( (string) ( $posture['final_authorization_owner'] ?? '' ) ),
+			'approval_truth_owner'           => sanitize_key( (string) ( $posture['approval_truth_owner'] ?? '' ) ),
+			'audit_truth_owner'              => sanitize_key( (string) ( $posture['audit_truth_owner'] ?? '' ) ),
+			'dry_run_default'                => true === (bool) ( $posture['dry_run_default'] ?? false ),
+			'commit_default'                 => true === (bool) ( $posture['commit_default'] ?? false ),
 			'direct_wordpress_write_default' => true === (bool) ( $posture['direct_wordpress_write_default'] ?? false ),
-			'forbidden_ownership_flags' => $this->implementation_posture_enabled_forbidden_flags( $posture ),
+			'forbidden_ownership_flags'      => $this->implementation_posture_enabled_forbidden_flags( $posture ),
 		);
 	}
 
@@ -6042,12 +6054,12 @@ final class Controller {
 	 */
 	private function validate_implementation_posture_for_execution( string $proposal_id, string $ability_id, array $posture ) {
 		$expected = array(
-			'schema_version'             => 'npcink_abilities_toolkit_implementation_posture.v1',
-			'write_posture'              => 'host_governed_dry_run_first',
-			'commit_authority'           => 'host_runtime_approval_context_required',
-			'final_authorization_owner'  => 'host_governance_layer',
-			'approval_truth_owner'       => 'host_governance_layer',
-			'audit_truth_owner'          => 'host_governance_layer',
+			'schema_version'            => 'npcink_abilities_toolkit_implementation_posture.v1',
+			'write_posture'             => 'host_governed_dry_run_first',
+			'commit_authority'          => 'host_runtime_approval_context_required',
+			'final_authorization_owner' => 'host_governance_layer',
+			'approval_truth_owner'      => 'host_governance_layer',
+			'audit_truth_owner'         => 'host_governance_layer',
 		);
 
 		foreach ( $expected as $field => $value ) {
@@ -6062,12 +6074,12 @@ final class Controller {
 				'npcink_openclaw_adapter_implementation_posture_invalid',
 				__( 'Provider implementation posture is not accepted for Adapter final execution.', 'npcink-ai-client-adapter' ),
 				array(
-					'status'         => 409,
-					'proposal_id'    => $proposal_id,
-					'ability_id'     => $ability_id,
-					'field'          => $field,
-					'expected_value' => $value,
-					'actual_value'   => $actual,
+					'status'           => 409,
+					'proposal_id'      => $proposal_id,
+					'ability_id'       => $ability_id,
+					'field'            => $field,
+					'expected_value'   => $value,
+					'actual_value'     => $actual,
 					'commit_execution' => false,
 				)
 			);
@@ -6075,9 +6087,9 @@ final class Controller {
 
 		foreach (
 			array(
-				'dry_run_default'                 => true,
-				'commit_default'                  => false,
-				'direct_wordpress_write_default'  => false,
+				'dry_run_default'                => true,
+				'commit_default'                 => false,
+				'direct_wordpress_write_default' => false,
 			) as $field => $expected_bool
 		) {
 			if ( array_key_exists( $field, $posture ) && $expected_bool === (bool) $posture[ $field ] ) {
@@ -6088,12 +6100,12 @@ final class Controller {
 				'npcink_openclaw_adapter_implementation_posture_invalid',
 				__( 'Provider implementation posture write defaults are not accepted for Adapter final execution.', 'npcink-ai-client-adapter' ),
 				array(
-					'status'         => 409,
-					'proposal_id'    => $proposal_id,
-					'ability_id'     => $ability_id,
-					'field'          => $field,
-					'expected_value' => $expected_bool,
-					'actual_value'   => (bool) ( $posture[ $field ] ?? null ),
+					'status'           => 409,
+					'proposal_id'      => $proposal_id,
+					'ability_id'       => $ability_id,
+					'field'            => $field,
+					'expected_value'   => $expected_bool,
+					'actual_value'     => (bool) ( $posture[ $field ] ?? null ),
 					'commit_execution' => false,
 				)
 			);
@@ -6105,11 +6117,11 @@ final class Controller {
 				'npcink_openclaw_adapter_implementation_posture_forbidden_ownership',
 				__( 'Provider implementation posture declares ownership that Adapter must not execute through.', 'npcink-ai-client-adapter' ),
 				array(
-					'status'                  => 409,
-					'proposal_id'             => $proposal_id,
-					'ability_id'              => $ability_id,
+					'status'                    => 409,
+					'proposal_id'               => $proposal_id,
+					'ability_id'                => $ability_id,
 					'forbidden_ownership_flags' => $forbidden_flags,
-					'commit_execution'        => false,
+					'commit_execution'          => false,
 				)
 			);
 		}
@@ -6257,7 +6269,7 @@ final class Controller {
 			);
 		}
 
-		$handoff_ability_id = sanitize_text_field( (string) ( $execution_handoff['ability_id'] ?? '' ) );
+		$handoff_ability_id  = sanitize_text_field( (string) ( $execution_handoff['ability_id'] ?? '' ) );
 		$allowed_ability_ids = $this->proposal_handoff_ability_ids( $proposal );
 		if ( '' === $handoff_ability_id || ! in_array( $handoff_ability_id, $allowed_ability_ids, true ) ) {
 			return new WP_Error(
@@ -6280,11 +6292,11 @@ final class Controller {
 				'npcink_openclaw_adapter_preflight_handoff_correlation_mismatch',
 				__( 'Core execution handoff correlation id does not match the commit preflight correlation id.', 'npcink-ai-client-adapter' ),
 				array(
-					'status'                  => 409,
-					'proposal_id'             => $proposal_id,
-					'correlation_id'          => $correlation_id,
-					'handoff_correlation_id'  => $handoff_correlation_id,
-					'commit_execution'        => false,
+					'status'                 => 409,
+					'proposal_id'            => $proposal_id,
+					'correlation_id'         => $correlation_id,
+					'handoff_correlation_id' => $handoff_correlation_id,
+					'commit_execution'       => false,
 				)
 			);
 		}
@@ -6303,7 +6315,7 @@ final class Controller {
 			sanitize_text_field( (string) ( $proposal['ability_id'] ?? '' ) ),
 		);
 
-		$input = is_array( $proposal['input'] ?? null ) ? $proposal['input'] : array();
+		$input         = is_array( $proposal['input'] ?? null ) ? $proposal['input'] : array();
 		$write_actions = is_array( $input['write_actions'] ?? null ) ? $input['write_actions'] : array();
 		foreach ( $write_actions as $action ) {
 			if ( ! is_array( $action ) ) {
@@ -6344,20 +6356,20 @@ final class Controller {
 				$code_prefix . '_home_url_mismatch',
 				__( 'Core authorization context was issued for a different home URL.', 'npcink-ai-client-adapter' ),
 				array(
-					'status'       => $status,
+					'status'        => $status,
 					'expected_home' => untrailingslashit( home_url() ),
-					'context_home' => untrailingslashit( $home_url ),
+					'context_home'  => untrailingslashit( $home_url ),
 				)
 			);
 		}
 
 		$blog_id = absint( $context['blog_id'] ?? 0 );
-		if ( $blog_id > 0 && $blog_id !== get_current_blog_id() ) {
+		if ( $blog_id > 0 && get_current_blog_id() !== $blog_id ) {
 			return new WP_Error(
 				$code_prefix . '_blog_id_mismatch',
 				__( 'Core authorization context was issued for a different blog id.', 'npcink-ai-client-adapter' ),
 				array(
-					'status'          => $status,
+					'status'           => $status,
 					'expected_blog_id' => get_current_blog_id(),
 					'context_blog_id'  => $blog_id,
 				)
@@ -6435,9 +6447,9 @@ final class Controller {
 				$code_prefix . '_signed_client_fingerprint_mismatch',
 				__( 'Core authorization context was issued for a different signed local client.', 'npcink-ai-client-adapter' ),
 				array(
-					'status'                       => $status,
-					'expected_client_fingerprint'  => $current_fingerprint,
-					'context_client_fingerprint'   => $context_fingerprint,
+					'status'                      => $status,
+					'expected_client_fingerprint' => $current_fingerprint,
+					'context_client_fingerprint'  => $context_fingerprint,
 				)
 			);
 		}
@@ -6602,35 +6614,35 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function store_completed_execution_record( string $proposal_id, array $proposal, array $execution ): array {
-		$approval_context = is_array( $execution['approval_context'] ?? null ) ? $execution['approval_context'] : array();
-		$preflight        = is_array( $execution['preflight'] ?? null ) ? $execution['preflight'] : array();
-		$record           = array(
-			'status'              => 'succeeded',
-			'proposal_id'         => $proposal_id,
-			'ability_id'          => sanitize_text_field( (string) ( $execution['ability_id'] ?? '' ) ),
-			'proposal_ability_id' => sanitize_text_field( (string) ( $proposal['ability_id'] ?? '' ) ),
-			'approved_input_hash' => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
-			'correlation_id'      => sanitize_text_field( (string) ( $execution['correlation_id'] ?? '' ) ),
-			'adapter_request_id'  => sanitize_text_field( (string) ( $execution['adapter_request_id'] ?? '' ) ),
-			'execution_mode'      => sanitize_key( (string) ( $execution['execution_mode'] ?? '' ) ),
-			'execution_surface'   => 'wp_abilities_rest',
-			'execution_handoff_posture' => $this->execution_handoff_posture(),
-			'commit_execution'    => false,
-			'post_id'             => absint( $execution['post_id'] ?? 0 ),
-			'post_ids'            => array_values( array_map( 'absint', is_array( $execution['post_ids'] ?? null ) ? $execution['post_ids'] : array() ) ),
-			'selected_count'      => absint( $execution['selected_count'] ?? ( $execution['executed_count'] ?? 0 ) ),
-			'submitted_count'     => absint( $execution['submitted_count'] ?? ( $execution['executed_count'] ?? 0 ) ),
-			'executed_count'      => absint( $execution['executed_count'] ?? 0 ),
-			'failed_count'        => absint( $execution['failed_count'] ?? 0 ),
-			'blocked_count'       => absint( $execution['blocked_count'] ?? 0 ),
-			'partial_success'     => (bool) ( $execution['partial_success'] ?? false ),
-			'retryable'           => (bool) ( $execution['retryable'] ?? false ),
-			'operator_next_action' => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
-			'core_preflight_evidence' => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
+		$approval_context                = is_array( $execution['approval_context'] ?? null ) ? $execution['approval_context'] : array();
+		$preflight                       = is_array( $execution['preflight'] ?? null ) ? $execution['preflight'] : array();
+		$record                          = array(
+			'status'                          => 'succeeded',
+			'proposal_id'                     => $proposal_id,
+			'ability_id'                      => sanitize_text_field( (string) ( $execution['ability_id'] ?? '' ) ),
+			'proposal_ability_id'             => sanitize_text_field( (string) ( $proposal['ability_id'] ?? '' ) ),
+			'approved_input_hash'             => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
+			'correlation_id'                  => sanitize_text_field( (string) ( $execution['correlation_id'] ?? '' ) ),
+			'adapter_request_id'              => sanitize_text_field( (string) ( $execution['adapter_request_id'] ?? '' ) ),
+			'execution_mode'                  => sanitize_key( (string) ( $execution['execution_mode'] ?? '' ) ),
+			'execution_surface'               => 'wp_abilities_rest',
+			'execution_handoff_posture'       => $this->execution_handoff_posture(),
+			'commit_execution'                => false,
+			'post_id'                         => absint( $execution['post_id'] ?? 0 ),
+			'post_ids'                        => array_values( array_map( 'absint', is_array( $execution['post_ids'] ?? null ) ? $execution['post_ids'] : array() ) ),
+			'selected_count'                  => absint( $execution['selected_count'] ?? ( $execution['executed_count'] ?? 0 ) ),
+			'submitted_count'                 => absint( $execution['submitted_count'] ?? ( $execution['executed_count'] ?? 0 ) ),
+			'executed_count'                  => absint( $execution['executed_count'] ?? 0 ),
+			'failed_count'                    => absint( $execution['failed_count'] ?? 0 ),
+			'blocked_count'                   => absint( $execution['blocked_count'] ?? 0 ),
+			'partial_success'                 => (bool) ( $execution['partial_success'] ?? false ),
+			'retryable'                       => (bool) ( $execution['retryable'] ?? false ),
+			'operator_next_action'            => sanitize_key( (string) ( $execution['operator_next_action'] ?? '' ) ),
+			'core_preflight_evidence'         => is_array( $execution['core_preflight_evidence'] ?? null ) ? $execution['core_preflight_evidence'] : array(),
 			'implementation_posture_evidence' => is_array( $execution['implementation_posture_evidence'] ?? null ) ? $execution['implementation_posture_evidence'] : array(),
-			'media_alt_live_preflight' => is_array( $execution['media_alt_live_preflight'] ?? null ) ? $execution['media_alt_live_preflight'] : array(),
-			'verification'        => $this->compact_execution_verification( $execution ),
-			'executed_at'         => gmdate( 'c' ),
+			'media_alt_live_preflight'        => is_array( $execution['media_alt_live_preflight'] ?? null ) ? $execution['media_alt_live_preflight'] : array(),
+			'verification'                    => $this->compact_execution_verification( $execution ),
+			'executed_at'                     => gmdate( 'c' ),
 		);
 		$record['core_execution_record'] = $this->record_core_execution_result( $proposal_id, $record );
 
@@ -6657,53 +6669,53 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function store_failed_execution_record( string $proposal_id, array $proposal, array $actions, array $results, array $preflight, string $correlation_id, string $adapter_request_id, WP_Error $error, ?array $failed_action = null ): array {
-		$approval_context  = is_array( $preflight['approval_context'] ?? null ) ? $preflight['approval_context'] : array();
-		$first_action      = is_array( $actions[0] ?? null ) ? $actions[0] : array();
-		$failed_action     = is_array( $failed_action ) ? $failed_action : $first_action;
-		$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $failed_action );
-		$execution_mode    = count( $actions ) > 1 || 'batch_write_actions' === (string) ( $first_action['execution_mode'] ?? '' ) ? 'batch_write_actions' : 'single_post';
-		$target_ability_id = sanitize_text_field( (string) ( $failed_action['ability_id'] ?? ( $first_action['ability_id'] ?? ( $proposal['ability_id'] ?? '' ) ) ) );
-		$record            = array(
-			'status'              => 'failed',
-			'proposal_id'         => $proposal_id,
-			'ability_id'          => $target_ability_id,
-			'proposal_ability_id' => sanitize_text_field( (string) ( $proposal['ability_id'] ?? '' ) ),
-			'approved_input_hash' => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
-			'correlation_id'      => sanitize_text_field( $correlation_id ),
-			'adapter_request_id'  => sanitize_text_field( $adapter_request_id ),
-			'execution_mode'      => sanitize_key( $execution_mode ),
-			'execution_surface'   => 'wp_abilities_rest',
-			'execution_handoff_posture' => $this->execution_handoff_posture(),
-			'commit_execution'    => false,
-			'post_id'             => absint( $failed_action['post_id'] ?? 0 ),
-			'post_ids'            => array_values( array_map( 'absint', array_column( $results, 'post_id' ) ) ),
-			'selected_count'      => $execution_summary['selected_count'],
-			'submitted_count'     => $execution_summary['submitted_count'],
-			'executed_count'      => $execution_summary['executed_count'],
-			'failed_count'        => $execution_summary['failed_count'],
-			'blocked_count'       => $execution_summary['blocked_count'],
-			'partial_success'     => $execution_summary['partial_success'],
-			'retryable'           => $execution_summary['retryable'],
-			'operator_next_action' => $execution_summary['operator_next_action'],
-			'error_code'          => sanitize_key( $error->get_error_code() ),
-			'failed_action_id'    => sanitize_key( (string) ( $failed_action['action_id'] ?? '' ) ),
-			'failed_action_index' => absint( $failed_action['action_index'] ?? 0 ),
-			'failed_execution_profile' => sanitize_text_field( (string) ( $failed_action['execution_profile'] ?? '' ) ),
-			'failed_idempotency_key' => sanitize_text_field( (string) ( $failed_action['idempotency_key'] ?? '' ) ),
-			'core_preflight_evidence' => array(
-				'authorized'              => true === (bool) ( $approval_context['approval_commit_authorized'] ?? false ),
-				'policy_version'          => sanitize_text_field( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) ),
-				'approved_input_hash'     => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
-				'correlation_id'          => sanitize_text_field( $correlation_id ),
-				'preflight_source'        => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? '' ) ),
-				'commit_execution'        => false,
-				'adapter_preflight_source' => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? '' ) ),
-				'implementation_posture_status' => sanitize_key( (string) ( $preflight['implementation_posture_evidence']['status'] ?? '' ) ),
+		$approval_context                = is_array( $preflight['approval_context'] ?? null ) ? $preflight['approval_context'] : array();
+		$first_action                    = is_array( $actions[0] ?? null ) ? $actions[0] : array();
+		$failed_action                   = is_array( $failed_action ) ? $failed_action : $first_action;
+		$execution_summary               = $this->selected_batch_execution_summary( $actions, $results, $failed_action );
+		$execution_mode                  = count( $actions ) > 1 || 'batch_write_actions' === (string) ( $first_action['execution_mode'] ?? '' ) ? 'batch_write_actions' : 'single_post';
+		$target_ability_id               = sanitize_text_field( (string) ( $failed_action['ability_id'] ?? ( $first_action['ability_id'] ?? ( $proposal['ability_id'] ?? '' ) ) ) );
+		$record                          = array(
+			'status'                          => 'failed',
+			'proposal_id'                     => $proposal_id,
+			'ability_id'                      => $target_ability_id,
+			'proposal_ability_id'             => sanitize_text_field( (string) ( $proposal['ability_id'] ?? '' ) ),
+			'approved_input_hash'             => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
+			'correlation_id'                  => sanitize_text_field( $correlation_id ),
+			'adapter_request_id'              => sanitize_text_field( $adapter_request_id ),
+			'execution_mode'                  => sanitize_key( $execution_mode ),
+			'execution_surface'               => 'wp_abilities_rest',
+			'execution_handoff_posture'       => $this->execution_handoff_posture(),
+			'commit_execution'                => false,
+			'post_id'                         => absint( $failed_action['post_id'] ?? 0 ),
+			'post_ids'                        => array_values( array_map( 'absint', array_column( $results, 'post_id' ) ) ),
+			'selected_count'                  => $execution_summary['selected_count'],
+			'submitted_count'                 => $execution_summary['submitted_count'],
+			'executed_count'                  => $execution_summary['executed_count'],
+			'failed_count'                    => $execution_summary['failed_count'],
+			'blocked_count'                   => $execution_summary['blocked_count'],
+			'partial_success'                 => $execution_summary['partial_success'],
+			'retryable'                       => $execution_summary['retryable'],
+			'operator_next_action'            => $execution_summary['operator_next_action'],
+			'error_code'                      => sanitize_key( $error->get_error_code() ),
+			'failed_action_id'                => sanitize_key( (string) ( $failed_action['action_id'] ?? '' ) ),
+			'failed_action_index'             => absint( $failed_action['action_index'] ?? 0 ),
+			'failed_execution_profile'        => sanitize_text_field( (string) ( $failed_action['execution_profile'] ?? '' ) ),
+			'failed_idempotency_key'          => sanitize_text_field( (string) ( $failed_action['idempotency_key'] ?? '' ) ),
+			'core_preflight_evidence'         => array(
+				'authorized'                           => true === (bool) ( $approval_context['approval_commit_authorized'] ?? false ),
+				'policy_version'                       => sanitize_text_field( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) ),
+				'approved_input_hash'                  => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
+				'correlation_id'                       => sanitize_text_field( $correlation_id ),
+				'preflight_source'                     => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? '' ) ),
+				'commit_execution'                     => false,
+				'adapter_preflight_source'             => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? '' ) ),
+				'implementation_posture_status'        => sanitize_key( (string) ( $preflight['implementation_posture_evidence']['status'] ?? '' ) ),
 				'implementation_posture_checked_count' => absint( $preflight['implementation_posture_evidence']['checked_count'] ?? 0 ),
 			),
 			'implementation_posture_evidence' => is_array( $preflight['implementation_posture_evidence'] ?? null ) ? $preflight['implementation_posture_evidence'] : array(),
-			'failed_at'           => gmdate( 'c' ),
-			'executed_at'         => gmdate( 'c' ),
+			'failed_at'                       => gmdate( 'c' ),
+			'executed_at'                     => gmdate( 'c' ),
 		);
 		$record['core_execution_record'] = $this->record_core_execution_result( $proposal_id, $record );
 
@@ -6768,19 +6780,19 @@ final class Controller {
 			'POST',
 			'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/record-execution',
 			array(
-				'execution_status'    => $status,
-				'correlation_id'      => sanitize_text_field( (string) ( $record['correlation_id'] ?? '' ) ),
-				'approved_input_hash' => sanitize_text_field( (string) ( $record['approved_input_hash'] ?? '' ) ),
-				'adapter_request_id'  => sanitize_text_field( (string) ( $record['adapter_request_id'] ?? '' ) ),
-				'execution_mode'      => sanitize_key( (string) ( $record['execution_mode'] ?? '' ) ),
-				'selected_count'      => absint( $record['selected_count'] ?? 0 ),
-				'submitted_count'     => absint( $record['submitted_count'] ?? 0 ),
-				'executed_count'      => absint( $record['executed_count'] ?? 0 ),
-				'failed_count'        => absint( $record['failed_count'] ?? 0 ),
-				'blocked_count'       => absint( $record['blocked_count'] ?? 0 ),
-				'partial_success'     => (bool) ( $record['partial_success'] ?? false ),
+				'execution_status'     => $status,
+				'correlation_id'       => sanitize_text_field( (string) ( $record['correlation_id'] ?? '' ) ),
+				'approved_input_hash'  => sanitize_text_field( (string) ( $record['approved_input_hash'] ?? '' ) ),
+				'adapter_request_id'   => sanitize_text_field( (string) ( $record['adapter_request_id'] ?? '' ) ),
+				'execution_mode'       => sanitize_key( (string) ( $record['execution_mode'] ?? '' ) ),
+				'selected_count'       => absint( $record['selected_count'] ?? 0 ),
+				'submitted_count'      => absint( $record['submitted_count'] ?? 0 ),
+				'executed_count'       => absint( $record['executed_count'] ?? 0 ),
+				'failed_count'         => absint( $record['failed_count'] ?? 0 ),
+				'blocked_count'        => absint( $record['blocked_count'] ?? 0 ),
+				'partial_success'      => (bool) ( $record['partial_success'] ?? false ),
 				'operator_next_action' => sanitize_key( (string) ( $record['operator_next_action'] ?? '' ) ),
-				'error_code'          => sanitize_key( (string) ( $record['error_code'] ?? '' ) ),
+				'error_code'           => sanitize_key( (string) ( $record['error_code'] ?? '' ) ),
 			)
 		);
 
@@ -6801,11 +6813,11 @@ final class Controller {
 		$data = is_array( $data ) ? $data : array();
 
 		return array(
-			'recorded'        => true,
-			'status'          => sanitize_key( (string) ( $data['status'] ?? '' ) ),
-			'proposal_id'     => sanitize_text_field( (string) ( $data['proposal_id'] ?? $proposal_id ) ),
-			'ability_id'      => sanitize_text_field( (string) ( $data['ability_id'] ?? '' ) ),
-			'updated_at'      => sanitize_text_field( (string) ( $data['updated_at'] ?? '' ) ),
+			'recorded'         => true,
+			'status'           => sanitize_key( (string) ( $data['status'] ?? '' ) ),
+			'proposal_id'      => sanitize_text_field( (string) ( $data['proposal_id'] ?? $proposal_id ) ),
+			'ability_id'       => sanitize_text_field( (string) ( $data['ability_id'] ?? '' ) ),
+			'updated_at'       => sanitize_text_field( (string) ( $data['updated_at'] ?? '' ) ),
 			'commit_execution' => false,
 		);
 	}
@@ -6818,39 +6830,39 @@ final class Controller {
 	 */
 	private function public_execution_record( array $record ): array {
 		return array(
-			'status'              => (string) ( $record['status'] ?? '' ),
-			'proposal_id'         => (string) ( $record['proposal_id'] ?? '' ),
-			'ability_id'          => (string) ( $record['ability_id'] ?? '' ),
-			'proposal_ability_id' => (string) ( $record['proposal_ability_id'] ?? '' ),
-			'approved_input_hash' => (string) ( $record['approved_input_hash'] ?? '' ),
-			'correlation_id'      => (string) ( $record['correlation_id'] ?? '' ),
-			'adapter_request_id'  => (string) ( $record['adapter_request_id'] ?? '' ),
-			'execution_mode'      => (string) ( $record['execution_mode'] ?? '' ),
-			'execution_surface'   => (string) ( $record['execution_surface'] ?? '' ),
-			'execution_handoff_posture' => is_array( $record['execution_handoff_posture'] ?? null ) ? $record['execution_handoff_posture'] : $this->execution_handoff_posture(),
-			'commit_execution'    => (bool) ( $record['commit_execution'] ?? false ),
-			'post_id'             => absint( $record['post_id'] ?? 0 ),
-			'post_ids'            => array_values( array_map( 'absint', is_array( $record['post_ids'] ?? null ) ? $record['post_ids'] : array() ) ),
-			'selected_count'      => absint( $record['selected_count'] ?? ( $record['executed_count'] ?? 0 ) ),
-			'submitted_count'     => absint( $record['submitted_count'] ?? ( $record['executed_count'] ?? 0 ) ),
-			'executed_count'      => absint( $record['executed_count'] ?? 0 ),
-			'failed_count'        => absint( $record['failed_count'] ?? 0 ),
-			'blocked_count'       => absint( $record['blocked_count'] ?? 0 ),
-			'partial_success'     => (bool) ( $record['partial_success'] ?? false ),
-			'retryable'           => (bool) ( $record['retryable'] ?? false ),
-			'operator_next_action' => (string) ( $record['operator_next_action'] ?? '' ),
-			'error_code'          => (string) ( $record['error_code'] ?? '' ),
-			'failed_action_id'    => (string) ( $record['failed_action_id'] ?? '' ),
-			'failed_action_index' => absint( $record['failed_action_index'] ?? 0 ),
-			'failed_execution_profile' => (string) ( $record['failed_execution_profile'] ?? '' ),
-			'failed_idempotency_key' => (string) ( $record['failed_idempotency_key'] ?? '' ),
-			'core_preflight_evidence' => is_array( $record['core_preflight_evidence'] ?? null ) ? $record['core_preflight_evidence'] : null,
+			'status'                          => (string) ( $record['status'] ?? '' ),
+			'proposal_id'                     => (string) ( $record['proposal_id'] ?? '' ),
+			'ability_id'                      => (string) ( $record['ability_id'] ?? '' ),
+			'proposal_ability_id'             => (string) ( $record['proposal_ability_id'] ?? '' ),
+			'approved_input_hash'             => (string) ( $record['approved_input_hash'] ?? '' ),
+			'correlation_id'                  => (string) ( $record['correlation_id'] ?? '' ),
+			'adapter_request_id'              => (string) ( $record['adapter_request_id'] ?? '' ),
+			'execution_mode'                  => (string) ( $record['execution_mode'] ?? '' ),
+			'execution_surface'               => (string) ( $record['execution_surface'] ?? '' ),
+			'execution_handoff_posture'       => is_array( $record['execution_handoff_posture'] ?? null ) ? $record['execution_handoff_posture'] : $this->execution_handoff_posture(),
+			'commit_execution'                => (bool) ( $record['commit_execution'] ?? false ),
+			'post_id'                         => absint( $record['post_id'] ?? 0 ),
+			'post_ids'                        => array_values( array_map( 'absint', is_array( $record['post_ids'] ?? null ) ? $record['post_ids'] : array() ) ),
+			'selected_count'                  => absint( $record['selected_count'] ?? ( $record['executed_count'] ?? 0 ) ),
+			'submitted_count'                 => absint( $record['submitted_count'] ?? ( $record['executed_count'] ?? 0 ) ),
+			'executed_count'                  => absint( $record['executed_count'] ?? 0 ),
+			'failed_count'                    => absint( $record['failed_count'] ?? 0 ),
+			'blocked_count'                   => absint( $record['blocked_count'] ?? 0 ),
+			'partial_success'                 => (bool) ( $record['partial_success'] ?? false ),
+			'retryable'                       => (bool) ( $record['retryable'] ?? false ),
+			'operator_next_action'            => (string) ( $record['operator_next_action'] ?? '' ),
+			'error_code'                      => (string) ( $record['error_code'] ?? '' ),
+			'failed_action_id'                => (string) ( $record['failed_action_id'] ?? '' ),
+			'failed_action_index'             => absint( $record['failed_action_index'] ?? 0 ),
+			'failed_execution_profile'        => (string) ( $record['failed_execution_profile'] ?? '' ),
+			'failed_idempotency_key'          => (string) ( $record['failed_idempotency_key'] ?? '' ),
+			'core_preflight_evidence'         => is_array( $record['core_preflight_evidence'] ?? null ) ? $record['core_preflight_evidence'] : null,
 			'implementation_posture_evidence' => is_array( $record['implementation_posture_evidence'] ?? null ) ? $record['implementation_posture_evidence'] : null,
-			'media_alt_live_preflight' => is_array( $record['media_alt_live_preflight'] ?? null ) ? $record['media_alt_live_preflight'] : null,
-			'verification'        => is_array( $record['verification'] ?? null ) ? $record['verification'] : null,
-			'core_execution_record' => is_array( $record['core_execution_record'] ?? null ) ? $record['core_execution_record'] : null,
-			'failed_at'           => (string) ( $record['failed_at'] ?? '' ),
-			'executed_at'         => (string) ( $record['executed_at'] ?? '' ),
+			'media_alt_live_preflight'        => is_array( $record['media_alt_live_preflight'] ?? null ) ? $record['media_alt_live_preflight'] : null,
+			'verification'                    => is_array( $record['verification'] ?? null ) ? $record['verification'] : null,
+			'core_execution_record'           => is_array( $record['core_execution_record'] ?? null ) ? $record['core_execution_record'] : null,
+			'failed_at'                       => (string) ( $record['failed_at'] ?? '' ),
+			'executed_at'                     => (string) ( $record['executed_at'] ?? '' ),
 		);
 	}
 
@@ -6884,10 +6896,10 @@ final class Controller {
 		}
 
 		return array(
-			'status'      => 'recorded',
-			'item_count'  => count( $items ),
-			'items'       => $items,
-			'aggregates'  => $this->aggregate_execution_verification( $items ),
+			'status'     => 'recorded',
+			'item_count' => count( $items ),
+			'items'      => $items,
+			'aggregates' => $this->aggregate_execution_verification( $items ),
 		);
 	}
 
@@ -6921,7 +6933,7 @@ final class Controller {
 			'backup_available',
 			'rollback_available',
 		);
-		$output = array();
+		$output  = array();
 		foreach ( $allowed as $key ) {
 			if ( ! array_key_exists( $key, $verification ) ) {
 				continue;
@@ -6970,20 +6982,20 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function aggregate_execution_verification( array $items ): array {
-		$backup_available    = false;
-		$rollback_available  = false;
-		$actual_replacements = 0;
-		$post_ids            = array();
-		$has_post_references = false;
-		$old_urls_absent     = true;
-		$new_urls_present    = true;
-		$block_readbacks     = 0;
+		$backup_available        = false;
+		$rollback_available      = false;
+		$actual_replacements     = 0;
+		$post_ids                = array();
+		$has_post_references     = false;
+		$old_urls_absent         = true;
+		$new_urls_present        = true;
+		$block_readbacks         = 0;
 		$block_readback_failures = 0;
 
 		foreach ( $items as $item ) {
-			$verification = is_array( $item['verification'] ?? null ) ? $item['verification'] : array();
-			$backup_available   = $backup_available || (bool) ( $verification['backup_available'] ?? false );
-			$rollback_available = $rollback_available || (bool) ( $verification['rollback_available'] ?? false );
+			$verification         = is_array( $item['verification'] ?? null ) ? $item['verification'] : array();
+			$backup_available     = $backup_available || (bool) ( $verification['backup_available'] ?? false );
+			$rollback_available   = $rollback_available || (bool) ( $verification['rollback_available'] ?? false );
 			$actual_replacements += absint( $verification['content_reference_actual_replacement_count'] ?? 0 );
 			if ( 'verified' === (string) ( $verification['block_readback_status'] ?? '' ) ) {
 				++$block_readbacks;
@@ -6992,10 +7004,10 @@ final class Controller {
 			}
 			foreach ( (array) ( $verification['post_references_verified'] ?? array() ) as $post_reference ) {
 				if ( is_array( $post_reference ) ) {
-					$post_ids[] = absint( $post_reference['post_id'] ?? 0 );
+					$post_ids[]          = absint( $post_reference['post_id'] ?? 0 );
 					$has_post_references = true;
-					$old_urls_absent = $old_urls_absent && (bool) ( $post_reference['old_url_absent'] ?? false );
-					$new_urls_present = $new_urls_present && (bool) ( $post_reference['new_url_present'] ?? false );
+					$old_urls_absent     = $old_urls_absent && (bool) ( $post_reference['old_url_absent'] ?? false );
+					$new_urls_present    = $new_urls_present && (bool) ( $post_reference['new_url_present'] ?? false );
 				} else {
 					$post_ids[] = absint( $post_reference );
 				}
@@ -7035,7 +7047,7 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	private function run_read_ability( string $ability_id, array $input, array $log_context = array(), array $read_authorization = array() ) {
-		$started = microtime( true );
+		$started    = microtime( true );
 		$ability_id = sanitize_text_field( $ability_id );
 		$capability = $this->find_core_capability( $ability_id );
 
@@ -7095,33 +7107,33 @@ final class Controller {
 			$started,
 			null,
 			array(
-				'ability_id'          => $ability_id,
-				'read_policy'         => (string) ( $read_context['read_policy'] ?? '' ),
-				'sensitivity'         => (string) ( $read_context['sensitivity'] ?? '' ),
-				'redaction_applied'   => (bool) ( $redacted['redaction_applied'] ?? false ),
-				'correlation_id'      => (string) ( $read_context['correlation_id'] ?? '' ),
-				'adapter_request_id'  => (string) ( $read_context['adapter_request_id'] ?? '' ),
+				'ability_id'         => $ability_id,
+				'read_policy'        => (string) ( $read_context['read_policy'] ?? '' ),
+				'sensitivity'        => (string) ( $read_context['sensitivity'] ?? '' ),
+				'redaction_applied'  => (bool) ( $redacted['redaction_applied'] ?? false ),
+				'correlation_id'     => (string) ( $read_context['correlation_id'] ?? '' ),
+				'adapter_request_id' => (string) ( $read_context['adapter_request_id'] ?? '' ),
 			)
 		);
 
 		return new WP_REST_Response(
 			array(
-				'ability_id'        => $ability_id,
-				'governance_mode'   => 'direct_read',
-				'execution_surface' => 'wp_abilities_rest',
-				'core_proxy_execute' => false,
-				'commit_execution'  => false,
+				'ability_id'                 => $ability_id,
+				'governance_mode'            => 'direct_read',
+				'execution_surface'          => 'wp_abilities_rest',
+				'core_proxy_execute'         => false,
+				'commit_execution'           => false,
 				'read_authorization_granted' => ! empty( $grant_context ),
-				'read_policy'       => (string) ( $read_context['read_policy'] ?? '' ),
-				'sensitivity'       => (string) ( $read_context['sensitivity'] ?? '' ),
-				'redaction_required' => (bool) ( $read_context['redaction_required'] ?? false ),
-				'redaction_applied' => (bool) ( $redacted['redaction_applied'] ?? false ),
-				'redaction_summary' => is_array( $redacted['redaction_summary'] ?? null ) ? $redacted['redaction_summary'] : array(),
-				'read_audit_mode'   => (string) ( $read_context['read_audit_mode'] ?? '' ),
-				'correlation_id'    => (string) ( $read_context['correlation_id'] ?? '' ),
-				'log_context'       => $read_context,
-				'read_context'      => $read_context,
-				'result'            => $data,
+				'read_policy'                => (string) ( $read_context['read_policy'] ?? '' ),
+				'sensitivity'                => (string) ( $read_context['sensitivity'] ?? '' ),
+				'redaction_required'         => (bool) ( $read_context['redaction_required'] ?? false ),
+				'redaction_applied'          => (bool) ( $redacted['redaction_applied'] ?? false ),
+				'redaction_summary'          => is_array( $redacted['redaction_summary'] ?? null ) ? $redacted['redaction_summary'] : array(),
+				'read_audit_mode'            => (string) ( $read_context['read_audit_mode'] ?? '' ),
+				'correlation_id'             => (string) ( $read_context['correlation_id'] ?? '' ),
+				'log_context'                => $read_context,
+				'read_context'               => $read_context,
+				'result'                     => $data,
 			),
 			200
 		);
@@ -7155,19 +7167,19 @@ final class Controller {
 			? sanitize_text_field( (string) $log_context['correlation_id'] )
 			: wp_generate_uuid4();
 
-		$npcink_governance_core = is_array( $log_context['npcink_governance_core'] ?? null ) ? $log_context['npcink_governance_core'] : array();
+		$npcink_governance_core                   = is_array( $log_context['npcink_governance_core'] ?? null ) ? $log_context['npcink_governance_core'] : array();
 		$npcink_governance_core['correlation_id'] = $log_context['correlation_id'];
 		if ( ! empty( $grant_context ) ) {
-			$log_context['read_authorization_granted'] = true;
-			$log_context['redaction_level']            = sanitize_key( (string) ( $grant_context['redaction_level'] ?? 'strict' ) );
-			$log_context['read_authorization_bounds']  = is_array( $grant_context['bounds'] ?? null ) ? $grant_context['bounds'] : array();
-			$npcink_governance_core['read_request_id'] = sanitize_text_field( (string) ( $grant_context['request_id'] ?? '' ) );
-			$npcink_governance_core['approved_input_hash'] = sanitize_text_field( (string) ( $grant_context['approved_input_hash'] ?? '' ) );
+			$log_context['read_authorization_granted']          = true;
+			$log_context['redaction_level']                     = sanitize_key( (string) ( $grant_context['redaction_level'] ?? 'strict' ) );
+			$log_context['read_authorization_bounds']           = is_array( $grant_context['bounds'] ?? null ) ? $grant_context['bounds'] : array();
+			$npcink_governance_core['read_request_id']          = sanitize_text_field( (string) ( $grant_context['request_id'] ?? '' ) );
+			$npcink_governance_core['approved_input_hash']      = sanitize_text_field( (string) ( $grant_context['approved_input_hash'] ?? '' ) );
 			$npcink_governance_core['core_authorization_truth'] = 'npcink_governance_core';
-			$npcink_governance_core['commit_execution'] = false;
-			$npcink_governance_core['write_execution']  = false;
+			$npcink_governance_core['commit_execution']         = false;
+			$npcink_governance_core['write_execution']          = false;
 		}
-		$log_context['npcink_governance_core']    = $npcink_governance_core;
+		$log_context['npcink_governance_core'] = $npcink_governance_core;
 
 		return $this->sanitize_log_context( $log_context, true );
 	}
@@ -7201,8 +7213,8 @@ final class Controller {
 	 * @return array<string,mixed>|WP_Error
 	 */
 	private function core_read_authorization_preflight( array $capability, array $input, array $read_authorization ) {
-		$ability_id = sanitize_text_field( (string) ( $capability['ability_id'] ?? '' ) );
-		$request_id = sanitize_text_field( (string) ( $read_authorization['request_id'] ?? '' ) );
+		$ability_id       = sanitize_text_field( (string) ( $capability['ability_id'] ?? '' ) );
+		$request_id       = sanitize_text_field( (string) ( $read_authorization['request_id'] ?? '' ) );
 		$expected_context = is_array( $read_authorization['read_authorization_context'] ?? null )
 			? (array) $read_authorization['read_authorization_context']
 			: array();
@@ -7281,7 +7293,7 @@ final class Controller {
 				array( 'status' => 403 )
 			);
 		}
-		if ( $ability_id !== (string) ( $context['ability_id'] ?? '' ) || $request_id !== (string) ( $context['request_id'] ?? '' ) ) {
+		if ( (string) ( $context['ability_id'] ?? '' ) !== $ability_id || (string) ( $context['request_id'] ?? '' ) !== $request_id ) {
 			return new WP_Error(
 				'npcink_openclaw_adapter_core_read_grant_target_mismatch',
 				__( 'Core read authorization context does not match the requested ability or read request.', 'npcink-ai-client-adapter' ),
@@ -7334,31 +7346,31 @@ final class Controller {
 		$bounds = is_array( $context['bounds'] ?? null ) ? (array) $context['bounds'] : array();
 
 		return array(
-			'request_id'                  => sanitize_text_field( (string) ( $context['request_id'] ?? '' ) ),
-			'ability_id'                  => sanitize_text_field( (string) ( $context['ability_id'] ?? '' ) ),
-			'approved_input_hash'         => sanitize_text_field( (string) ( $context['approved_input_hash'] ?? '' ) ),
-			'correlation_id'              => sanitize_text_field( (string) ( $context['correlation_id'] ?? '' ) ),
-			'policy_version'              => sanitize_text_field( (string) ( $context['policy_version'] ?? '' ) ),
-				'site_url'                    => sanitize_text_field( (string) ( $context['site_url'] ?? '' ) ),
-				'home_url'                    => sanitize_text_field( (string) ( $context['home_url'] ?? '' ) ),
-				'blog_id'                     => absint( $context['blog_id'] ?? 0 ),
-				'signed_client_fingerprint'   => $this->sanitize_signed_client_fingerprint( (string) ( $context['signed_client_fingerprint'] ?? '' ) ),
-				'client_key_fingerprint'      => $this->sanitize_signed_client_fingerprint( (string) ( $context['client_key_fingerprint'] ?? '' ) ),
-				'sensitivity'                 => sanitize_key( (string) ( $context['sensitivity'] ?? 'sensitive' ) ),
-			'data_classes'                => $this->sanitize_string_list( is_array( $context['data_classes'] ?? null ) ? (array) $context['data_classes'] : array() ),
-			'redaction_level'             => sanitize_key( (string) ( $context['redaction_level'] ?? 'strict' ) ),
-			'expires_at'                  => sanitize_text_field( (string) ( $context['expires_at'] ?? '' ) ),
-			'bounds'                      => array(
+			'request_id'                 => sanitize_text_field( (string) ( $context['request_id'] ?? '' ) ),
+			'ability_id'                 => sanitize_text_field( (string) ( $context['ability_id'] ?? '' ) ),
+			'approved_input_hash'        => sanitize_text_field( (string) ( $context['approved_input_hash'] ?? '' ) ),
+			'correlation_id'             => sanitize_text_field( (string) ( $context['correlation_id'] ?? '' ) ),
+			'policy_version'             => sanitize_text_field( (string) ( $context['policy_version'] ?? '' ) ),
+			'site_url'                   => sanitize_text_field( (string) ( $context['site_url'] ?? '' ) ),
+			'home_url'                   => sanitize_text_field( (string) ( $context['home_url'] ?? '' ) ),
+			'blog_id'                    => absint( $context['blog_id'] ?? 0 ),
+			'signed_client_fingerprint'  => $this->sanitize_signed_client_fingerprint( (string) ( $context['signed_client_fingerprint'] ?? '' ) ),
+			'client_key_fingerprint'     => $this->sanitize_signed_client_fingerprint( (string) ( $context['client_key_fingerprint'] ?? '' ) ),
+			'sensitivity'                => sanitize_key( (string) ( $context['sensitivity'] ?? 'sensitive' ) ),
+			'data_classes'               => $this->sanitize_string_list( is_array( $context['data_classes'] ?? null ) ? (array) $context['data_classes'] : array() ),
+			'redaction_level'            => sanitize_key( (string) ( $context['redaction_level'] ?? 'strict' ) ),
+			'expires_at'                 => sanitize_text_field( (string) ( $context['expires_at'] ?? '' ) ),
+			'bounds'                     => array(
 				'max_rows'       => absint( $bounds['max_rows'] ?? 0 ),
 				'tail_lines'     => absint( $bounds['tail_lines'] ?? 0 ),
 				'allowed_fields' => $this->sanitize_string_list( is_array( $bounds['allowed_fields'] ?? null ) ? (array) $bounds['allowed_fields'] : array() ),
 				'denied_fields'  => $this->sanitize_string_list( is_array( $bounds['denied_fields'] ?? null ) ? (array) $bounds['denied_fields'] : array() ),
 				'one_time'       => ! empty( $bounds['one_time'] ),
 			),
-			'read_authorization_granted'  => true,
-			'core_authorization_truth'    => 'npcink_governance_core',
-			'commit_execution'            => false,
-			'write_execution'             => false,
+			'read_authorization_granted' => true,
+			'core_authorization_truth'   => 'npcink_governance_core',
+			'commit_execution'           => false,
+			'write_execution'            => false,
 		);
 	}
 
@@ -7378,20 +7390,20 @@ final class Controller {
 			'npcink_openclaw_adapter_core_read_authorization_required',
 			__( 'Core requires explicit read authorization before Adapter may return this sensitive read result.', 'npcink-ai-client-adapter' ),
 			array(
-				'status'              => 403,
-				'ability_id'          => sanitize_text_field( (string) ( $capability['ability_id'] ?? '' ) ),
-				'sensitivity'         => sanitize_key( (string) ( $capability['sensitivity'] ?? 'sensitive' ) ),
-				'read_policy'         => $read_policy,
+				'status'                      => 403,
+				'ability_id'                  => sanitize_text_field( (string) ( $capability['ability_id'] ?? '' ) ),
+				'sensitivity'                 => sanitize_key( (string) ( $capability['sensitivity'] ?? 'sensitive' ) ),
+				'read_policy'                 => $read_policy,
 				'read_authorization_required' => true,
-				'required_flow'       => 'core_read_request',
-				'core_authorization_truth' => 'npcink_governance_core',
-				'adapter_action'      => 'fail_closed',
-				'next_steps'          => array(
+				'required_flow'               => 'core_read_request',
+				'core_authorization_truth'    => 'npcink_governance_core',
+				'adapter_action'              => 'fail_closed',
+				'next_steps'                  => array(
 					__( 'Create or approve the sensitive read request in Npcink Governance Core.', 'npcink-ai-client-adapter' ),
 					__( 'Retry only after Core exposes a bounded read authorization context for this ability and input.', 'npcink-ai-client-adapter' ),
 					__( 'Do not bypass Adapter through the database, filesystem, logs, custom scripts, or direct WordPress internals.', 'npcink-ai-client-adapter' ),
 				),
-				'capability'          => $this->public_capability_guidance( $capability ),
+				'capability'                  => $this->public_capability_guidance( $capability ),
 			)
 		);
 	}
@@ -7414,15 +7426,15 @@ final class Controller {
 		}
 
 		return array(
-			'result'             => $result,
-			'redaction_applied'  => $required,
-			'redaction_summary'  => array(
-				'policy_applied'        => $required,
-				'redacted_field_count'  => $count,
-				'max_rows'              => absint( $bounds['max_rows'] ?? 0 ),
-				'tail_lines'            => absint( $bounds['tail_lines'] ?? 0 ),
-				'allowed_fields'        => $this->sanitize_string_list( is_array( $bounds['allowed_fields'] ?? null ) ? (array) $bounds['allowed_fields'] : array() ),
-				'denied_fields'         => $this->sanitize_string_list( is_array( $bounds['denied_fields'] ?? null ) ? (array) $bounds['denied_fields'] : array() ),
+			'result'            => $result,
+			'redaction_applied' => $required,
+			'redaction_summary' => array(
+				'policy_applied'       => $required,
+				'redacted_field_count' => $count,
+				'max_rows'             => absint( $bounds['max_rows'] ?? 0 ),
+				'tail_lines'           => absint( $bounds['tail_lines'] ?? 0 ),
+				'allowed_fields'       => $this->sanitize_string_list( is_array( $bounds['allowed_fields'] ?? null ) ? (array) $bounds['allowed_fields'] : array() ),
+				'denied_fields'        => $this->sanitize_string_list( is_array( $bounds['denied_fields'] ?? null ) ? (array) $bounds['denied_fields'] : array() ),
 			),
 		);
 	}
@@ -7493,9 +7505,9 @@ final class Controller {
 		}
 
 		$denied_fields = array_map( 'strtolower', $denied_fields );
-		$clean = array();
+		$clean         = array();
 		foreach ( $value as $key => $item ) {
-			$key_string = is_string( $key ) ? $key : (string) $key;
+			$key_string     = is_string( $key ) ? $key : (string) $key;
 			$key_normalized = strtolower( $key_string );
 			if ( 'authorization' === $key_normalized && ! in_array( $key_normalized, $denied_fields, true ) && $this->is_safe_governance_authorization_envelope( $item ) ) {
 				$clean[ $key ] = $item;
@@ -7605,7 +7617,6 @@ final class Controller {
 	 * @param string              $route REST route.
 	 * @param array<string,mixed> $params Params.
 	 * @param bool                $query_params Whether params should be query params.
-	 * @param bool                $json_body Whether params should be encoded as JSON body.
 	 * @return WP_REST_Response|WP_Error
 	 */
 	private function dispatch_upstream_with_request_log_context( array $log_context, string $method, string $route, array $params = array(), bool $query_params = false ) {
@@ -7633,7 +7644,7 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	private function dispatch_upstream_with_runtime_context( array $runtime_context, string $method, string $route, array $params = array(), bool $query_params = false, bool $json_body = false ) {
-		$previous = isset( $GLOBALS['npcink_ai_runtime_wp_ability_context'] ) ? $GLOBALS['npcink_ai_runtime_wp_ability_context'] : null;
+		$previous                                        = isset( $GLOBALS['npcink_ai_runtime_wp_ability_context'] ) ? $GLOBALS['npcink_ai_runtime_wp_ability_context'] : null;
 		$GLOBALS['npcink_ai_runtime_wp_ability_context'] = array(
 			'context' => $this->sanitize_runtime_context( $runtime_context ),
 		);
@@ -7710,7 +7721,7 @@ final class Controller {
 		}
 
 		foreach ( (array) ( is_array( $data ) ? ( $data['items'] ?? array() ) : array() ) as $item ) {
-			if ( is_array( $item ) && $ability_id === (string) ( $item['ability_id'] ?? '' ) ) {
+			if ( is_array( $item ) && (string) ( $item['ability_id'] ?? '' ) === $ability_id ) {
 				return $item;
 			}
 		}
@@ -7770,7 +7781,7 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	private function dispatch_upstream( string $method, string $route, array $params = array(), bool $query_params = false, bool $json_body = false, bool $use_core_app_token = true ) {
-		$started = microtime( true );
+		$started          = microtime( true );
 		$dependency_error = $this->missing_dependency_for_route( $route );
 		if ( is_wp_error( $dependency_error ) ) {
 			$this->emit_operation_event(
@@ -7816,7 +7827,7 @@ final class Controller {
 		if ( '' !== $token && 0 === strpos( $route, '/npcink-governance-core/v1/' ) ) {
 			wp_set_current_user( $user_id );
 		}
-		$status   = (int) $response->get_status();
+		$status = (int) $response->get_status();
 
 		if ( $status < 200 || $status >= 300 ) {
 			$data    = $response->get_data();
@@ -7838,7 +7849,7 @@ final class Controller {
 				$code,
 				$message,
 				array(
-					'status'        => $status,
+					'status'         => $status,
 					'upstream_route' => $route,
 					'upstream_data'  => $this->public_upstream_error_data( $data ),
 				)
@@ -7850,8 +7861,8 @@ final class Controller {
 			$started,
 			null,
 			array(
-				'method' => strtoupper( $method ),
-				'route'  => $route,
+				'method'      => strtoupper( $method ),
+				'route'       => $route,
 				'status_code' => $status,
 			)
 		);
@@ -7949,8 +7960,8 @@ final class Controller {
 	 * @return array{items:array<string,array<string,mixed>>,missing:array<int,string>}
 	 */
 	private function dependency_status(): array {
-		$items = array(
-			'npcink-governance-core' => array(
+		$items   = array(
+			'npcink-governance-core'   => array(
 				'label'        => 'Npcink Governance Core',
 				'slug'         => 'npcink-governance-core',
 				'slug_status'  => 'planned',
@@ -7958,7 +7969,7 @@ final class Controller {
 				'available'    => $this->rest_route_available( '/npcink-governance-core/v1/capabilities' ),
 				'detector'     => 'rest_route:/npcink-governance-core/v1/capabilities',
 			),
-			'wordpress-abilities-api' => array(
+			'wordpress-abilities-api'  => array(
 				'label'        => 'WordPress Abilities API',
 				'slug'         => 'wordpress-core',
 				'slug_status'  => 'platform',
@@ -8159,7 +8170,7 @@ final class Controller {
 			}
 		}
 
-		$context['ability_id']        = sanitize_text_field( $ability_id );
+		$context['ability_id']         = sanitize_text_field( $ability_id );
 		$context['adapter_request_id'] = isset( $context['adapter_request_id'] ) && '' !== (string) $context['adapter_request_id']
 			? sanitize_text_field( (string) $context['adapter_request_id'] )
 			: wp_generate_uuid4();
@@ -8499,16 +8510,16 @@ final class Controller {
 	 */
 	private function public_capability_guidance( array $capability ): array {
 		return array(
-			'ability_id'        => (string) ( $capability['ability_id'] ?? '' ),
-			'risk_level'        => (string) ( $capability['risk_level'] ?? '' ),
-			'requires_approval' => (bool) ( $capability['requires_approval'] ?? false ),
-			'governance_mode'   => (string) ( $capability['governance_mode'] ?? '' ),
-			'execution_surface' => (string) ( $capability['execution_surface'] ?? '' ),
-			'read_policy'       => (string) ( $capability['read_policy'] ?? '' ),
-			'sensitivity'       => (string) ( $capability['sensitivity'] ?? '' ),
+			'ability_id'                  => (string) ( $capability['ability_id'] ?? '' ),
+			'risk_level'                  => (string) ( $capability['risk_level'] ?? '' ),
+			'requires_approval'           => (bool) ( $capability['requires_approval'] ?? false ),
+			'governance_mode'             => (string) ( $capability['governance_mode'] ?? '' ),
+			'execution_surface'           => (string) ( $capability['execution_surface'] ?? '' ),
+			'read_policy'                 => (string) ( $capability['read_policy'] ?? '' ),
+			'sensitivity'                 => (string) ( $capability['sensitivity'] ?? '' ),
 			'read_authorization_required' => $this->core_read_authorization_required( $capability ),
-			'core_proxy_execute' => (bool) ( $capability['core_proxy_execute'] ?? false ),
-			'commit_execution'  => (bool) ( $capability['commit_execution'] ?? false ),
+			'core_proxy_execute'          => (bool) ( $capability['core_proxy_execute'] ?? false ),
+			'commit_execution'            => (bool) ( $capability['commit_execution'] ?? false ),
 		);
 	}
 
@@ -8593,7 +8604,7 @@ final class Controller {
 		}
 
 			return $safe;
-		}
+	}
 
 		/**
 		 * Builds a stable metadata-only event id for operation dedupe.
@@ -8604,27 +8615,27 @@ final class Controller {
 		 * @param array<string,mixed> $context Metadata-only event context.
 		 * @return string
 		 */
-		private function operation_event_id( string $event_kind, string $status, string $error_code, array $context ): string {
-			$identity = array(
-				'event_kind'         => $event_kind,
-				'status'             => $status,
-				'error_code'         => $error_code,
-				'method'             => (string) ( $context['method'] ?? '' ),
-				'route'              => (string) ( $context['route'] ?? '' ),
-				'status_code'        => (int) ( $context['status_code'] ?? 0 ),
-				'ability_id'         => (string) ( $context['ability_id'] ?? '' ),
-				'proposal_id'        => (string) ( $context['proposal_id'] ?? '' ),
-				'correlation_id'     => (string) ( $context['correlation_id'] ?? '' ),
-				'adapter_request_id' => (string) ( $context['adapter_request_id'] ?? '' ),
-				'proposal_count'     => (int) ( $context['proposal_count'] ?? 0 ),
-				'blocked_count'      => (int) ( $context['blocked_count'] ?? 0 ),
-				'executed_count'     => (int) ( $context['executed_count'] ?? 0 ),
-				'failed_count'       => (int) ( $context['failed_count'] ?? 0 ),
-			);
-			$json     = function_exists( 'wp_json_encode' ) ? wp_json_encode( $identity ) : json_encode( $identity );
-			$hash     = hash( 'sha256', is_string( $json ) ? $json : '' );
-			$prefix   = sanitize_key( str_replace( '.', '_', $event_kind ) );
+	private function operation_event_id( string $event_kind, string $status, string $error_code, array $context ): string {
+		$identity = array(
+			'event_kind'         => $event_kind,
+			'status'             => $status,
+			'error_code'         => $error_code,
+			'method'             => (string) ( $context['method'] ?? '' ),
+			'route'              => (string) ( $context['route'] ?? '' ),
+			'status_code'        => (int) ( $context['status_code'] ?? 0 ),
+			'ability_id'         => (string) ( $context['ability_id'] ?? '' ),
+			'proposal_id'        => (string) ( $context['proposal_id'] ?? '' ),
+			'correlation_id'     => (string) ( $context['correlation_id'] ?? '' ),
+			'adapter_request_id' => (string) ( $context['adapter_request_id'] ?? '' ),
+			'proposal_count'     => (int) ( $context['proposal_count'] ?? 0 ),
+			'blocked_count'      => (int) ( $context['blocked_count'] ?? 0 ),
+			'executed_count'     => (int) ( $context['executed_count'] ?? 0 ),
+			'failed_count'       => (int) ( $context['failed_count'] ?? 0 ),
+		);
+		$json     = function_exists( 'wp_json_encode' ) ? wp_json_encode( $identity ) : json_encode( $identity );
+		$hash     = hash( 'sha256', is_string( $json ) ? $json : '' );
+		$prefix   = sanitize_key( str_replace( '.', '_', $event_kind ) );
 
-			return $prefix . '_' . substr( $hash, 0, 32 );
-		}
+		return $prefix . '_' . substr( $hash, 0, 32 );
 	}
+}
