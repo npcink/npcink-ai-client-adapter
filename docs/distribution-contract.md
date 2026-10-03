@@ -39,6 +39,24 @@ If names change later, update plugin headers, readmes, the suite version
 matrix, and packaging defaults together. Do not change Core proposal, audit, or
 Adapter execution ownership as part of a naming change.
 
+## Local CLI Versioning
+
+The local signed-key CLI (`packages/adapter-cli`, published as
+`@npcink/openclaw-adapter-cli` on npm) carries its own semver that is
+deliberately independent of the plugin version (for example plugin 0.4.1 with
+CLI 0.6.0). The CLI is a client-side companion, not part of the WordPress
+release zip, so it releases on its own cadence.
+
+The two versions are coupled only through the wire contract, not the numbers:
+
+- The CLI must speak the Adapter REST namespace and the `client_policy`
+  published on `/health`, `/help`, and `/connection/manifest`.
+- Adapter contract floors (for example `adapter_contract_version`) are the
+  compatibility surface; a plugin bump does not require a CLI bump unless the
+  contract versions change.
+- When a plugin release changes signing, pairing, or policy semantics, record
+  the CLI companion change in the release closeout.
+
 ## Runtime Contract
 
 Adapter must keep `/health` and `/help` usable even when dependencies are
