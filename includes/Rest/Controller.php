@@ -168,41 +168,19 @@ final class Controller {
 		return $ability_ids;
 	}
 
+
 	/**
-	 * Returns non-secret site readiness for conditional execution profiles.
+	 * Returns detected Core and Toolkit runtime contract summaries.
 	 *
-	 * Target names stay private. A configured host filter still requires a
-	 * per-target check before final execution.
+	 * @return array<string,mixed>
+	 */
+	/**
+	 * Returns conditional execution profile readiness metadata.
 	 *
 	 * @return array<string,mixed>
 	 */
 	private function execution_profile_readiness(): array {
-		$items = array();
-		foreach ( self::execution_profiles() as $ability_id => $profile ) {
-			$policy = is_array( $profile['site_readiness'] ?? null ) ? $profile['site_readiness'] : array();
-			if ( empty( $policy ) ) {
-				continue;
-			}
-
-			$filter                        = sanitize_key( (string) ( $policy['filter'] ?? '' ) );
-			$configured                    = '' !== $filter && function_exists( 'has_filter' ) && false !== has_filter( $filter );
-			$items[ (string) $ability_id ] = array(
-				'status'                    => $configured ? 'target_dependent' : 'not_configured',
-				'site_policy_configured'    => $configured,
-				'per_target_check_required' => true,
-				'default_behavior'          => 'fail_closed',
-				'policy_owner'              => sanitize_key( (string) ( $policy['policy_owner'] ?? 'wordpress_host' ) ),
-				'filter'                    => $filter,
-				'not_ready_code'            => sanitize_key( (string) ( $policy['not_ready_code'] ?? 'npcink_openclaw_adapter_execution_profile_site_not_ready' ) ),
-				'target_names_exposed'      => false,
-			);
-		}
-
-		return array(
-			'schema_version'                  => 'npcink_openclaw_adapter_execution_profile_readiness.v1',
-			'conditional_execute_ability_ids' => self::conditional_execute_ability_ids(),
-			'items'                           => $items,
-		);
+		return Contract_Metadata::execution_profile_readiness( self::execution_profiles(), self::conditional_execute_ability_ids() );
 	}
 
 	/**
@@ -211,64 +189,7 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function adapter_contract_metadata(): array {
-		$execute_ability_ids = self::supported_execute_ability_ids();
-		$plan_ability_ids    = Supported_Plan_Abilities::ids();
-
-		return array(
-			'schema_version'                     => 'npcink_openclaw_adapter_contract.v1',
-			'adapter_contract_version'           => self::ADAPTER_CONTRACT_VERSION,
-			'product_name'                       => 'npcink-ai-client-adapter',
-			'client_contract'                    => 'generic_ai_client',
-			'priority_channel'                   => 'openclaw',
-			'compatibility_rest_namespace'       => self::NAMESPACE,
-			'client_policy_version'              => self::CLIENT_POLICY_VERSION,
-			'execution_profile_registry_version' => self::EXECUTION_PROFILE_REGISTRY_VERSION,
-			'supported_plan_abilities_version'   => self::SUPPORTED_PLAN_ABILITIES_VERSION,
-			'core_contract_min_version'          => self::CORE_CONTRACT_MIN_VERSION,
-			'core_plugin_min_version'            => self::CORE_PLUGIN_MIN_VERSION,
-			'toolkit_contract_min_version'       => self::TOOLKIT_CONTRACT_MIN_VERSION,
-			'toolkit_plugin_min_version'         => self::TOOLKIT_PLUGIN_MIN_VERSION,
-			'execution_profile_registry_hash'    => $this->contract_sha256( self::execution_profiles() ),
-			'supported_execute_ability_ids_hash' => $this->contract_sha256( $execute_ability_ids ),
-			'supported_plan_ability_ids_hash'    => $this->contract_sha256( $plan_ability_ids ),
-			'max_execution_actions'              => self::MAX_EXECUTION_ACTIONS,
-			'core_proxy_execute'                 => false,
-			'commit_execution'                   => false,
-			'workflow_projection'                => $this->workflow_projection_contract(),
-			'execution_handoff_posture'          => $this->execution_handoff_posture(),
-		);
-	}
-
-	/**
-	 * Returns the generic AI-client projection contract for Toolkit workflows.
-	 *
-	 * This is discovery metadata only. Adapter does not copy or persist workflow
-	 * definitions and does not become a workflow registry or runtime.
-	 *
-	 * @return array<string,mixed>
-	 */
-	private function workflow_projection_contract(): array {
-		return array(
-			'schema_version'                => 'npcink_ai_client_workflow_projection.v1',
-			'definition_owner'              => 'npcink-abilities-toolkit',
-			'definition_discovery_surface'  => 'wordpress_abilities_api_via_adapter_read',
-			'definition_discovery_contract' => 'toolkit_workflow_definition_abilities',
-			'projection_role'               => 'external_ai_client_channel',
-			'supported_channels'            => array( 'openclaw' ),
-			'canonical_definition_storage'  => false,
-			'runtime_state_storage'         => false,
-			'version_mismatch_policy'       => 'fail_closed',
-			'parity_required_fields'        => array(
-				'recipe_id',
-				'contract_version',
-				'entrypoint_ability_id',
-				'required_scope',
-				'required_inputs',
-				'handoff',
-				'failure_policy',
-				'host_governed_write_boundary',
-			),
-		);
+		return Contract_Metadata::adapter_contract_metadata( self::execution_profiles(), self::supported_execute_ability_ids(), Supported_Plan_Abilities::ids() );
 	}
 
 	/**
@@ -277,41 +198,48 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	private function execution_handoff_posture(): array {
-		return array(
-			'schema_version'           => 'npcink_openclaw_adapter_execution_handoff_posture.v1',
-			'channel_owner'            => 'npcink-ai-client-adapter',
-			'governance_truth_owner'   => 'npcink-governance-core',
-			'ability_definition_owner' => 'npcink-abilities-toolkit',
-			'approval_truth'           => 'npcink_governance_core',
-			'commit_preflight_truth'   => 'npcink_governance_core',
-			'execution_owner'          => 'adapter_after_core_preflight',
-			'execution_surface'        => 'wp_abilities_rest',
-			'record_execution_route'   => '/npcink-governance-core/v1/proposals/{proposal_id}/record-execution',
-			'core_proxy_execute'       => false,
-			'commit_execution'         => false,
-			'generic_write_executor'   => false,
-			'workflow_runtime'         => false,
-			'queue_or_scheduler'       => false,
-			'required_evidence'        => array(
-				'approval_context.approval_commit_authorized',
-				'approval_context.approved_input_hash',
-				'approval_context.policy_version=core-preflight-v1',
-				'execution_handoff.executor=adapter_after_core_preflight',
-				'execution_handoff.execution_surface=wp_abilities_rest',
-				'execution_handoff.core_proxy_execute=false',
-				'execution_handoff.commit_execution=false',
-				'execution_handoff.correlation_id',
-				'implementation_posture.checked_or_not_declared',
-			),
-			'operator_block_guidance'  => 'surface_operator_feedback_and_create_revised_proposal',
-		);
+		return Contract_Metadata::execution_handoff_posture();
 	}
 
 	/**
-	 * Returns detected Core and Toolkit runtime contract summaries.
+	 * Returns machine-readable client policy for local AI clients.
 	 *
+	 * @param bool $include_request_scoped_policy Whether to embed the per-request boundary enforcement classification.
 	 * @return array<string,mixed>
 	 */
+	private function client_policy( bool $include_request_scoped_policy = true ): array {
+		return Contract_Metadata::client_policy( $include_request_scoped_policy, $this->current_signed_authenticated );
+	}
+
+	/**
+	 * Returns the boundary enforcement classification of the active connection.
+	 *
+	 * @return array<string,string>
+	 */
+	private function boundary_enforcement_policy(): array {
+		return Contract_Metadata::boundary_enforcement_policy( $this->current_signed_authenticated );
+	}
+
+	/**
+	 * Returns scheme/host/port origin for a URL.
+	 *
+	 * @param string $url URL.
+	 * @return string
+	 */
+	private function url_origin( string $url ): string {
+		return Contract_Metadata::url_origin( $url );
+	}
+
+	/**
+	 * Returns canonical JSON for digesting simple associative arrays.
+	 *
+	 * @param mixed $value Value.
+	 * @return string
+	 */
+	private function canonical_json( $value ): string {
+		return Contract_Metadata::canonical_json( $value );
+	}
+
 	private function dependency_contracts(): array {
 		if ( is_array( $this->dependency_contracts_cache ) ) {
 			return $this->dependency_contracts_cache;
@@ -1769,201 +1697,6 @@ final class Controller {
 		return $base;
 	}
 
-	/**
-	 * Returns machine-readable client policy for local AI clients.
-	 *
-	 * @param bool $include_request_scoped_policy Whether to embed the per-request boundary enforcement classification. Exclude it from digest bases such as the connection manifest.
-	 * @return array<string,mixed>
-	 */
-	private function client_policy( bool $include_request_scoped_policy = true ): array {
-		$policy = array(
-			'schema_version'         => 'npcink_openclaw_adapter_client_policy.v1',
-			'policy_version'         => self::CLIENT_POLICY_VERSION,
-			'policy_owner'           => 'npcink-ai-client-adapter',
-			'client_posture'         => 'adapter_only_fail_closed',
-			'forbidden_outputs'      => array(
-				'profile_path',
-				'profile_json',
-				'private_key',
-				'private_key_jwk',
-				'public_key',
-				'key_id',
-				'connection_id',
-				'authorization',
-				'cookie',
-				'token',
-				'application_password',
-				'password',
-				'secret',
-				'signature',
-				'x_npcink_key_id',
-				'x_npcink_signature',
-			),
-			'forbidden_local_access' => array(
-				'keypair_profile_files',
-				'database_direct',
-				'filesystem_reads_for_wordpress_data',
-				'log_file_reads',
-				'custom_scripts_for_wordpress_data',
-				'direct_wordpress_internals',
-			),
-			'allowed_transport'      => array(
-				'adapter_cli_only'               => true,
-				'adapter_relative_routes_only'   => true,
-				'direct_database_access_allowed' => false,
-				'filesystem_secret_read_allowed' => false,
-			),
-			'sensitive_read_flow'    => array(
-				'required'              => true,
-				'trigger_fields'        => array(
-					'read_authorization_required=true',
-					'requires_read_authorization=true',
-					'read_policy=core_read_authorization_required',
-					'governance_mode=core_read_authorization_required',
-					'authorization_mode=core_read_request',
-				),
-				'steps'                 => array(
-					'create'  => 'POST /read-requests',
-					'status'  => 'GET /read-requests/{request_id}',
-					'execute' => 'POST /run-read-ability with identical ability_id, input, and read_request_id',
-				),
-				'grant_binding'         => 'ability_id_plus_input_hash',
-				'input_change_behavior' => 'create_new_read_request',
-			),
-			'write_flow'             => array(
-				'required'                    => true,
-				'proposal_required'           => true,
-				'approval_surface'            => 'npcink_governance_core_admin',
-				'signed_client_self_approval' => 'forbidden',
-				'commit_intent_required'      => true,
-				'execution_handoff_posture'   => $this->execution_handoff_posture(),
-				'final_write_routes'          => array(
-					'POST /execute-approved-proposal',
-					'POST /proposals/{proposal_id}/execute',
-				),
-				'admin_session_only_routes'   => array(
-					'POST /proposals/{proposal_id}/approve-and-execute' => 'unified approve-and-execute holds approval authority and requires a WordPress administrator session',
-				),
-			),
-			'recommended_cli'        => array(
-				'status'              => 'npcink-openclaw-adapter status --profile=local',
-				'read_request_create' => 'npcink-openclaw-adapter read-request create --profile=local --ability-id=ABILITY_ID --input-file=/tmp/input.json --purpose=PURPOSE --data-classes=CLASS[,CLASS]',
-				'read_request_status' => 'npcink-openclaw-adapter read-request status --profile=local REQUEST_ID',
-				'read_ability'        => 'npcink-openclaw-adapter read-ability --profile=local --ability-id=ABILITY_ID --input-file=/tmp/input.json [--read-request-id=REQUEST_ID]',
-			),
-		);
-
-		if ( $include_request_scoped_policy ) {
-			$policy['boundary_enforcement'] = $this->boundary_enforcement_policy();
-		}
-
-		return $policy;
-	}
-
-	/**
-	 * Returns the boundary enforcement classification of the active connection.
-	 *
-	 * Semantics are owned by docs/threat-model.md: enforced means the request
-	 * was authenticated by a registered Ed25519 key-pair signature, so Adapter
-	 * routes are the only reachable WordPress path for that client;
-	 * conventional means a WordPress-native credential that can also reach
-	 * wp/v2 directly, which makes the approval gate voluntary.
-	 *
-	 * @return array<string,string>
-	 */
-	private function boundary_enforcement_policy(): array {
-		$enforced = $this->current_signed_authenticated;
-
-		return array(
-			'class'       => $enforced ? 'enforced' : 'conventional',
-			'auth_mode'   => $enforced ? 'ed25519_key_pair_signed' : 'wordpress_native',
-			'recommended' => 'ed25519_key_pair_device_pairing',
-			'reference'   => 'docs/threat-model.md',
-		);
-	}
-
-	/**
-	 * Returns scheme/host/port origin for a URL.
-	 *
-	 * @param string $url URL.
-	 * @return string
-	 */
-	private function url_origin( string $url ): string {
-		$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
-		$host   = wp_parse_url( $url, PHP_URL_HOST );
-		$port   = wp_parse_url( $url, PHP_URL_PORT );
-		if ( ! is_string( $scheme ) || ! is_string( $host ) ) {
-			return '';
-		}
-
-		return strtolower( $scheme . '://' . $host . ( is_int( $port ) ? ':' . $port : '' ) );
-	}
-
-	/**
-	 * Returns canonical JSON for digesting simple associative arrays.
-	 *
-	 * @param mixed $value Value.
-	 * @return string
-	 */
-	private function canonical_json( $value ): string {
-		$value = $this->sort_array_keys_recursive( $value );
-		$json  = wp_json_encode( $value, JSON_UNESCAPED_SLASHES );
-		return is_string( $json ) ? $json : '';
-	}
-
-	/**
-	 * Returns a stable sha256 digest for machine-readable contract data.
-	 *
-	 * @param mixed $value Contract value.
-	 * @return string
-	 */
-	private function contract_sha256( $value ): string {
-		return 'sha256:' . hash( 'sha256', $this->canonical_json( $this->contract_hash_value( $value ) ) );
-	}
-
-	/**
-	 * Removes human-translated strings from contract hash input.
-	 *
-	 * @param mixed $value Contract value.
-	 * @return mixed
-	 */
-	private function contract_hash_value( $value ) {
-		if ( ! is_array( $value ) ) {
-			return $value;
-		}
-
-		$filtered = array();
-		foreach ( $value as $key => $child ) {
-			if ( 'message' === $key ) {
-				continue;
-			}
-			$filtered[ $key ] = $this->contract_hash_value( $child );
-		}
-
-		return $filtered;
-	}
-
-	/**
-	 * Sorts associative array keys recursively.
-	 *
-	 * @param mixed $value Value.
-	 * @return mixed
-	 */
-	private function sort_array_keys_recursive( $value ) {
-		if ( ! is_array( $value ) ) {
-			return $value;
-		}
-
-		foreach ( $value as $key => $child ) {
-			$value[ $key ] = $this->sort_array_keys_recursive( $child );
-		}
-
-		if ( array_keys( $value ) !== range( 0, count( $value ) - 1 ) ) {
-			ksort( $value );
-		}
-
-		return $value;
-	}
 
 	/**
 	 * Filters requested client scopes to the current adapter contract.
