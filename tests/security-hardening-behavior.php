@@ -262,6 +262,7 @@ function maa_security_media_derivative_artifact( array $overrides = array() ): a
 	);
 }
 
+require_once dirname( __DIR__ ) . '/includes/Rest/Contract_Metadata.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Controller.php';
 
 $reflection = new ReflectionClass( \Npcink\OpenClawAdapter\Rest\Controller::class );
