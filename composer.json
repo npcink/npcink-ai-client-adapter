@@ -31,6 +31,7 @@
     "eval:lab": "sh scripts/eval-lab.sh",
     "eval:project:quality": "sh scripts/eval-lab.sh task=project_quality_gate \"project=$PWD\" mode=working_diff",
     "check:wporg": "@php scripts/check-wordpress-org-review-rules.php",
+    "check:i18n": "@php scripts/check-translation-coverage.php",
     "pr:publish": "bash scripts/publish-pr.sh",
     "i18n:pot": "WP_CLI_BIN=\"${WP_CLI_BIN:-/tmp/wp-cli.phar}\"; php \"$WP_CLI_BIN\" i18n make-pot . languages/npcink-ai-client-adapter.pot --slug=npcink-ai-client-adapter --domain=npcink-ai-client-adapter --exclude=build,vendor,node_modules,packages,sj,tests,tools,docs --package-name=\"Npcink AI Client Adapter\"",
     "package:release": "rm -rf build/npcink-ai-client-adapter build/npcink-ai-client-adapter.zip && mkdir -p build && rsync -a --delete --exclude-from=.distignore ./ build/npcink-ai-client-adapter/ && cd build && zip -qr npcink-ai-client-adapter.zip npcink-ai-client-adapter",
@@ -39,6 +40,7 @@
     "release:verify": [
       "@test:all",
       "@check:wporg",
+      "@check:i18n",
       "@plugin-check:release"
     ],
     "test:all": [
