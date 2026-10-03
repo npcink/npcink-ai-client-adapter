@@ -238,6 +238,6 @@ POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute
 
 ## Related Documents
 
-- `docs/openclaw-media-derivative-cloud-recipe.md`
+- `docs/recipes/openclaw-media-derivative-cloud-recipe.md`
 - `docs/openclaw-adapter-contract.md`
 - `docs/cloud-connector-boundary.md`

@@ -209,22 +209,22 @@ function maa_adapter_removed_surface_texts(): array {
 		'site_edit_router',
 		'image_candidate_adoption_plan',
 		'Compact route index only',
-		'docs/openclaw-pattern-page-plan-recipe.md',
-		'docs/openclaw-article-draft-plan-recipe.md',
-		'docs/openclaw-article-batch-draft-plan-recipe.md',
-		'docs/openclaw-article-media-batch-plan-recipe.md',
+		'docs/recipes/openclaw-pattern-page-plan-recipe.md',
+		'docs/recipes/openclaw-article-draft-plan-recipe.md',
+		'docs/recipes/openclaw-article-batch-draft-plan-recipe.md',
+		'docs/recipes/openclaw-article-media-batch-plan-recipe.md',
 		'docs/openclaw-content-intent-router-contract.md',
 		'docs/openclaw-site-edit-router-contract.md',
-		'docs/openclaw-article-block-plan-recipe.md',
-		'docs/openclaw-block-theme-site-builder-recipe.md',
-		'docs/openclaw-pattern-page-research-brief-recipe.md',
-		'docs/openclaw-pattern-page-with-visual-asset-recipe.md',
-		'docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
-		'docs/openclaw-image-candidate-adoption-plan-recipe.md',
-		'docs/openclaw-media-adoption-enhancement-plan-recipe.md',
-		'docs/openclaw-content-discoverability-recipe.md',
-		'docs/openclaw-ai-article-writing-pack-recipe.md',
-		'docs/openclaw-media-derivative-cloud-recipe.md',
+		'docs/recipes/openclaw-article-block-plan-recipe.md',
+		'docs/recipes/openclaw-block-theme-site-builder-recipe.md',
+		'docs/recipes/openclaw-pattern-page-research-brief-recipe.md',
+		'docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md',
+		'docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
+		'docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md',
+		'docs/recipes/openclaw-media-adoption-enhancement-plan-recipe.md',
+		'docs/recipes/openclaw-content-discoverability-recipe.md',
+		'docs/recipes/openclaw-ai-article-writing-pack-recipe.md',
+		'docs/recipes/openclaw-media-derivative-cloud-recipe.md',
 		'docs/external-ai-client-contract.md',
 		'visual_acceptance_required',
 		'pattern_page_research_brief',
@@ -467,7 +467,7 @@ foreach (
 			'/npcink-governance-core/v1/contract',
 			'/npcink-abilities-toolkit/v1/contract',
 		),
-		'docs/adapter-contract-reuse-readiness-2026-07-08.md' => array(
+		'docs/archive/adapter-contract-reuse-readiness-2026-07-08.md' => array(
 			'Adapter Contract Reuse Readiness',
 			'execution_profiles',
 			'ability_contracts',
@@ -1069,7 +1069,7 @@ foreach (
 			'pattern_page_plan',
 			'Compact route index only',
 			'openclaw_recipe_index_row',
-			'docs/openclaw-pattern-page-plan-recipe.md',
+			'docs/recipes/openclaw-pattern-page-plan-recipe.md',
 			'visual_acceptance_required',
 			'pattern_page_research_brief',
 			'pattern_page_with_visual_asset_plan',
@@ -1223,11 +1223,11 @@ foreach (
 				'template_blocks_only',
 				'surface_inspection_required',
 				'image_candidate_adoption_plan',
-				'docs/openclaw-article-batch-draft-plan-recipe.md',
-				'docs/openclaw-article-block-plan-recipe.md',
-				'docs/openclaw-pattern-page-with-visual-asset-recipe.md',
-				'docs/openclaw-image-candidate-adoption-plan-recipe.md',
-			'docs/openclaw-media-adoption-enhancement-plan-recipe.md',
+				'docs/recipes/openclaw-article-batch-draft-plan-recipe.md',
+				'docs/recipes/openclaw-article-block-plan-recipe.md',
+				'docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md',
+				'docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md',
+			'docs/recipes/openclaw-media-adoption-enhancement-plan-recipe.md',
 			'npcink-toolbox/build-content-discoverability-brief',
 		'npcink-abilities-toolkit/upload-media-from-url',
 		'npcink-abilities-toolkit/set-post-featured-image',
@@ -1990,7 +1990,7 @@ foreach (
 			'npcink-toolbox/build-nightly-inspection-review-plan',
 			'npcink-toolbox/build-ai-article-writing-pack',
 			'Adapter does not expose direct-read shortcut routes',
-						'docs/openclaw-block-theme-site-builder-recipe.md',
+						'docs/recipes/openclaw-block-theme-site-builder-recipe.md',
 						'docs/openclaw-content-intent-router-contract.md',
 						'docs/openclaw-gutenberg-design-system.md',
 						'docs/openclaw-gutenberg-content-intent-routing-baseline.md',
@@ -1999,22 +1999,22 @@ foreach (
 		'hosted AI image generation only when no reviewable recommendation fits',
 		'crop and convert the selected candidate through the Cloud media derivative path',
 		'variables.hero_media_url',
-		'docs/openclaw-ai-article-writing-pack-recipe.md',
+		'docs/recipes/openclaw-ai-article-writing-pack-recipe.md',
 		'The primary SEO/GEO/AEO entrypoint is',
 		'Adapter Contract Reuse Readiness - 2026-07-08',
-		'docs/adapter-contract-reuse-readiness-2026-07-08.md',
+		'docs/archive/adapter-contract-reuse-readiness-2026-07-08.md',
 		'Use `article-writing-pack` only for broad natural-language requests',
-		'docs/openclaw-article-draft-plan-recipe.md',
-			'docs/openclaw-article-batch-draft-plan-recipe.md',
-			'docs/openclaw-article-media-batch-plan-recipe.md',
-			'docs/openclaw-article-block-plan-recipe.md',
-			'docs/openclaw-pattern-page-plan-recipe.md',
+		'docs/recipes/openclaw-article-draft-plan-recipe.md',
+			'docs/recipes/openclaw-article-batch-draft-plan-recipe.md',
+			'docs/recipes/openclaw-article-media-batch-plan-recipe.md',
+			'docs/recipes/openclaw-article-block-plan-recipe.md',
+			'docs/recipes/openclaw-pattern-page-plan-recipe.md',
 			'docs/openclaw-gutenberg-design-system.md',
-			'docs/openclaw-pattern-page-research-brief-recipe.md',
-			'docs/openclaw-pattern-page-with-visual-asset-recipe.md',
-			'docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
-			'docs/openclaw-image-candidate-adoption-plan-recipe.md',
-			'docs/openclaw-media-adoption-enhancement-plan-recipe.md',
+			'docs/recipes/openclaw-pattern-page-research-brief-recipe.md',
+			'docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md',
+			'docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
+			'docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md',
+			'docs/recipes/openclaw-media-adoption-enhancement-plan-recipe.md',
 		'skipped_destructive_candidates',
 		'write_actions',
 		'Plan-to-proposal flow',
@@ -2061,8 +2061,8 @@ $current_boundary_docs = array(
 	'AGENTS.md' => maa_adapter_read( $root . '/AGENTS.md' ),
 	'README.md' => $readme,
 	'packages/adapter-cli/README.md' => maa_adapter_read( $root . '/packages/adapter-cli/README.md' ),
-	'docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md' => maa_adapter_read( $root . '/docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md' ),
-	'docs/openclaw-media-derivative-cloud-recipe.md' => maa_adapter_read( $root . '/docs/openclaw-media-derivative-cloud-recipe.md' ),
+	'docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md' => maa_adapter_read( $root . '/docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md' ),
+	'docs/recipes/openclaw-media-derivative-cloud-recipe.md' => maa_adapter_read( $root . '/docs/recipes/openclaw-media-derivative-cloud-recipe.md' ),
 	'docs/ai-media-derivative-calling-guide.md' => maa_adapter_read( $root . '/docs/ai-media-derivative-calling-guide.md' ),
 	'docs/openclaw-consumer-acceptance.md' => maa_adapter_read( $root . '/docs/openclaw-consumer-acceptance.md' ),
 	'docs/openclaw-adapter-contract.md' => maa_adapter_read( $root . '/docs/openclaw-adapter-contract.md' ),
@@ -2173,7 +2173,7 @@ foreach (
 			'recipeAiImageAdoptionPlan',
 			'requestJsonViaWrapper',
 			'cli-local-mirror',
-			'docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
+			'docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md',
 		'target_aspect_ratio_required',
 		'ai_generation_dimensions_are_advisory',
 		'cloud_crop_required_for_generated_images',
@@ -2423,7 +2423,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $local_ai_client_acceptance_doc, $required ), 'Local AI client acceptance doc contains required text: ' . $required );
 }
 
-$local_ai_client_e2e_doc = maa_adapter_read( $root . '/docs/local-ai-client-e2e-acceptance-2026-06-15.md' );
+$local_ai_client_e2e_doc = maa_adapter_read( $root . '/docs/archive/local-ai-client-e2e-acceptance-2026-06-15.md' );
 foreach (
 	array(
 		'Local AI Client E2E Acceptance - 2026-06-15',
@@ -2689,8 +2689,8 @@ foreach (
 		'npcink-toolbox/build-article-write-plan',
 		'npcink-toolbox/build-article-batch-write-plan',
 		'npcink-toolbox/build-article-media-batch-write-plan',
-		'docs/openclaw-article-batch-draft-plan-recipe.md',
-			'docs/openclaw-article-media-batch-plan-recipe.md',
+		'docs/recipes/openclaw-article-batch-draft-plan-recipe.md',
+			'docs/recipes/openclaw-article-media-batch-plan-recipe.md',
 			'docs/openclaw-site-edit-router-contract.md',
 			'untrusted_user_prompt_to_allowed_recipe',
 			'prompt_is_authorization=false',
@@ -2829,11 +2829,11 @@ foreach (
 		'npcink-toolbox/build-article-write-plan',
 		'npcink-toolbox/build-article-batch-write-plan',
 		'npcink-toolbox/build-article-media-batch-write-plan',
-		'docs/openclaw-article-batch-draft-plan-recipe.md',
-		'docs/openclaw-article-media-batch-plan-recipe.md',
-		'docs/openclaw-pattern-page-plan-recipe.md',
-		'docs/openclaw-pattern-page-research-brief-recipe.md',
-		'docs/openclaw-pattern-page-with-visual-asset-recipe.md',
+		'docs/recipes/openclaw-article-batch-draft-plan-recipe.md',
+		'docs/recipes/openclaw-article-media-batch-plan-recipe.md',
+		'docs/recipes/openclaw-pattern-page-plan-recipe.md',
+		'docs/recipes/openclaw-pattern-page-research-brief-recipe.md',
+		'docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md',
 		'core/image.attrs.id',
 		'core/media-text.attrs.mediaId',
 		'wp-image-{id}',
@@ -3486,7 +3486,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $smoke_wp, $required ), 'WordPress smoke contains required text: ' . $required );
 }
 
-$article_recipe = maa_adapter_read( $root . '/docs/openclaw-article-draft-plan-recipe.md' );
+$article_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-article-draft-plan-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Article Draft Plan Recipe',
@@ -3508,7 +3508,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $article_recipe, $required ), 'Article draft recipe contains required text: ' . $required );
 }
 
-$article_batch_recipe = maa_adapter_read( $root . '/docs/openclaw-article-batch-draft-plan-recipe.md' );
+$article_batch_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-article-batch-draft-plan-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Article Batch Draft Plan Recipe',
@@ -3533,7 +3533,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $article_batch_recipe, $required ), 'Article batch draft recipe contains required text: ' . $required );
 }
 
-$content_discoverability_recipe = maa_adapter_read( $root . '/docs/openclaw-content-discoverability-recipe.md' );
+$content_discoverability_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-content-discoverability-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Content Discoverability Recipe',
@@ -3571,7 +3571,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $content_discoverability_recipe, $required ), 'Content discoverability recipe contains required text: ' . $required );
 }
 
-$article_writing_pack_recipe = maa_adapter_read( $root . '/docs/openclaw-ai-article-writing-pack-recipe.md' );
+$article_writing_pack_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-ai-article-writing-pack-recipe.md' );
 foreach (
 	array(
 		'OpenClaw AI Article Writing Pack Recipe',
@@ -3611,7 +3611,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $article_writing_pack_recipe, $required ), 'AI article writing pack recipe contains required text: ' . $required );
 }
 
-$article_media_batch_recipe = maa_adapter_read( $root . '/docs/openclaw-article-media-batch-plan-recipe.md' );
+$article_media_batch_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-article-media-batch-plan-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Article Media Batch Plan Recipe',
@@ -3635,7 +3635,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $article_media_batch_recipe, $required ), 'Article media batch recipe contains required text: ' . $required );
 }
 
-$pattern_page_recipe = maa_adapter_read( $root . '/docs/openclaw-pattern-page-plan-recipe.md' );
+$pattern_page_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-pattern-page-plan-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Pattern Page Plan Recipe',
@@ -3679,7 +3679,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $pattern_page_recipe, $required ), 'Pattern page plan recipe contains required text: ' . $required );
 }
 
-$article_block_recipe = maa_adapter_read( $root . '/docs/openclaw-article-block-plan-recipe.md' );
+$article_block_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-article-block-plan-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Article Block Plan Recipe',
@@ -3837,7 +3837,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $block_theme_template_milestone, $required ), 'Block theme template milestone doc contains required text: ' . $required );
 }
 
-$image_candidate_adoption_recipe = maa_adapter_read( $root . '/docs/openclaw-image-candidate-adoption-plan-recipe.md' );
+$image_candidate_adoption_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Image Candidate Adoption Plan Recipe',
@@ -3859,7 +3859,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $image_candidate_adoption_recipe, $required ), 'Image candidate adoption recipe contains required text: ' . $required );
 }
 
-$media_adoption_enhancement_recipe = maa_adapter_read( $root . '/docs/openclaw-media-adoption-enhancement-plan-recipe.md' );
+$media_adoption_enhancement_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-media-adoption-enhancement-plan-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Media Adoption Enhancement Plan Recipe',
@@ -3880,7 +3880,7 @@ foreach (
 	maa_adapter_assert( false !== strpos( $media_adoption_enhancement_recipe, $required ), 'Media adoption enhancement recipe contains required text: ' . $required );
 }
 
-$pattern_page_visual_asset_recipe = maa_adapter_read( $root . '/docs/openclaw-pattern-page-with-visual-asset-recipe.md' );
+$pattern_page_visual_asset_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Pattern Page With Visual Asset Recipe',
@@ -3913,7 +3913,7 @@ foreach (
 		maa_adapter_assert( false !== strpos( $pattern_page_visual_asset_recipe, $required ), 'Pattern page visual asset recipe contains required text: ' . $required );
 	}
 
-	$block_theme_site_builder_recipe = maa_adapter_read( $root . '/docs/openclaw-block-theme-site-builder-recipe.md' );
+	$block_theme_site_builder_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-block-theme-site-builder-recipe.md' );
 	foreach (
 		array(
 			'OpenClaw Block Theme Site Builder Recipe',
@@ -4031,7 +4031,7 @@ foreach (
 			maa_adapter_assert( false !== strpos( $gutenberg_intent_routing_baseline, $required ), 'Gutenberg intent routing baseline contains required text: ' . $required );
 		}
 
-		$ai_image_ratio_crop_media_adoption_recipe = maa_adapter_read( $root . '/docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md' );
+		$ai_image_ratio_crop_media_adoption_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md' );
 	foreach (
 	array(
 		'OpenClaw AI Image Ratio Crop Media Adoption Recipe',
@@ -4078,7 +4078,7 @@ foreach (
 		maa_adapter_assert( false === strpos( $ai_image_ratio_crop_media_adoption_recipe, $forbidden ), 'AI image ratio crop recipe does not point media derivative transport at Adapter: ' . $forbidden );
 	}
 
-$pattern_page_research_brief_recipe = maa_adapter_read( $root . '/docs/openclaw-pattern-page-research-brief-recipe.md' );
+$pattern_page_research_brief_recipe = maa_adapter_read( $root . '/docs/recipes/openclaw-pattern-page-research-brief-recipe.md' );
 foreach (
 	array(
 		'OpenClaw Pattern Page Research Brief Recipe',

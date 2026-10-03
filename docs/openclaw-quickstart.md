@@ -234,7 +234,7 @@ equivalent Ed25519 signing implementation instead.
    `POST /proposals/from-plan`, and `POST /proposals/{proposal_id}/execute`
    (`POST /proposals/{proposal_id}/approve-and-execute` is listed for
    administrator sessions only). For article drafting, follow
-   `docs/openclaw-article-draft-plan-recipe.md`.
+   `docs/recipes/openclaw-article-draft-plan-recipe.md`.
 4. Call `GET /capabilities`.
 5. Use the returned Core guidance as the only governance truth.
 
@@ -277,12 +277,12 @@ curl -sS --user "1:<openclaw-secret-field-value>" \
   "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/proposals/from-plan"
 ```
 
-For reviewed article draft planning, follow `docs/openclaw-article-draft-plan-recipe.md`. The entrypoint ability is
+For reviewed article draft planning, follow `docs/recipes/openclaw-article-draft-plan-recipe.md`. The entrypoint ability is
 `npcink-toolbox/build-article-write-plan`; the final governed write remains
 `npcink-abilities-toolkit/create-draft` after Core approval and commit preflight. See
 [`openclaw-article-draft-plan-recipe.md`](openclaw-article-draft-plan-recipe.md).
 
-For reviewed 2-5 article draft batches, follow `docs/openclaw-article-batch-draft-plan-recipe.md`. The entrypoint ability is
+For reviewed 2-5 article draft batches, follow `docs/recipes/openclaw-article-batch-draft-plan-recipe.md`. The entrypoint ability is
 `npcink-toolbox/build-article-batch-write-plan`; Core creates one batch
 proposal, and the final governed writes remain draft-only
 `npcink-abilities-toolkit/create-draft` actions after Core approval and commit preflight. See

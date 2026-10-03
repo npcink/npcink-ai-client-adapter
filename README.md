@@ -18,7 +18,7 @@ commit-preflight, and an allowlisted execution profile, with audit
 correlation. Boundary semantics for each authentication mode are owned by
 [Adapter Threat Model](docs/threat-model.md); product direction and phased
 roadmap live in
-[Adapter Positioning Notes - 2026-09](docs/adapter-positioning-notes-2026-09.md).
+[Adapter Positioning Notes - 2026-09](docs/archive/adapter-positioning-notes-2026-09.md).
 
 The product contract is generic AI-client integration with OpenClaw as the
 first and priority channel implementation. The existing
@@ -53,16 +53,16 @@ repository remains authoritative only for Adapter-owned channel contracts.
 See [OpenClaw Adapter Consumer Readiness](docs/openclaw-adapter-consumer-readiness.md)
 for the dependency snapshot, verified routes, closed loop, and next-stage
 execution allowlist rules.
-See [Adapter Contract Reuse Readiness - 2026-07-08](docs/adapter-contract-reuse-readiness-2026-07-08.md)
+See [Adapter Contract Reuse Readiness - 2026-07-08](docs/archive/adapter-contract-reuse-readiness-2026-07-08.md)
 before adding new Adapter routes, execution profiles, or channel-owned runtime
 behavior for the Core/Toolkit/Product reuse chain.
-See [Adapter Onboarding Reference Notes - 2026-07](docs/adapter-onboarding-reference-notes-2026-07.md)
+See [Adapter Onboarding Reference Notes - 2026-07](docs/archive/adapter-onboarding-reference-notes-2026-07.md)
 before turning webhook or automation plugin inspiration into Adapter
 connection, payload, or failure-feedback changes.
 See [Adapter Threat Model](docs/threat-model.md) for the boundary class of
 each authentication mode (enforced key-pair versus conventional Application
 Password) and the explicit security non-claims.
-See [Adapter Positioning Notes - 2026-09](docs/adapter-positioning-notes-2026-09.md)
+See [Adapter Positioning Notes - 2026-09](docs/archive/adapter-positioning-notes-2026-09.md)
 for the product positioning, the 2026-09 ecosystem snapshot, product
 principles, and the phased roadmap; treat the no-approval-free-write-path
 principle there as Adapter channel policy.
@@ -507,7 +507,7 @@ through that fixed tool table. See the CLI package README
 For generated page visuals, the local CLI includes a bounded
 `recipe ai-image-ratio-crop-media-adoption` helper. It carries a local mirror
 of the reviewed recipe contract
-(`docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`; Adapter `/help`
+(`docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`; Adapter `/help`
 no longer exposes recipe playbooks), accepts a reviewed
 preview URL produced by Cloud Addon or Cloud tooling, and can call
 `npcink-abilities-toolkit/build-media-adoption-enhancement-plan` for the
@@ -572,16 +572,16 @@ For the connection-model decision history and guardrails, see
 [`docs/openclaw-connection-model-notes.md`](docs/openclaw-connection-model-notes.md).
 
 For the OpenClaw article draft planning recipe, use
-[`docs/openclaw-article-draft-plan-recipe.md`](docs/openclaw-article-draft-plan-recipe.md).
+[`docs/recipes/openclaw-article-draft-plan-recipe.md`](docs/recipes/openclaw-article-draft-plan-recipe.md).
 
 For the OpenClaw article batch draft planning recipe, use
-[`docs/openclaw-article-batch-draft-plan-recipe.md`](docs/openclaw-article-batch-draft-plan-recipe.md).
+[`docs/recipes/openclaw-article-batch-draft-plan-recipe.md`](docs/recipes/openclaw-article-batch-draft-plan-recipe.md).
 
 For the OpenClaw image candidate adoption recipe, use
-[`docs/openclaw-image-candidate-adoption-plan-recipe.md`](docs/openclaw-image-candidate-adoption-plan-recipe.md).
+[`docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md`](docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md).
 
 For the OpenClaw SEO/AEO/GEO suggestion recipe, use
-[`docs/openclaw-content-discoverability-recipe.md`](docs/openclaw-content-discoverability-recipe.md).
+[`docs/recipes/openclaw-content-discoverability-recipe.md`](docs/recipes/openclaw-content-discoverability-recipe.md).
 The primary SEO/GEO/AEO entrypoint is
 `npcink-toolbox/build-content-discoverability-brief` through
 `POST /run-read-ability`.
@@ -589,7 +589,7 @@ Use `article-writing-pack` only for broad natural-language requests such as
 "help me write an article".
 
 For broad natural-language article requests, use
-[`docs/openclaw-ai-article-writing-pack-recipe.md`](docs/openclaw-ai-article-writing-pack-recipe.md).
+[`docs/recipes/openclaw-ai-article-writing-pack-recipe.md`](docs/recipes/openclaw-ai-article-writing-pack-recipe.md).
 Call `POST /run-read-ability` with `npcink-toolbox/build-ai-article-writing-pack`
 to return a suggestion-only writing pack for a local OpenClaw review candidate.
 This is an article assistant path, not an article generator, Cloud writer, or
@@ -643,7 +643,7 @@ Initial connection:
 5. OpenClaw may call `GET /help` to discover adapter route labels and
    current non-goals. Recipe playbooks are no longer exposed there; every
    reviewed recipe is documented under `docs/` (for example,
-   `docs/openclaw-article-draft-plan-recipe.md`).
+   `docs/recipes/openclaw-article-draft-plan-recipe.md`).
 
 Read-only execution:
 
@@ -709,24 +709,24 @@ Plan-to-proposal flow:
 	   For the Toolbox article write plan, Adapter still only forwards the
 	   reviewed `article_write_plan`; Core validates the plan and Adapter later
 	   executes `npcink-abilities-toolkit/create-draft` only after Core approval and
-	   commit-preflight. The reviewed OpenClaw playbook is documented in `docs/openclaw-article-draft-plan-recipe.md`.
+	   commit-preflight. The reviewed OpenClaw playbook is documented in `docs/recipes/openclaw-article-draft-plan-recipe.md`.
 	   For reviewed 2-5 article draft batches, use
 	   `npcink-toolbox/build-article-batch-write-plan`; Core creates one
 	   batch proposal and Adapter later executes only the approved
-	   `npcink-abilities-toolkit/create-draft` write actions. The reviewed playbook is documented in `docs/openclaw-article-batch-draft-plan-recipe.md`.
-	   See [OpenClaw Article Batch Draft Plan Recipe](docs/openclaw-article-batch-draft-plan-recipe.md).
+	   `npcink-abilities-toolkit/create-draft` write actions. The reviewed playbook is documented in `docs/recipes/openclaw-article-batch-draft-plan-recipe.md`.
+	   See [OpenClaw Article Batch Draft Plan Recipe](docs/recipes/openclaw-article-batch-draft-plan-recipe.md).
 	   For reviewed article batches with selected image-source candidates, use
 	   `npcink-toolbox/build-article-media-batch-write-plan`; Core creates one
 	   batch proposal and Adapter later executes only approved
 	   `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/upload-media-from-url`,
 	   `npcink-abilities-toolkit/update-media-details`, and
-	   `npcink-abilities-toolkit/set-post-featured-image` actions. The reviewed playbook is documented in `docs/openclaw-article-media-batch-plan-recipe.md`. See
-		   [OpenClaw Article Media Batch Plan Recipe](docs/openclaw-article-media-batch-plan-recipe.md).
+	   `npcink-abilities-toolkit/set-post-featured-image` actions. The reviewed playbook is documented in `docs/recipes/openclaw-article-media-batch-plan-recipe.md`. See
+		   [OpenClaw Article Media Batch Plan Recipe](docs/recipes/openclaw-article-media-batch-plan-recipe.md).
 		   Before selecting any Gutenberg or block-theme editing recipe, normalize customer wording through the read-only `npcink-abilities-toolkit/route-content-intent` ability (contract: `docs/openclaw-content-intent-router-contract.md`). The playbook is documented in
 		   [OpenClaw Content Intent Router Contract](docs/openclaw-content-intent-router-contract.md).
 		   The router marks customer prompts as untrusted input
 		   (`prompt_is_authorization=false`), defaults unsupported or ambiguous
-		   requests to fail closed, and only routes to the existing reviewed recipes documented in `docs/openclaw-pattern-page-plan-recipe.md`, `docs/openclaw-article-block-plan-recipe.md`, and `docs/openclaw-block-theme-site-builder-recipe.md`. See `docs/openclaw-site-edit-router-contract.md` for the narrower Site Editor surface contract.
+		   requests to fail closed, and only routes to the existing reviewed recipes documented in `docs/recipes/openclaw-pattern-page-plan-recipe.md`, `docs/recipes/openclaw-article-block-plan-recipe.md`, and `docs/recipes/openclaw-block-theme-site-builder-recipe.md`. See `docs/openclaw-site-edit-router-contract.md` for the narrower Site Editor surface contract.
 		   The verified page/article/template routing baseline is captured in
 		   [OpenClaw Gutenberg Content Intent Routing Baseline](docs/openclaw-gutenberg-content-intent-routing-baseline.md).
 		   Post-content routes use `npcink-abilities-toolkit/get-post-blocks`
@@ -748,7 +748,7 @@ Plan-to-proposal flow:
 		   `npcink-abilities-toolkit/build-pattern-page-plan`; Core creates one
 	   batch proposal and Adapter later executes only approved
 	   `npcink-abilities-toolkit/create-draft` and
-	   `npcink-abilities-toolkit/update-post-blocks` actions. The reviewed playbook is documented in `docs/openclaw-pattern-page-plan-recipe.md`, including a `visual_acceptance` block with front-end/editor
+	   `npcink-abilities-toolkit/update-post-blocks` actions. The reviewed playbook is documented in `docs/recipes/openclaw-pattern-page-plan-recipe.md`, including a `visual_acceptance` block with front-end/editor
 		   targets, 1440/768/390 viewport checks, and the local smoke artifact envs.
 		   Local smoke also machine-checks the generated draft for non-empty
 		   headings, complete image `src`/`alt` attributes,
@@ -761,7 +761,7 @@ Plan-to-proposal flow:
 		   anti-template checks, and design-quality signals before proposal
 		   creation. See
 		   [OpenClaw Gutenberg Design System](docs/openclaw-gutenberg-design-system.md).
-		   See [OpenClaw Pattern Page Plan Recipe](docs/openclaw-pattern-page-plan-recipe.md)
+		   See [OpenClaw Pattern Page Plan Recipe](docs/recipes/openclaw-pattern-page-plan-recipe.md)
 		   and [OpenClaw Gutenberg Visual Acceptance](docs/openclaw-gutenberg-visual-acceptance.md).
 		   For reviewed conversational block theme Site Editor changes, use
 		   `npcink-abilities-toolkit/build-block-theme-site-plan`; Core creates one
@@ -769,7 +769,7 @@ Plan-to-proposal flow:
 		   `npcink-abilities-toolkit/update-template-blocks`,
 		   `npcink-abilities-toolkit/upsert-template-blocks`, and
 		   `npcink-abilities-toolkit/update-template-part-blocks` actions. The
-		   reviewed playbook is documented in `docs/openclaw-block-theme-site-builder-recipe.md`. The MVP
+		   reviewed playbook is documented in `docs/recipes/openclaw-block-theme-site-builder-recipe.md`. The MVP
 		   supports `intent=add_breadcrumbs` and keeps global styles, navigation,
 		   template creation, and generic Site Editor writes outside Adapter
 		   execution profiles. After execution or when the user asks to check a
@@ -777,22 +777,22 @@ Plan-to-proposal flow:
 		   `npcink-abilities-toolkit/inspect-gutenberg-composition-contract`;
 		   only `contract_status=needs_revision` should trigger another
 		   supported plan. See
-		   [OpenClaw Block Theme Site Builder Recipe](docs/openclaw-block-theme-site-builder-recipe.md).
+		   [OpenClaw Block Theme Site Builder Recipe](docs/recipes/openclaw-block-theme-site-builder-recipe.md).
 		   For reviewed Gutenberg article block drafts, use
 	   `npcink-abilities-toolkit/build-article-block-plan`; Core creates one
 	   batch proposal and Adapter later executes only approved
 	   `npcink-abilities-toolkit/create-draft` and
-	   `npcink-abilities-toolkit/update-post-blocks` actions. The reviewed playbook is documented in `docs/openclaw-article-block-plan-recipe.md`, including the same browser visual acceptance contract for
+	   `npcink-abilities-toolkit/update-post-blocks` actions. The reviewed playbook is documented in `docs/recipes/openclaw-article-block-plan-recipe.md`, including the same browser visual acceptance contract for
 	   responsive Gutenberg article drafts. See
-	   [OpenClaw Article Block Plan Recipe](docs/openclaw-article-block-plan-recipe.md)
+	   [OpenClaw Article Block Plan Recipe](docs/recipes/openclaw-article-block-plan-recipe.md)
 	   and [OpenClaw Gutenberg Visual Acceptance](docs/openclaw-gutenberg-visual-acceptance.md).
 	   For adopting one reviewed `image_candidate.v1` into the media library,
 	   call `npcink-toolbox/build-image-candidate-adoption-plan`; Core
 	   creates one batch proposal and Adapter later executes only approved
 	   `npcink-abilities-toolkit/upload-media-from-url`, `npcink-abilities-toolkit/update-media-details`, and
 	   optional `npcink-abilities-toolkit/set-post-featured-image` actions. The
-	   reviewed playbook is documented in `docs/openclaw-image-candidate-adoption-plan-recipe.md`. See
-	   [OpenClaw Image Candidate Adoption Plan Recipe](docs/openclaw-image-candidate-adoption-plan-recipe.md).
+	   reviewed playbook is documented in `docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md`. See
+	   [OpenClaw Image Candidate Adoption Plan Recipe](docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md).
 	   For one reviewed remote visual asset that should be imported, optimized,
 	   and optionally wired into an existing page/post reference, call
 	   `npcink-abilities-toolkit/build-media-adoption-enhancement-plan`; Core
@@ -800,11 +800,11 @@ Plan-to-proposal flow:
 	   `npcink-abilities-toolkit/upload-media-from-url`,
 	   `npcink-abilities-toolkit/optimize-media-asset`, and optional
 	   `npcink-abilities-toolkit/patch-post-content` actions. The
-	   reviewed playbook is documented in `docs/openclaw-media-adoption-enhancement-plan-recipe.md`. See [OpenClaw Media Adoption Enhancement Plan Recipe](docs/openclaw-media-adoption-enhancement-plan-recipe.md).
-	   For research-backed Gutenberg landing pages, first follow `docs/openclaw-pattern-page-research-brief-recipe.md` to request bounded
+	   reviewed playbook is documented in `docs/recipes/openclaw-media-adoption-enhancement-plan-recipe.md`. See [OpenClaw Media Adoption Enhancement Plan Recipe](docs/recipes/openclaw-media-adoption-enhancement-plan-recipe.md).
+	   For research-backed Gutenberg landing pages, first follow `docs/recipes/openclaw-pattern-page-research-brief-recipe.md` to request bounded
 	   Cloud-owned `competitor_research` evidence through Toolbox and produce a
 	   suggestion-only `landing_page_research_brief`. See
-	   [OpenClaw Pattern Page Research Brief Recipe](docs/openclaw-pattern-page-research-brief-recipe.md).
+	   [OpenClaw Pattern Page Research Brief Recipe](docs/recipes/openclaw-pattern-page-research-brief-recipe.md).
 	   For visually richer Gutenberg landing pages, compose the reviewed image
 	   candidate adoption flow with `pattern_page_plan`: first ask the
 	   Cloud-backed image source recommender for a fitting candidate, use
@@ -812,15 +812,15 @@ Plan-to-proposal flow:
 	   crop and convert the selected candidate through the Cloud media derivative path,
 	   adopt the processed result into the local media library through Core, then
 	   pass the approved WordPress media URL as `variables.hero_media_url` with
-	   `media_strategy=existing_media_url`. The reviewed playbook is documented in `docs/openclaw-pattern-page-with-visual-asset-recipe.md`. See
-	   [OpenClaw Pattern Page With Visual Asset Recipe](docs/openclaw-pattern-page-with-visual-asset-recipe.md).
+	   `media_strategy=existing_media_url`. The reviewed playbook is documented in `docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md`. See
+	   [OpenClaw Pattern Page With Visual Asset Recipe](docs/recipes/openclaw-pattern-page-with-visual-asset-recipe.md).
 	   For AI-generated visuals whose model output dimensions are unreliable,
 	   choose the page-slot ratio first, prefer existing Cloud-recommended
 	   candidates when available, crop the reviewed candidate through the Cloud
 	   media derivative path, then adopt the cropped preview through
 	   `npcink-abilities-toolkit/build-media-adoption-enhancement-plan` before a
-	   page references the final local media URL. The reviewed playbook is documented in `docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`. See
-	   [OpenClaw AI Image Ratio Crop Media Adoption Recipe](docs/openclaw-ai-image-ratio-crop-media-adoption-recipe.md).
+	   page references the final local media URL. The reviewed playbook is documented in `docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md`. See
+	   [OpenClaw AI Image Ratio Crop Media Adoption Recipe](docs/recipes/openclaw-ai-image-ratio-crop-media-adoption-recipe.md).
 	   For Site Knowledge agent evidence review, call
 	   `npcink-toolbox/build-site-knowledge-review-plan`; Core creates a
 	   blocked review proposal that still requires human `title` and `content`

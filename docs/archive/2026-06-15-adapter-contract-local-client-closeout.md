@@ -135,7 +135,7 @@ A later signed local CLI E2E pass exercised the destructive-but-cleaned
 Adapter/Core/Toolkit routes. The evidence record is:
 
 ```text
-docs/local-ai-client-e2e-acceptance-2026-06-15.md
+docs/archive/local-ai-client-e2e-acceptance-2026-06-15.md
 ```
 
 That pass created proposal `1e4f63ca-ac29-458e-8edd-532af30de3c4`, executed it
@@ -218,7 +218,7 @@ Remaining actions are release or collaboration operations:
 - open a PR or review thread if the project wants review before merging;
 - distribute or install-test `build/npcink-ai-client-adapter.zip`;
 - use `docs/local-ai-client-acceptance.md` and
-  `docs/local-ai-client-e2e-acceptance-2026-06-15.md` for a real local AI
+  `docs/archive/local-ai-client-e2e-acceptance-2026-06-15.md` for a real local AI
   client or OpenClaw-compatible acceptance conversation;
 - implement Core-emitted and Toolkit-emitted runtime contract endpoints in
   their owning repositories before Adapter consumes them as stronger
