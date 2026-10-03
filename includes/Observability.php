@@ -72,7 +72,7 @@ final class Observability {
 			'read_policy'        => 'key',
 			'sensitivity'        => 'key',
 		);
-		$clean = array();
+		$clean   = array();
 
 		foreach ( $allowed as $key => $type ) {
 			if ( ! array_key_exists( $key, $payload ) ) {

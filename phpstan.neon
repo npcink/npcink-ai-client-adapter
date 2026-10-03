@@ -1,0 +1,33 @@
+parameters:
+	level: 5
+	treatPhpDocTypesAsCertain: false
+	paths:
+		- includes
+		- npcink-ai-client-adapter.php
+		- uninstall.php
+	scanFiles:
+		- npcink-ai-client-adapter.php
+	bootstrapFiles:
+		- phpstan/stubs.php
+		- vendor/php-stubs/wordpress-stubs/wordpress-stubs.php
+	ignoreErrors:
+		# WordPress stubs type add_submenu_page() $parent_slug as string; a null parent
+		# is the documented pattern for a hidden top-level admin page.
+		-
+			message: '#^Parameter \#1 \$parent_slug of function add_submenu_page expects string, null given\.$#'
+			path: includes/Admin/Connection_Page.php
+			count: 1
+		# Defensive runtime guards over untrusted decoded client input. The declared
+		# parameter types say array, but wire payloads are re-checked on purpose.
+		-
+			message: '#^Call to function is_array\(\) with array(<.*)? will always evaluate to true\.$#'
+			path: includes/Rest/Controller.php
+			count: 5
+		-
+			message: '#^Offset .+ on non-empty-array on left side of \?\? always exists and is not nullable\.$#'
+			path: includes/Rest/Controller.php
+			count: 1
+		-
+			message: '#^Variable \$_GET in isset\(\) always exists and is not nullable\.$#'
+			path: includes/Rest/Controller.php
+			count: 1

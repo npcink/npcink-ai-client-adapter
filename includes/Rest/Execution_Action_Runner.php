@@ -115,10 +115,10 @@ final class Execution_Action_Runner {
 			$ability_input['idempotency_key'] = $idempotency_key;
 		}
 
-		$route           = '/wp-abilities/v1/abilities/' . $ability_id . '/run';
-		$request_context = $base_request_context;
+		$route                         = '/wp-abilities/v1/abilities/' . $ability_id . '/run';
+		$request_context               = $base_request_context;
 		$request_context['ability_id'] = $ability_id;
-		$context         = array_merge(
+		$context                       = array_merge(
 			$approval_context,
 			$request_context,
 			array(
