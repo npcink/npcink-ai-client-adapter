@@ -263,10 +263,19 @@ function maa_security_media_derivative_artifact( array $overrides = array() ): a
 }
 
 require_once dirname( __DIR__ ) . '/includes/Rest/Contract_Metadata.php';
+require_once dirname( __DIR__ ) . '/includes/Rest/Signing_Auth.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Controller.php';
 
 $reflection = new ReflectionClass( \Npcink\OpenClawAdapter\Rest\Controller::class );
 $controller = $reflection->newInstanceWithoutConstructor();
+$signing_auth_property = $reflection->getProperty( 'signing_auth' );
+$signing_auth_property->setAccessible( true );
+$signing_auth_property->setValue(
+    $controller,
+    new Npcink\OpenClawAdapter\Rest\Signing_Auth(
+        static function ( string $event_kind, float $started, $error, array $context = array() ): void {}
+    )
+);
 $fingerprint_property = $reflection->getProperty( 'current_signed_client_fingerprint' );
 $fingerprint_property->setAccessible( true );
 $trusted_fingerprint = 'sha256:' . str_repeat( 'a', 64 );
@@ -445,8 +454,8 @@ if ( false !== $previous_token ) {
 }
 
 $nonce = 'nonce-1';
-$first_claim  = maa_security_invoke( $controller, 'claim_signature_nonce', array( 'mk_test', $nonce ) );
-$second_claim = maa_security_invoke( $controller, 'claim_signature_nonce', array( 'mk_test', $nonce ) );
+$first_claim  = maa_security_invoke( $signing_auth_property->getValue( $controller ), 'claim_signature_nonce', array( 'mk_test', $nonce ) );
+$second_claim = maa_security_invoke( $signing_auth_property->getValue( $controller ), 'claim_signature_nonce', array( 'mk_test', $nonce ) );
 maa_security_assert( true === $first_claim, 'First verified nonce claim succeeds.' );
 maa_security_assert( false === $second_claim, 'Duplicate verified nonce claim fails closed.' );
 maa_security_assert( 'off' === ( $GLOBALS['maa_security_nonce_autoload'] ?? '' ), 'Nonce option is stored with autoload disabled.' );
@@ -454,7 +463,7 @@ maa_security_assert( 'off' === ( $GLOBALS['maa_security_nonce_autoload'] ?? '' )
 $expired_nonce = 'nonce-expired';
 $expired_name  = \Npcink\OpenClawAdapter\Rest\Controller::SIGNATURE_NONCE_OPTION_PREFIX . hash( 'sha256', 'mk_test|' . $expired_nonce );
 $GLOBALS['maa_security_options'][ $expired_name ] = time() - 1;
-maa_security_assert( true === maa_security_invoke( $controller, 'claim_signature_nonce', array( 'mk_test', $expired_nonce ) ), 'Expired nonce claim is conditionally reclaimed.' );
+maa_security_assert( true === maa_security_invoke( $signing_auth_property->getValue( $controller ), 'claim_signature_nonce', array( 'mk_test', $expired_nonce ) ), 'Expired nonce claim is conditionally reclaimed.' );
 maa_security_assert( (int) $GLOBALS['maa_security_options'][ $expired_name ] > time(), 'Reclaimed nonce stores a fresh future expiry.' );
 
 /**
@@ -502,10 +511,11 @@ function maa_security_seed_client_key( array $overrides = array() ): void {
  * @return array<string,string>
  */
 function maa_security_valid_signed_headers( object $controller, string $nonce, string $route = '/npcink-openclaw-adapter/v1/health', string $body = '', array $overrides = array(), string $method = 'GET' ): array {
+	global $signing_auth_property;
 	$timestamp    = gmdate( 'c' );
 	$content_hash = 'sha256:' . hash( 'sha256', $body );
 	$draft        = new WP_REST_Request( array(), $route, array(), $body, $method );
-	$canonical    = maa_security_invoke( $controller, 'signed_request_canonical_string', array( $draft, $timestamp, $nonce, $content_hash ) );
+	$canonical    = maa_security_invoke( $signing_auth_property->getValue( $controller ), 'canonical_string', array( $draft, $timestamp, $nonce, $content_hash ) );
 	$signature    = maa_security_base64url( sodium_crypto_sign_detached( $canonical, sodium_crypto_sign_secretkey( $GLOBALS['maa_security_signing_keypair'] ) ) );
 
 	return array_merge(
