@@ -70,17 +70,14 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --no-interaction --no-progress --prefer-dist
 
-      # Advisory gates: PHPStan findings render as GitHub annotations;
-      # PHPCS findings appear in this job's log. They never block a PR.
-      # Promote to enforced by removing continue-on-error once the findings
-      # budget reaches zero on master.
+      # Enforced gates since 2026-10-04: every PR since #56 has run both
+      # clean on master. PHPStan findings render as GitHub annotations;
+      # PHPCS findings appear in this job's log.
       - name: Run PHPStan (level 5)
         run: composer analyse:php -- --error-format=github
-        continue-on-error: true
 
       - name: Run PHPCS (WordPress-Core)
         run: composer lint:standards
-        continue-on-error: true
 
       # Newer-PHP execution leg: the floor stays 8.0, this catches forward
       # compatibility drift on the current development runtime.
