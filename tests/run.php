@@ -1,4 +1,39 @@
-<?php
+<?
+/**
+ * Returns the sorted aggregation of every first-party runtime PHP file under includes/.
+ *
+ * The needle surfaces are location-independent (Provider Split Refactor
+ * Standard step 1): needles keep matching after a method moves between
+ * classes. Files are joined with an explicit boundary marker so tail
+ * windows can stay scoped to one file. An unreadable file fails loudly:
+ * a silently shrunken surface would weaken every removal assertion.
+ *
+ * @return string
+ */
+function maa_adapter_runtime_sources(): string {
+	$root     = dirname( __DIR__ );
+	$iterator = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $root . '/includes', FilesystemIterator::SKIP_DOTS )
+	);
+
+	$files = array();
+	foreach ( $iterator as $file_info ) {
+		if ( $file_info->isFile() && 'php' === strtolower( $file_info->getExtension() ) ) {
+			$files[] = $file_info->getPathname();
+		}
+	}
+	sort( $files );
+
+	$parts = array();
+	foreach ( $files as $file ) {
+		$contents = file_get_contents( $file );
+		maa_adapter_assert( is_string( $contents ), 'Runtime source aggregation can read: ' . $file );
+		$parts[] = is_string( $contents ) ? $contents : '';
+	}
+
+	return implode( "\n/* --- maa aggregated file boundary --- */\n", $parts );
+}
+php
 /**
  * Static contracts for Npcink AI Client Adapter.
  *
@@ -360,17 +395,29 @@ maa_adapter_assert( false !== strpos( $main, 'plugins_loaded' ), 'Main plugin bo
 maa_adapter_assert( false !== strpos( $main, "defined( 'NPCINK_OPENCLAW_ADAPTER_FILE' )" ), 'Main plugin is guarded against duplicate legacy bootstrap loading.' );
 maa_adapter_assert( ! file_exists( $root . '/npcink-openclaw-adapter.php' ), 'Legacy bootstrap has been removed from the source tree.' );
 
-$controller = maa_adapter_read( $root . '/includes/Rest/Controller.php' );
+/*
+ * Location-independent assertion sources (Provider Split Refactor Standard
+ * step 1): the needle surfaces aggregate every first-party runtime file
+ * under includes/ in sorted-glob order, so a needle keeps matching after a
+ * method moves between classes. Per-file variables stay for structural
+ * boundary assertions that must remain file-scoped.
+ */
+$controller = maa_adapter_runtime_sources();
 $supported_plan_abilities = maa_adapter_read( $root . '/includes/Rest/Supported_Plan_Abilities.php' );
 $execution_profile_registry = maa_adapter_read( $root . '/includes/Rest/Execution_Profile_Registry.php' );
 $execution_input_validator = maa_adapter_read( $root . '/includes/Rest/Execution_Input_Validator.php' );
 $execution_action_runner = maa_adapter_read( $root . '/includes/Rest/Execution_Action_Runner.php' );
 $contract_metadata = maa_adapter_read( $root . '/includes/Rest/Contract_Metadata.php' );
 $signing_auth = maa_adapter_read( $root . '/includes/Rest/Signing_Auth.php' );
-$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry . "\n" . $execution_input_validator . "\n" . $execution_action_runner . "\n" . $contract_metadata . "\n" . $signing_auth;
+$controller_contract = $controller;
 maa_adapter_assert( false !== strpos( $controller, 'npcink_cloud_addon_receive_media_derivative_artifact' ), 'Media optimization readiness consumes the verified Cloud Addon receive seam.' );
 maa_adapter_assert( false !== strpos( $contract_metadata, 'final class Contract_Metadata' ), 'Contract metadata builder class exists.' );
 maa_adapter_assert( false !== strpos( $signing_auth, 'final class Signing_Auth' ), 'Signing auth domain service class exists.' );
+$maa_runtime_first_party_classes = array( 'Controller', 'Plugin', 'Observability', 'Connection_Page', 'Supported_Plan_Abilities', 'Execution_Profile_Registry', 'Execution_Input_Validator', 'Execution_Action_Runner', 'Contract_Metadata', 'Signing_Auth' );
+foreach ( $maa_runtime_first_party_classes as $maa_runtime_class ) {
+	maa_adapter_assert( false !== strpos( $controller, 'final class ' . $maa_runtime_class ), 'Needle surfaces aggregate first-party class: ' . $maa_runtime_class );
+}
+maa_adapter_assert( false !== strpos( $controller, '/* --- maa aggregated file boundary --- */' ), 'Aggregated sources carry an explicit file boundary marker for tail windows.' );
 maa_adapter_assert( false !== strpos( $signing_auth, 'Ed25519 signed-request authentication and device-pairing domain service' ), 'Signing auth documents its domain boundary.' );
 maa_adapter_assert( false !== strpos( $controller, 'new Signing_Auth(' ), 'Controller wires the signing auth service.' );
 maa_adapter_assert( false !== strpos( $controller, '$this->signing_auth->verify( $request )' ), 'Controller delegates signed request verification to the service.' );
@@ -1453,7 +1500,9 @@ maa_adapter_assert( false === strpos( $controller, 'proposals:reject' ), 'Adapte
 maa_adapter_assert( false === strpos( $controller, "'replace_original'" ), 'Adapter optimize-media-asset profile does not allow original replacement.' );
 maa_adapter_assert( false === strpos( $controller, "'replacement_url'" ), 'Adapter replace-media-file profile does not allow external replacement URLs.' );
 maa_adapter_assert( false === strpos( $controller, "'mode', 'derivative_relative_file'" ), 'Adapter replace-media-file profile does not allow legacy restore modes.' );
-$safe_observability = substr( $controller, (int) strpos( $controller, 'private function safe_observability_context' ) );
+$safe_observability_start = strpos( $controller, 'private function safe_observability_context' );
+maa_adapter_assert( false !== $safe_observability_start, 'Safe observability tail window finds its anchor function.' );
+$safe_observability = explode( "/* --- maa aggregated file boundary --- */", substr( $controller, $safe_observability_start ) )[0];
 foreach ( array( "'input'", "'plan'", "'preview'", "'response'", "'upstream_data'", "'authorization'", "'token'", "'secret'", "'prompt'", "'content'" ) as $forbidden ) {
 	maa_adapter_assert( false === strpos( $safe_observability, $forbidden ), 'Safe observability context excludes raw field: ' . $forbidden );
 }
