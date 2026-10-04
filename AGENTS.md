@@ -75,12 +75,10 @@ Adapter, and Adapter does not own their callbacks.
   `$HOME/Library/Application Support/Local/run/*/mysql/mysqld.sock`, and inject
   it with `WP_CLI_MYSQL_SOCKET` or the equivalent PHP
   `mysqli.default_socket` setting.
-- Run `composer test:all` before committing, plus `composer analyse:php` and
-  `composer lint:standards`. The two static analysis gates stay advisory in CI
-  (`continue-on-error`) until the promotion noted in
-  `docs/archive/2026-10-03-quality-gates-and-controller-split-closeout.md`;
-  treat their findings as required fixes anyway, and keep `phpstan.neon`
-  ignore entries narrow and commented.
+- Run `composer test:all`, `composer analyse:php`, and
+  `composer lint:standards` before committing. Both static analysis gates are
+  required CI checks since 2026-10-04; keep `phpstan.neon` ignore entries
+  narrow and commented.
 - After adding or changing translatable strings, regenerate the POT with
   `composer i18n:pot`, merge it into every `languages/*.po` (`msgmerge`),
   complete the translations, and recompile each `.mo` (`msgfmt`).
