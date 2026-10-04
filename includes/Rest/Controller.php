@@ -115,9 +115,21 @@ final class Controller {
 	private $execution_action_runner;
 
 	/**
+	 * Ed25519 signing auth and device pairing domain service.
+	 *
+	 * @var Signing_Auth
+	 */
+	private $signing_auth;
+
+	/**
 	 * Creates the REST controller with the canonical execution profile rules.
 	 */
 	public function __construct() {
+		$this->signing_auth              = new Signing_Auth(
+			function ( string $event_kind, float $started, $error, array $context = array() ): void {
+				$this->emit_operation_event( $event_kind, $started, $error, $context );
+			}
+		);
 		$this->execution_input_validator = new Execution_Input_Validator( self::execution_profiles() );
 		$this->execution_action_runner   = new Execution_Action_Runner(
 			self::execution_profiles(),
@@ -1015,62 +1027,6 @@ final class Controller {
 		return $authentication;
 	}
 
-	/**
-	 * Returns whether the request carries any Npcink signature credentials.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return bool
-	 */
-	private function request_carries_signature_credentials( WP_REST_Request $request ): bool {
-		$credentials = $this->signed_request_credentials( $request );
-
-		return '' !== $credentials['key_id'] || '' !== $credentials['signature'];
-	}
-
-	/**
-	 * Builds the structured error for requests without usable credentials.
-	 *
-	 * @return WP_Error
-	 */
-	private function adapter_authentication_required_error(): WP_Error {
-		return new WP_Error(
-			'npcink_openclaw_adapter_authentication_required',
-			__( 'Adapter requires a paired signed client or a WordPress administrator session. Start key-pair device pairing, then send the signed request headers.', 'npcink-ai-client-adapter' ),
-			array(
-				'status'        => 401,
-				'reason'        => 'credentials_missing',
-				'auth_modes'    => array(
-					'ed25519_key_pair_device_pairing',
-					'wordpress_application_password',
-				),
-				'pairing_route' => 'POST /' . self::NAMESPACE . '/connect/device/start',
-				'contract_doc'  => 'docs/keypair-device-pairing-contract.md',
-			)
-		);
-	}
-
-	/**
-	 * Builds one structured signed-request failure with a stable reason key
-	 * and an operator-facing next step.
-	 *
-	 * @param string $code    Stable error code.
-	 * @param string $message Human-readable message.
-	 * @param string $reason  Stable reason key.
-	 * @param string $next_step Operator-facing next step.
-	 * @param int    $status  HTTP status.
-	 * @return WP_Error
-	 */
-	private function signed_request_error( string $code, string $message, string $reason, string $next_step, int $status ): WP_Error {
-		return new WP_Error(
-			$code,
-			$message,
-			array(
-				'status'    => $status,
-				'reason'    => $reason,
-				'next_step' => $next_step,
-			)
-		);
-	}
 
 	/**
 	 * Authorizes manual administrator-only diagnostics.
@@ -1103,7 +1059,7 @@ final class Controller {
 			return true;
 		}
 
-		if ( $request instanceof WP_REST_Request && '' !== $this->signed_request_credentials( $request )['key_id'] ) {
+		if ( $request instanceof WP_REST_Request && '' !== $this->signing_auth->signed_request_credentials( $request )['key_id'] ) {
 			return new WP_Error(
 				'npcink_openclaw_adapter_approve_requires_admin_session',
 				__( 'The unified approve-and-execute action requires a WordPress administrator session. Signed AI clients must wait for human approval in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute.', 'npcink-ai-client-adapter' ),
@@ -1332,30 +1288,155 @@ final class Controller {
 		return new WP_REST_Response( $result, 200 );
 	}
 
+
 	/**
-	 * Revokes a client key by id for a user.
+	 * Authenticates a signed request and applies request-scoped identity state.
 	 *
-	 * @param string $key_id Key id.
-	 * @param int    $user_id User id.
-	 * @return array<string,mixed>|WP_Error
+	 * @param WP_REST_Request $request Request.
+	 * @return bool|WP_Error
 	 */
-	public function revoke_client_key_by_id( string $key_id, int $user_id ) {
-		$key_id = sanitize_text_field( $key_id );
-		$keys   = $this->client_key_records();
-		$record = is_array( $keys[ $key_id ] ?? null ) ? $keys[ $key_id ] : array();
-		if ( empty( $record ) || (int) ( $record['user_id'] ?? 0 ) !== $user_id ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_client_key_not_found',
-				__( 'Client key was not found for the current user.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 404 )
-			);
+	private function authenticate_signed_request( WP_REST_Request $request ) {
+		$this->current_signed_client_fingerprint = '';
+		$this->current_signed_authenticated      = false;
+
+		$verification = $this->signing_auth->verify( $request );
+		if ( is_wp_error( $verification ) ) {
+			return $verification;
 		}
 
-		$record['revoked_at'] = gmdate( 'c' );
-		$keys[ $key_id ]      = $record;
-		update_option( self::CLIENT_KEYS_OPTION, $keys, false );
+		wp_set_current_user( (int) $verification['user_id'] );
+		$this->current_signed_client_fingerprint = (string) $verification['fingerprint'];
+		$this->current_signed_authenticated      = true;
 
-		return $this->public_client_key_record( $record );
+		return true;
+	}
+
+	/**
+	 * Returns whether the request carries any Npcink signature credentials.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return bool
+	 */
+	private function request_carries_signature_credentials( WP_REST_Request $request ): bool {
+		return $this->signing_auth->carries_credentials( $request );
+	}
+
+	/**
+	 * Builds the structured error for requests without usable credentials.
+	 *
+	 * @return WP_Error
+	 */
+	private function adapter_authentication_required_error(): WP_Error {
+		return $this->signing_auth->authentication_required_error();
+	}
+
+	/**
+	 * Encodes a value as base64url.
+	 *
+	 * @param string $value Value.
+	 * @return string
+	 */
+	private function base64url_encode( string $value ): string {
+		return $this->signing_auth->base64url_encode( $value );
+	}
+
+	/**
+	 * Decodes a base64url value.
+	 *
+	 * @param string $value Value.
+	 * @return string
+	 */
+	private function base64url_decode( string $value ): string {
+		return $this->signing_auth->base64url_decode( $value );
+	}
+
+	/**
+	 * Sanitizes and bounds one plain text field.
+	 *
+	 * @param string $value      Raw value.
+	 * @param int    $max_length Maximum character length.
+	 * @return string
+	 */
+	private function bounded_text_field( string $value, int $max_length ): string {
+		return $this->signing_auth->bounded_text_field( $value, $max_length );
+	}
+
+	/**
+	 * Normalizes requested connection scopes.
+	 *
+	 * @param array<mixed> $requested Requested scopes.
+	 * @return array<int,string>
+	 */
+	private function connection_requested_scopes( array $requested ): array {
+		return $this->signing_auth->requested_scopes( $requested );
+	}
+
+	/**
+	 * Returns pending device pairing records.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	private function device_pairings(): array {
+		return $this->signing_auth->pairings();
+	}
+
+	/**
+	 * Prunes expired device pairing records.
+	 *
+	 * @param array<string,array<string,mixed>> $pairings Pairings.
+	 * @return array<string,array<string,mixed>>
+	 */
+	private function prune_device_pairings( array $pairings ): array {
+		return $this->signing_auth->prune_pairings( $pairings );
+	}
+
+	/**
+	 * Returns one pairing by device code.
+	 *
+	 * @param string $device_code Device code.
+	 * @return array<string,mixed>
+	 */
+	private function device_pairing_by_device_code( string $device_code ): array {
+		return $this->signing_auth->pairing_by_device_code( $device_code );
+	}
+
+	/**
+	 * Rate-limits device pairing starts.
+	 *
+	 * @param WP_REST_Request $request Request.
+	 * @return true|WP_Error
+	 */
+	private function enforce_device_pairing_start_rate_limit( WP_REST_Request $request ) {
+		return $this->signing_auth->enforce_start_rate_limit( $request );
+	}
+
+	/**
+	 * Rate-limits device pairing polls.
+	 *
+	 * @param string $device_code Device code.
+	 * @return true|WP_Error
+	 */
+	private function enforce_device_pairing_poll_rate_limit( string $device_code ) {
+		return $this->signing_auth->enforce_poll_rate_limit( $device_code );
+	}
+
+	/**
+	 * Returns registered client key records.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	private function client_key_records(): array {
+		return $this->signing_auth->key_records();
+	}
+
+	/**
+	 * Returns the public projection of a client key record.
+	 *
+	 * @param array<string,mixed> $record Record.
+	 * @return array<string,mixed>
+	 */
+	private function public_client_key_record( array $record ): array {
+		return $this->signing_auth->public_key_record( $record );
 	}
 
 	/**
@@ -1365,14 +1446,7 @@ final class Controller {
 	 * @return array<string,mixed>
 	 */
 	public function admin_device_pairing( string $user_code ): array {
-		$user_code = strtoupper( sanitize_text_field( $user_code ) );
-		$pairings  = $this->device_pairings();
-		$pairing   = is_array( $pairings[ $user_code ] ?? null ) ? $pairings[ $user_code ] : array();
-		if ( ! empty( $pairing ) && time() <= (int) ( $pairing['expires_at'] ?? 0 ) ) {
-			return $pairing;
-		}
-
-		return array();
+		return $this->signing_auth->admin_pairing( $user_code );
 	}
 
 	/**
@@ -1383,58 +1457,7 @@ final class Controller {
 	 * @return array<string,mixed>|WP_Error
 	 */
 	public function approve_device_pairing( string $user_code, string $admin_label = '' ) {
-		$started     = microtime( true );
-		$user_code   = strtoupper( sanitize_text_field( $user_code ) );
-		$admin_label = $this->bounded_text_field( $admin_label, 80 );
-		$pairings    = $this->device_pairings();
-		$pairing     = is_array( $pairings[ $user_code ] ?? null ) ? $pairings[ $user_code ] : array();
-		if ( empty( $pairing ) || time() > (int) ( $pairing['expires_at'] ?? 0 ) ) {
-			$error = new WP_Error( 'npcink_openclaw_adapter_pairing_not_found', __( 'Device pairing was not found or expired.', 'npcink-ai-client-adapter' ) );
-			$this->emit_operation_event( 'adapter.device_pairing.approve', $started, $error );
-			return $error;
-		}
-
-		$user_id       = get_current_user_id();
-		$key           = is_array( $pairing['key'] ?? null ) ? $pairing['key'] : array();
-		$client        = is_array( $pairing['client'] ?? null ) ? $pairing['client'] : array();
-		$public_key    = (string) ( $key['public_key'] ?? '' );
-		$fingerprint   = (string) ( $key['fingerprint'] ?? '' );
-		$key_id        = 'mk_' . substr( hash( 'sha256', rest_url( self::NAMESPACE ) . '|' . $user_id . '|' . $fingerprint ), 0, 24 );
-		$connection_id = 'npcink_conn_' . substr( hash( 'sha256', home_url() . '|' . $key_id ), 0, 24 );
-		$record        = array(
-			'key_id'         => $key_id,
-			'connection_id'  => $connection_id,
-			'admin_label'    => $admin_label,
-			'user_id'        => $user_id,
-			'client_name'    => (string) ( $client['name'] ?? '' ),
-			'device_name'    => (string) ( $client['device_name'] ?? '' ),
-			'broker'         => (string) ( $client['broker'] ?? '' ),
-			'broker_version' => (string) ( $client['broker_version'] ?? '' ),
-			'public_key'     => $public_key,
-			'fingerprint'    => $fingerprint,
-			'scopes'         => is_array( $pairing['scopes'] ?? null ) ? array_values( $pairing['scopes'] ) : array(),
-			'created_at'     => gmdate( 'c' ),
-			'last_used_at'   => '',
-			'revoked_at'     => '',
-		);
-
-		$keys            = $this->client_key_records();
-		$keys[ $key_id ] = $record;
-		update_option( self::CLIENT_KEYS_OPTION, $keys, false );
-
-		$pairing['status']               = 'approved';
-		$pairing['approved_at']          = gmdate( 'c' );
-			$pairing['approved_user_id'] = $user_id;
-			$pairing['key_id']           = $key_id;
-			$pairing['connection_id']    = $connection_id;
-			$pairing['admin_label']      = $admin_label;
-			$pairing['scopes_effective'] = $record['scopes'];
-		$pairings[ $user_code ]          = $pairing;
-		update_option( self::DEVICE_PAIRING_OPTION, $this->prune_device_pairings( $pairings ), false );
-
-		$this->emit_operation_event( 'adapter.device_pairing.approve', $started, null );
-
-		return $this->public_client_key_record( $record );
+		return $this->signing_auth->approve_pairing( $user_code, $admin_label );
 	}
 
 	/**
@@ -1444,25 +1467,18 @@ final class Controller {
 	 * @return bool
 	 */
 	public function reject_device_pairing( string $user_code ): bool {
-		$started   = microtime( true );
-		$user_code = strtoupper( sanitize_text_field( $user_code ) );
-		$pairings  = $this->device_pairings();
-		if ( ! is_array( $pairings[ $user_code ] ?? null ) ) {
-			$this->emit_operation_event(
-				'adapter.device_pairing.reject',
-				$started,
-				new WP_Error( 'npcink_openclaw_adapter_pairing_not_found', __( 'Device pairing was not found or expired.', 'npcink-ai-client-adapter' ) )
-			);
-			return false;
-		}
+		return $this->signing_auth->reject_pairing( $user_code );
+	}
 
-		$pairings[ $user_code ]['status']      = 'rejected';
-		$pairings[ $user_code ]['rejected_at'] = gmdate( 'c' );
-		update_option( self::DEVICE_PAIRING_OPTION, $this->prune_device_pairings( $pairings ), false );
-
-		$this->emit_operation_event( 'adapter.device_pairing.reject', $started, null );
-
-		return true;
+	/**
+	 * Revokes a client key by id for a user.
+	 *
+	 * @param string $key_id Key id.
+	 * @param int    $user_id User id.
+	 * @return array<string,mixed>|WP_Error
+	 */
+	public function revoke_client_key_by_id( string $key_id, int $user_id ) {
+		return $this->signing_auth->revoke_key_by_id( $key_id, $user_id );
 	}
 
 	/**
@@ -1472,22 +1488,9 @@ final class Controller {
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function admin_client_keys( int $user_id ): array {
-		$records = array();
-		foreach ( $this->client_key_records() as $record ) {
-			if ( (int) ( $record['user_id'] ?? 0 ) === $user_id ) {
-				$records[] = $this->public_client_key_record( $record );
-			}
-		}
-
-		return $records;
+		return $this->signing_auth->admin_client_keys( $user_id );
 	}
 
-	/**
-	 * Returns decoded JSON request body.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return array<string,mixed>|WP_Error
-	 */
 	private function request_json_body( WP_REST_Request $request, int $max_bytes = 0 ) {
 		if ( $max_bytes > 0 ) {
 			$body_size = $this->validate_request_body_size( $request, $max_bytes );
@@ -1533,89 +1536,6 @@ final class Controller {
 		);
 	}
 
-	/**
-	 * Applies a lightweight public pairing start rate limit.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return true|WP_Error
-	 */
-	private function enforce_device_pairing_start_rate_limit( WP_REST_Request $request ) {
-		$key   = 'npcink_openclaw_adapter_pairing_start_' . md5( $this->request_rate_limit_fingerprint() );
-		$count = absint( get_transient( $key ) );
-		if ( $count >= self::MAX_DEVICE_PAIRING_STARTS_PER_WINDOW ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_device_pairing_rate_limited',
-				__( 'Too many device pairing attempts. Try again shortly.', 'npcink-ai-client-adapter' ),
-				array(
-					'status'       => 429,
-					'retry_after'  => self::DEVICE_PAIRING_RATE_LIMIT_TTL,
-					'window'       => self::DEVICE_PAIRING_RATE_LIMIT_TTL,
-					'max_attempts' => self::MAX_DEVICE_PAIRING_STARTS_PER_WINDOW,
-				)
-			);
-		}
-
-		set_transient( $key, $count + 1, self::DEVICE_PAIRING_RATE_LIMIT_TTL );
-
-		return true;
-	}
-
-	/**
-	 * Applies a lightweight public pairing poll rate limit.
-	 *
-	 * @param string $device_code Device code.
-	 * @return true|WP_Error
-	 */
-	private function enforce_device_pairing_poll_rate_limit( string $device_code ) {
-		$key   = 'npcink_openclaw_adapter_pairing_poll_' . md5( $this->request_rate_limit_fingerprint() . '|' . hash( 'sha256', $device_code ) );
-		$count = absint( get_transient( $key ) );
-		if ( $count >= self::MAX_DEVICE_PAIRING_POLLS_PER_WINDOW ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_device_pairing_poll_rate_limited',
-				__( 'Too many device pairing polls. Try again shortly.', 'npcink-ai-client-adapter' ),
-				array(
-					'status'       => 429,
-					'retry_after'  => self::DEVICE_PAIRING_POLL_RATE_LIMIT_TTL,
-					'window'       => self::DEVICE_PAIRING_POLL_RATE_LIMIT_TTL,
-					'max_attempts' => self::MAX_DEVICE_PAIRING_POLLS_PER_WINDOW,
-				)
-			);
-		}
-
-		set_transient( $key, $count + 1, self::DEVICE_PAIRING_POLL_RATE_LIMIT_TTL );
-
-		return true;
-	}
-
-	/**
-	 * Returns a coarse local request fingerprint for unauthenticated throttles.
-	 *
-	 * @return string
-	 */
-	private function request_rate_limit_fingerprint(): string {
-		$remote_addr = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['REMOTE_ADDR'] ) ) : '';
-
-		return '' !== $remote_addr ? $remote_addr : 'unknown';
-	}
-
-	/**
-	 * Sanitizes and bounds one plain text field.
-	 *
-	 * @param string $value      Raw value.
-	 * @param int    $max_length Maximum character length.
-	 * @return string
-	 */
-	private function bounded_text_field( string $value, int $max_length ): string {
-		$value  = sanitize_text_field( $value );
-		$length = function_exists( 'mb_strlen' ) ? mb_strlen( $value ) : strlen( $value );
-		if ( $max_length > 0 && $length > $max_length ) {
-			$value = function_exists( 'mb_substr' )
-				? mb_substr( $value, 0, $max_length )
-				: substr( $value, 0, $max_length );
-		}
-
-		return $value;
-	}
 
 	/**
 	 * Builds the non-secret connection manifest and digest.
@@ -1699,571 +1619,14 @@ final class Controller {
 
 
 	/**
-	 * Filters requested client scopes to the current adapter contract.
-	 *
-	 * @param array<int,mixed> $requested Requested scopes.
-	 * @return array<int,string>
-	 */
-	private function connection_requested_scopes( array $requested ): array {
-		$allowed        = array(
-			'npcink.read'    => true,
-			'npcink.propose' => true,
-			'npcink.status'  => true,
-			'npcink.execute' => true,
-		);
-		$default_scopes = array( 'npcink.read', 'npcink.propose', 'npcink.status' );
-		$scopes         = array();
-
-		foreach ( $requested as $scope ) {
-			$scope = sanitize_text_field( (string) $scope );
-			if ( isset( $allowed[ $scope ] ) ) {
-				$scopes[] = $scope;
-			}
-		}
-
-		return ! empty( $scopes ) ? array_values( array_unique( $scopes ) ) : $default_scopes;
-	}
-
-	/**
-	 * Returns pending device pairing records.
-	 *
-	 * @return array<string,array<string,mixed>>
-	 */
-	private function device_pairings(): array {
-		$pairings = get_option( self::DEVICE_PAIRING_OPTION, array() );
-		return is_array( $pairings ) ? $pairings : array();
-	}
-
-	/**
-	 * Removes expired pending device pairing records.
-	 *
-	 * @param array<string,array<string,mixed>> $pairings Pairings.
-	 * @return array<string,array<string,mixed>>
-	 */
-	private function prune_device_pairings( array $pairings ): array {
-		$now = time();
-		foreach ( $pairings as $user_code => $pairing ) {
-			if ( $now > (int) ( $pairing['expires_at'] ?? 0 ) ) {
-				unset( $pairings[ $user_code ] );
-			}
-		}
-
-		if ( count( $pairings ) <= self::MAX_DEVICE_PAIRINGS ) {
-			return $pairings;
-		}
-
-		uasort(
-			$pairings,
-			static function ( $left, $right ): int {
-				$left_time  = is_array( $left ) ? (string) ( $left['created_at'] ?? '' ) : '';
-				$right_time = is_array( $right ) ? (string) ( $right['created_at'] ?? '' ) : '';
-
-				return strcmp( $left_time, $right_time );
-			}
-		);
-
-		return array_slice( $pairings, - self::MAX_DEVICE_PAIRINGS, null, true );
-	}
-
-	/**
-	 * Returns a pending device pairing by device code.
-	 *
-	 * @param string $device_code Device code.
-	 * @return array<string,mixed>
-	 */
-	private function device_pairing_by_device_code( string $device_code ): array {
-		if ( '' === $device_code ) {
-			return array();
-		}
-
-		$hash = hash( 'sha256', $device_code );
-		foreach ( $this->device_pairings() as $pairing ) {
-			if ( hash_equals( (string) ( $pairing['device_code_hash'] ?? '' ), $hash ) ) {
-				return $pairing;
-			}
-		}
-
-		return array();
-	}
-
-	/**
-	 * Returns stored client keys.
-	 *
-	 * @return array<string,array<string,mixed>>
-	 */
-	private function client_key_records(): array {
-		$records = get_option( self::CLIENT_KEYS_OPTION, array() );
-		return is_array( $records ) ? $records : array();
-	}
-
-	/**
-	 * Returns whether the last-used timestamp should be persisted again.
-	 *
-	 * @param string $last_used_at Last persisted timestamp.
-	 * @return bool
-	 */
-	private function should_update_client_key_last_used( string $last_used_at ): bool {
-		$last_used = strtotime( $last_used_at );
-		if ( false === $last_used ) {
-			return true;
-		}
-
-		return ( time() - $last_used ) >= self::CLIENT_KEY_LAST_USED_WRITE_TTL;
-	}
-
-	/**
-	 * Returns a public-safe client key record.
-	 *
-	 * @param array<string,mixed> $record Record.
-	 * @return array<string,mixed>
-	 */
-	private function public_client_key_record( array $record ): array {
-		return array(
-			'key_id'        => (string) ( $record['key_id'] ?? '' ),
-			'connection_id' => (string) ( $record['connection_id'] ?? '' ),
-			'admin_label'   => (string) ( $record['admin_label'] ?? '' ),
-			'client_name'   => (string) ( $record['client_name'] ?? '' ),
-			'device_name'   => (string) ( $record['device_name'] ?? '' ),
-			'fingerprint'   => (string) ( $record['fingerprint'] ?? '' ),
-			'scopes'        => is_array( $record['scopes'] ?? null ) ? array_values( $record['scopes'] ) : array(),
-			'created_at'    => (string) ( $record['created_at'] ?? '' ),
-			'last_used_at'  => (string) ( $record['last_used_at'] ?? '' ),
-			'revoked_at'    => (string) ( $record['revoked_at'] ?? '' ),
-		);
-	}
-
-	/**
-	 * Authenticates a signed request from a paired local client.
-	 *
-	 * Returns true on success, or a WP_Error with a distinct stable code per
-	 * failure mode so clients can act on the cause. Key-state-independent
-	 * checks (credential completeness, timestamp window, body hash) run first
-	 * and keep specific codes. Every failure that depends on the key record
-	 * and precedes a verified signature shares one code, so a caller holding
-	 * only an observed key id cannot distinguish live, revoked, and unknown
-	 * keys. Scope and nonce checks run only after the signature verifies.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return true|WP_Error
-	 */
-	private function authenticate_signed_request( WP_REST_Request $request ) {
-		$this->current_signed_client_fingerprint = '';
-		$this->current_signed_authenticated      = false;
-
-		if ( ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_sodium_unavailable',
-				__( 'Ed25519 signed requests require the PHP sodium extension.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 501 )
-			);
-		}
-
-		$credentials = $this->signed_request_credentials( $request );
-
-		$key_id         = $credentials['key_id'];
-		$timestamp      = $credentials['timestamp'];
-		$nonce          = $credentials['nonce'];
-		$content_sha256 = $credentials['content_sha256'];
-		$signature_alg  = $credentials['signature_alg'];
-		$signature      = $credentials['signature'];
-
-		if ( '' === $key_id || '' === $timestamp || '' === $nonce || '' === $content_sha256 || 'Ed25519' !== $signature_alg || '' === $signature ) {
-			return $this->signed_request_error(
-				'npcink_openclaw_adapter_signed_request_malformed',
-				__( 'The signed request is missing required Npcink signature credential fields.', 'npcink-ai-client-adapter' ),
-				'credentials_incomplete',
-				__( 'Send key_id, timestamp, nonce, content_sha256, alg=Ed25519, and signature on every request. See docs/keypair-device-pairing-contract.md.', 'npcink-ai-client-adapter' ),
-				401
-			);
-		}
-
-		$timestamp_epoch = strtotime( $timestamp );
-		if ( false === $timestamp_epoch || abs( time() - $timestamp_epoch ) > self::SIGNATURE_NONCE_TTL ) {
-			return $this->signed_request_error(
-				'npcink_openclaw_adapter_signed_request_timestamp_skew',
-				__( 'The signed request timestamp is unparseable or outside the allowed freshness window.', 'npcink-ai-client-adapter' ),
-				'timestamp_outside_window',
-				__( 'Regenerate the timestamp from a synced clock and re-sign the request before retrying.', 'npcink-ai-client-adapter' ),
-				401
-			);
-		}
-
-		$expected_hash = 'sha256:' . hash( 'sha256', (string) $request->get_body() );
-		if ( ! hash_equals( $expected_hash, $content_sha256 ) ) {
-			return $this->signed_request_error(
-				'npcink_openclaw_adapter_signed_request_content_hash_mismatch',
-				__( 'The signed content hash does not match the request body received by the adapter.', 'npcink-ai-client-adapter' ),
-				'content_hash_mismatch',
-				__( 'Hash and sign the exact request body bytes; do not modify the body after signing.', 'npcink-ai-client-adapter' ),
-				401
-			);
-		}
-
-		$keys            = $this->client_key_records();
-		$record          = is_array( $keys[ $key_id ] ?? null ) ? $keys[ $key_id ] : array();
-		$user            = ! empty( $record ) ? get_userdata( (int) ( $record['user_id'] ?? 0 ) ) : false;
-		$public_key      = $this->base64url_decode( (string) ( $record['public_key'] ?? '' ) );
-		$signature_bytes = $this->base64url_decode( $signature );
-		$canonical       = $this->signed_request_canonical_string( $request, $timestamp, $nonce, $content_sha256 );
-		if (
-			empty( $record )
-			|| '' !== (string) ( $record['revoked_at'] ?? '' )
-			|| ! $user
-			|| ! user_can( $user, 'manage_options' )
-			|| 32 !== strlen( $public_key )
-			|| 64 !== strlen( $signature_bytes )
-			|| ! sodium_crypto_sign_verify_detached( $signature_bytes, $canonical, $public_key )
-		) {
-			return $this->signed_request_error(
-				'npcink_openclaw_adapter_signed_request_rejected',
-				__( 'The client key or request signature was rejected.', 'npcink-ai-client-adapter' ),
-				'key_or_signature_rejected',
-				__( 'Pair the client again through POST /connect/device/start, or rebuild the canonical string exactly as documented in docs/keypair-device-pairing-contract.md and re-sign the request.', 'npcink-ai-client-adapter' ),
-				401
-			);
-		}
-
-		if ( ! $this->client_key_scope_allows_request( $record, $request ) ) {
-			return $this->signed_request_error(
-				'npcink_openclaw_adapter_signed_request_scope_denied',
-				__( 'The paired client key does not carry the scope required by this route.', 'npcink-ai-client-adapter' ),
-				'scope_not_granted',
-				__( 'Re-pair the client requesting the needed scope, or ask a WordPress administrator to approve a key with it.', 'npcink-ai-client-adapter' ),
-				403
-			);
-		}
-
-		if ( ! $this->claim_signature_nonce( $key_id, $nonce ) ) {
-			return $this->signed_request_error(
-				'npcink_openclaw_adapter_signed_request_nonce_replayed',
-				__( 'The signed request nonce was already claimed.', 'npcink-ai-client-adapter' ),
-				'nonce_already_claimed',
-				__( 'Use a fresh nonce for every request; a retried request must be re-signed with a new nonce and timestamp.', 'npcink-ai-client-adapter' ),
-				401
-			);
-		}
-		if ( $this->should_update_client_key_last_used( (string) ( $record['last_used_at'] ?? '' ) ) ) {
-			$record['last_used_at'] = gmdate( 'c' );
-			$keys[ $key_id ]        = $record;
-			update_option( self::CLIENT_KEYS_OPTION, $keys, false );
-		}
-		wp_set_current_user( (int) ( $record['user_id'] ?? 0 ) );
-		$this->current_signed_client_fingerprint = $this->sanitize_signed_client_fingerprint( (string) ( $record['fingerprint'] ?? '' ) );
-		$this->current_signed_authenticated      = true;
-
-		return true;
-	}
-
-	/**
-	 * Atomically claims one verified signature nonce.
-	 *
-	 * The option name is unique in wp_options, so concurrent requests using the
-	 * same nonce cannot both succeed. Expired records are reclaimed with a
-	 * compare-and-delete query so an old cleanup cannot remove a newer claim.
-	 *
-	 * @param string $key_id Registered client key id.
-	 * @param string $nonce Signed request nonce.
-	 * @return bool
-	 */
-	private function claim_signature_nonce( string $key_id, string $nonce ): bool {
-		$nonce_key  = self::SIGNATURE_NONCE_OPTION_PREFIX . hash( 'sha256', $key_id . '|' . $nonce );
-		$expires_at = time() + self::SIGNATURE_NONCE_TTL;
-
-		if ( $this->insert_signature_nonce_option( $nonce_key, $expires_at ) ) {
-			$this->maybe_cleanup_expired_signature_nonces();
-			return true;
-		}
-
-		$stored_expiry = $this->signature_nonce_option_expiry( $nonce_key );
-		if ( null === $stored_expiry || $stored_expiry >= time() ) {
-			return false;
-		}
-
-		if ( ! $this->delete_expired_signature_nonce_option( $nonce_key, $stored_expiry ) ) {
-			return false;
-		}
-
-		if ( ! $this->insert_signature_nonce_option( $nonce_key, $expires_at ) ) {
-			return false;
-		}
-
-		$this->maybe_cleanup_expired_signature_nonces();
-		return true;
-	}
-
-	/**
-	 * Inserts one nonce claim without WordPress' duplicate-update option path.
-	 *
-	 * WordPress 7 add_option() uses ON DUPLICATE KEY UPDATE, so it cannot be the
-	 * strict insert-only primitive required for replay protection.
-	 *
-	 * @phpstan-impure Re-running the same insert can return a different result once
-	 *                 an expired claim is reclaimed by a concurrent request.
-	 * @param string $option_name Nonce option name.
-	 * @param int    $expires_at Expiry epoch.
-	 * @return bool
-	 */
-	private function insert_signature_nonce_option( string $option_name, int $expires_at ): bool {
-		global $wpdb;
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- INSERT IGNORE is the atomic replay-protection claim primitive.
-		$inserted = $wpdb->query(
-			$wpdb->prepare(
-				"INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, %s)",
-				$option_name,
-				maybe_serialize( $expires_at ),
-				'off'
-			)
-		);
-
-		if ( 1 !== (int) $inserted ) {
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	 * Reads one nonce expiry without entering the shared options cache.
-	 *
-	 * @param string $option_name Nonce option name.
-	 * @return int|null
-	 */
-	private function signature_nonce_option_expiry( string $option_name ): ?int {
-		global $wpdb;
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Read bypasses the options cache to preserve nonce claim semantics.
-		$value = $wpdb->get_var(
-			$wpdb->prepare(
-				"SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
-				$option_name
-			)
-		);
-
-		return is_numeric( $value ) ? (int) $value : null;
-	}
-
-	/**
-	 * Deletes one expired nonce only if its stored value is unchanged.
-	 *
-	 * @param string    $option_name Option name.
-	 * @param int|float|string $stored_expiry Expected stored expiry.
-	 * @return bool
-	 */
-	private function delete_expired_signature_nonce_option( string $option_name, $stored_expiry ): bool {
-		global $wpdb;
-
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Conditional delete prevents removing a concurrently refreshed nonce.
-		$deleted = $wpdb->query(
-			$wpdb->prepare(
-				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
-				$option_name,
-				maybe_serialize( $stored_expiry )
-			)
-		);
-
-		if ( 1 !== (int) $deleted ) {
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	 * Performs server-randomized, low-frequency, bounded nonce cleanup.
-	 *
-	 * @return void
-	 */
-	private function maybe_cleanup_expired_signature_nonces(): void {
-		if ( 1 !== wp_rand( 1, 64 ) ) {
-			return;
-		}
-
-		global $wpdb;
-		$like = $wpdb->esc_like( self::SIGNATURE_NONCE_OPTION_PREFIX ) . '%';
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Bounded cleanup reads nonce rows for replay protection maintenance.
-		$rows = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT option_name, option_value FROM {$wpdb->options} WHERE option_name LIKE %s AND CAST(option_value AS UNSIGNED) < %d ORDER BY option_id ASC LIMIT %d",
-				$like,
-				time(),
-				self::SIGNATURE_NONCE_CLEANUP_BATCH
-			),
-			ARRAY_A
-		);
-
-		foreach ( is_array( $rows ) ? $rows : array() as $row ) {
-			$option_name  = is_array( $row ) ? (string) ( $row['option_name'] ?? '' ) : '';
-			$option_value = is_array( $row ) ? (string) ( $row['option_value'] ?? '' ) : '';
-			if ( '' === $option_name || 0 !== strpos( $option_name, self::SIGNATURE_NONCE_OPTION_PREFIX ) || ! is_numeric( $option_value ) || (int) $option_value >= time() ) {
-				continue;
-			}
-
-			$this->delete_expired_signature_nonce_option( $option_name, $option_value );
-		}
-	}
-
-	/**
 	 * Returns the currently authenticated signed local client fingerprint.
 	 *
 	 * @return string
 	 */
 	private function current_signed_client_fingerprint(): string {
-		return $this->sanitize_signed_client_fingerprint( $this->current_signed_client_fingerprint );
+		return $this->signing_auth->sanitize_signed_client_fingerprint( $this->current_signed_client_fingerprint );
 	}
 
-	/**
-	 * Returns request signature credentials from X-Npcink headers or Authorization.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @return array<string,string>
-	 */
-	private function signed_request_credentials( WP_REST_Request $request ): array {
-		$credentials = array(
-			'key_id'         => sanitize_text_field( (string) $request->get_header( 'x_npcink_key_id' ) ),
-			'timestamp'      => sanitize_text_field( (string) $request->get_header( 'x_npcink_timestamp' ) ),
-			'nonce'          => sanitize_text_field( (string) $request->get_header( 'x_npcink_nonce' ) ),
-			'content_sha256' => sanitize_text_field( (string) $request->get_header( 'x_npcink_content_sha256' ) ),
-			'signature_alg'  => sanitize_text_field( (string) $request->get_header( 'x_npcink_signature_alg' ) ),
-			'signature'      => sanitize_text_field( (string) $request->get_header( 'x_npcink_signature' ) ),
-		);
-
-		if ( '' !== $credentials['key_id'] && '' !== $credentials['signature'] ) {
-			return $credentials;
-		}
-
-		$authorization = (string) $request->get_header( 'authorization' );
-		if ( ! preg_match( '/^Npcink-Signature\s+(.+)$/i', $authorization, $matches ) ) {
-			return $credentials;
-		}
-
-		$parts = array();
-		foreach ( explode( ',', $matches[1] ) as $piece ) {
-			$pair = explode( '=', trim( $piece ), 2 );
-			if ( 2 !== count( $pair ) ) {
-				continue;
-			}
-			$parts[ strtolower( trim( $pair[0] ) ) ] = trim( trim( $pair[1] ), '"' );
-		}
-
-		return array(
-			'key_id'         => sanitize_text_field( (string) ( $parts['key_id'] ?? '' ) ),
-			'timestamp'      => sanitize_text_field( (string) ( $parts['timestamp'] ?? '' ) ),
-			'nonce'          => sanitize_text_field( (string) ( $parts['nonce'] ?? '' ) ),
-			'content_sha256' => sanitize_text_field( (string) ( $parts['content_sha256'] ?? '' ) ),
-			'signature_alg'  => sanitize_text_field( (string) ( $parts['alg'] ?? '' ) ),
-			'signature'      => sanitize_text_field( (string) ( $parts['signature'] ?? '' ) ),
-		);
-	}
-
-	/**
-	 * Returns the canonical string signed by local clients.
-	 *
-	 * @param WP_REST_Request $request Request.
-	 * @param string          $timestamp Timestamp.
-	 * @param string          $nonce Nonce.
-	 * @param string          $content_sha256 Body hash.
-	 * @return string
-	 */
-	private function signed_request_canonical_string( WP_REST_Request $request, string $timestamp, string $nonce, string $content_sha256 ): string {
-		return implode(
-			"\n",
-			array(
-				'NPCINK-AI-CLIENT-ADAPTER-V1',
-				strtoupper( $request->get_method() ),
-				$request->get_route(),
-				$this->canonical_json( $this->raw_query_params() ),
-				$timestamp,
-				$nonce,
-				$content_sha256,
-			)
-		);
-	}
-
-	/**
-	 * Returns raw query parameters for signature canonicalization.
-	 *
-	 * The canonical query JSON must reflect the wire values the client signed.
-	 * WP_REST_Request::get_query_params() is mutated by declared-argument
-	 * sanitization before the permission callback runs (for example
-	 * "limit=3" becomes the integer 3), so verification against it fails for
-	 * any signed request with query parameters. $_GET holds the undecorated
-	 * wire strings the signer canonicalized.
-	 *
-	 * @return array<string,mixed>
-	 */
-	private function raw_query_params(): array {
-		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- the Ed25519 request signature is the authentication mechanism here; this is not a form nonce check.
-		return isset( $_GET ) && is_array( $_GET ) ? wp_unslash( $_GET ) : array();
-		// phpcs:enable WordPress.Security.NonceVerification.Recommended
-	}
-
-	/**
-	 * Returns whether client key scopes allow a request.
-	 *
-	 * @param array<string,mixed> $record Record.
-	 * @param WP_REST_Request     $request Request.
-	 * @return bool
-	 */
-	private function client_key_scope_allows_request( array $record, WP_REST_Request $request ): bool {
-		$scopes = array_fill_keys( is_array( $record['scopes'] ?? null ) ? $record['scopes'] : array(), true );
-		$route  = $request->get_route();
-		$method = strtoupper( $request->get_method() );
-
-		// The unified approve-and-execute action holds approval authority and is
-		// reserved for WordPress administrator sessions. No client key scope can
-		// ever allow it. See docs/threat-model.md.
-		if ( false !== strpos( $route, '/approve-and-execute' ) ) {
-			return false;
-		}
-
-		if ( 'POST' === $method && $this->client_key_route_requires_execute_scope( $route ) ) {
-			return ! empty( $scopes['npcink.execute'] ) || ! empty( $scopes['magick.execute'] );
-		}
-
-		if ( false !== strpos( $route, '/proposals' ) ) {
-			return ! empty( $scopes['npcink.propose'] ) || ! empty( $scopes['magick.propose'] );
-		}
-
-		if ( 'GET' === $method && ( false !== strpos( $route, '/health' ) || false !== strpos( $route, '/help' ) || false !== strpos( $route, '/capabilities' ) || false !== strpos( $route, '/connection/' ) ) ) {
-			return ! empty( $scopes['npcink.status'] ) || ! empty( $scopes['magick.status'] );
-		}
-
-		return ! empty( $scopes['npcink.read'] ) || ! empty( $scopes['magick.read'] );
-	}
-
-	/**
-	 * Returns whether a signed client request consumes final execution authority.
-	 *
-	 * @param string $route REST route.
-	 * @return bool
-	 */
-	private function client_key_route_requires_execute_scope( string $route ): bool {
-		return false !== strpos( $route, '/execute-approved-proposal' )
-			|| false !== strpos( $route, '/commit-preflight' )
-			|| ( false !== strpos( $route, '/proposals/' ) && false !== strpos( $route, '/execute' ) );
-	}
-
-	/**
-	 * Encodes base64url.
-	 *
-	 * @param string $value Value.
-	 * @return string
-	 */
-	private function base64url_encode( string $value ): string {
-		return rtrim( strtr( base64_encode( $value ), '+/', '-_' ), '=' );
-	}
-
-	/**
-	 * Decodes base64url.
-	 *
-	 * @param string $value Value.
-	 * @return string
-	 */
-	private function base64url_decode( string $value ): string {
-		$decoded = base64_decode( strtr( $value, '-_', '+/' ) . str_repeat( '=', ( 4 - strlen( $value ) % 4 ) % 4 ), true );
-		return is_string( $decoded ) ? $decoded : '';
-	}
 
 	/**
 	 * Returns adapter health.
@@ -6150,8 +5513,8 @@ final class Controller {
 		// Error families include npcink_openclaw_adapter_preflight_signed_client_fingerprint_mismatch, npcink_openclaw_adapter_preflight_handoff_signed_client_fingerprint_mismatch, and npcink_openclaw_adapter_core_read_grant_signed_client_fingerprint_mismatch.
 		$primary_raw = sanitize_text_field( (string) ( $context['signed_client_fingerprint'] ?? '' ) );
 		$alias_raw   = sanitize_text_field( (string) ( $context['client_key_fingerprint'] ?? '' ) );
-		$primary     = $this->sanitize_signed_client_fingerprint( $primary_raw );
-		$alias       = $this->sanitize_signed_client_fingerprint( $alias_raw );
+		$primary     = $this->signing_auth->sanitize_signed_client_fingerprint( $primary_raw );
+		$alias       = $this->signing_auth->sanitize_signed_client_fingerprint( $alias_raw );
 
 		if ( ( '' !== $primary_raw && '' === $primary ) || ( '' !== $alias_raw && '' === $alias ) ) {
 			return new WP_Error(
@@ -6190,20 +5553,6 @@ final class Controller {
 		return true;
 	}
 
-	/**
-	 * Sanitizes a signed local client fingerprint.
-	 *
-	 * @param string $fingerprint Fingerprint.
-	 * @return string
-	 */
-	private function sanitize_signed_client_fingerprint( string $fingerprint ): string {
-		$fingerprint = sanitize_text_field( $fingerprint );
-		if ( 1 !== preg_match( '/^sha256:[a-f0-9]{64}$/', $fingerprint ) ) {
-			return '';
-		}
-
-		return $fingerprint;
-	}
 
 	/**
 	 * Builds the same input hash Core commit-preflight uses for approved inputs.
@@ -7087,8 +6436,8 @@ final class Controller {
 			'site_url'                   => sanitize_text_field( (string) ( $context['site_url'] ?? '' ) ),
 			'home_url'                   => sanitize_text_field( (string) ( $context['home_url'] ?? '' ) ),
 			'blog_id'                    => absint( $context['blog_id'] ?? 0 ),
-			'signed_client_fingerprint'  => $this->sanitize_signed_client_fingerprint( (string) ( $context['signed_client_fingerprint'] ?? '' ) ),
-			'client_key_fingerprint'     => $this->sanitize_signed_client_fingerprint( (string) ( $context['client_key_fingerprint'] ?? '' ) ),
+			'signed_client_fingerprint'  => $this->signing_auth->sanitize_signed_client_fingerprint( (string) ( $context['signed_client_fingerprint'] ?? '' ) ),
+			'client_key_fingerprint'     => $this->signing_auth->sanitize_signed_client_fingerprint( (string) ( $context['client_key_fingerprint'] ?? '' ) ),
 			'sensitivity'                => sanitize_key( (string) ( $context['sensitivity'] ?? 'sensitive' ) ),
 			'data_classes'               => $this->sanitize_string_list( is_array( $context['data_classes'] ?? null ) ? (array) $context['data_classes'] : array() ),
 			'redaction_level'            => sanitize_key( (string) ( $context['redaction_level'] ?? 'strict' ) ),

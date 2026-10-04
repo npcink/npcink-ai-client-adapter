@@ -366,9 +366,17 @@ $execution_profile_registry = maa_adapter_read( $root . '/includes/Rest/Executio
 $execution_input_validator = maa_adapter_read( $root . '/includes/Rest/Execution_Input_Validator.php' );
 $execution_action_runner = maa_adapter_read( $root . '/includes/Rest/Execution_Action_Runner.php' );
 $contract_metadata = maa_adapter_read( $root . '/includes/Rest/Contract_Metadata.php' );
-$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry . "\n" . $execution_input_validator . "\n" . $execution_action_runner . "\n" . $contract_metadata;
+$signing_auth = maa_adapter_read( $root . '/includes/Rest/Signing_Auth.php' );
+$controller_contract = $controller . "\n" . $supported_plan_abilities . "\n" . $execution_profile_registry . "\n" . $execution_input_validator . "\n" . $execution_action_runner . "\n" . $contract_metadata . "\n" . $signing_auth;
 maa_adapter_assert( false !== strpos( $controller, 'npcink_cloud_addon_receive_media_derivative_artifact' ), 'Media optimization readiness consumes the verified Cloud Addon receive seam.' );
 maa_adapter_assert( false !== strpos( $contract_metadata, 'final class Contract_Metadata' ), 'Contract metadata builder class exists.' );
+maa_adapter_assert( false !== strpos( $signing_auth, 'final class Signing_Auth' ), 'Signing auth domain service class exists.' );
+maa_adapter_assert( false !== strpos( $signing_auth, 'Ed25519 signed-request authentication and device-pairing domain service' ), 'Signing auth documents its domain boundary.' );
+maa_adapter_assert( false !== strpos( $controller, 'new Signing_Auth(' ), 'Controller wires the signing auth service.' );
+maa_adapter_assert( false !== strpos( $controller, '$this->signing_auth->verify( $request )' ), 'Controller delegates signed request verification to the service.' );
+maa_adapter_assert( false !== strpos( $signing_auth, 'sodium_crypto_sign_verify_detached' ), 'Signing auth owns Ed25519 verification.' );
+maa_adapter_assert( false !== strpos( $signing_auth, 'claim_signature_nonce( string $key_id, string $nonce ): bool' ), 'Signing auth owns the atomic nonce claim surface.' );
+maa_adapter_assert( false === strpos( $signing_auth, 'current_signed_authenticated' ) && false === strpos( $signing_auth, 'register_rest_route' ) && false === strpos( $signing_auth, 'dispatch_upstream' ), 'Signing auth holds no request state, routes, or upstream dispatch.' );
 maa_adapter_assert( false !== strpos( $contract_metadata, 'static, side-effect-free value builder' ), 'Contract metadata builder documents its pure-builder boundary.' );
 maa_adapter_assert( false !== strpos( $controller, 'Contract_Metadata::client_policy(' ), 'Controller delegates client policy to the contract metadata builder.' );
 maa_adapter_assert( false !== strpos( $controller, 'Contract_Metadata::adapter_contract_metadata(' ), 'Controller delegates adapter contract metadata to the contract metadata builder.' );
@@ -890,9 +898,9 @@ foreach (
 				'validate_request_body_size',
 				'enforce_device_pairing_start_rate_limit',
 				'enforce_device_pairing_poll_rate_limit',
-				'request_rate_limit_fingerprint',
+				'rate_limit_fingerprint',
 				'bounded_text_field',
-			'should_update_client_key_last_used',
+			'should_update_key_last_used',
 			'validate_execute_action_input_size',
 			'public_media_derivative_artifact_descriptor',
 			'normalize_plan_batch_metadata',
@@ -1320,11 +1328,12 @@ maa_adapter_assert( false === strpos( $controller, "'POST /proposals/{proposal_i
 $key_revoke_route = substr( $controller, (int) strpos( $controller, "'/connection/key-pairs/(?P<key_id>mk_[A-Za-z0-9_-]+)'" ), 360 );
 maa_adapter_assert( false !== strpos( $key_revoke_route, "array( \$this, 'can_use_admin_session' )" ), 'Client key revoke route requires administrator session auth.' );
 maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_use_adapter' )" ), 'Client key revoke route is not available through signed adapter clients.' );
-	$client_key_auth = substr( $controller, (int) strpos( $controller, 'private function authenticate_signed_request' ), 6400 );
-	maa_adapter_assert( false !== strpos( $client_key_auth, 'should_update_client_key_last_used' ), 'Signed request auth throttles last-used option writes.' );
-	maa_adapter_assert( false !== strpos( $client_key_auth, 'current_signed_client_fingerprint' ), 'Signed request auth records the current client fingerprint.' );
-	maa_adapter_assert( false !== strpos( $client_key_auth, 'claim_signature_nonce( $key_id, $nonce )' ), 'Signed request auth atomically claims a nonce only after signature verification.' );
-	maa_adapter_assert( false === strpos( $client_key_auth, 'get_transient( $nonce_key )' ) && false === strpos( $client_key_auth, 'set_transient( $nonce_key' ), 'Signed request auth removes the non-atomic transient nonce check.' );
+	$signed_verify = substr( $signing_auth, (int) strpos( $signing_auth, 'public function verify' ), 6400 );
+	maa_adapter_assert( false !== strpos( $signed_verify, 'should_update_key_last_used' ), 'Signed request auth throttles last-used option writes.' );
+	maa_adapter_assert( false !== strpos( $signed_verify, 'claim_signature_nonce( $key_id, $nonce )' ), 'Signed request auth atomically claims a nonce only after signature verification.' );
+	maa_adapter_assert( false === strpos( $signed_verify, 'get_transient( $nonce_key )' ) && false === strpos( $signed_verify, 'set_transient( $nonce_key' ), 'Signed request auth removes the non-atomic transient nonce check.' );
+	$signed_orchestrator = substr( $controller, (int) strpos( $controller, 'private function authenticate_signed_request' ), 1200 );
+	maa_adapter_assert( false !== strpos( $signed_orchestrator, 'current_signed_client_fingerprint = (string) $verification[' ), 'Signed request auth records the current client fingerprint from the verified identity.' );
 	foreach (
 		array(
 			'npcink_openclaw_adapter_signed_request_malformed',
@@ -1337,17 +1346,17 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 			'npcink_openclaw_adapter_privilege_required',
 		) as $structured_signed_auth_code
 	) {
-		maa_adapter_assert( false !== strpos( $controller, $structured_signed_auth_code ), 'Signed request auth exposes a structured failure code: ' . $structured_signed_auth_code );
+		maa_adapter_assert( false !== strpos( $controller_contract, $structured_signed_auth_code ), 'Signed request auth exposes a structured failure code: ' . $structured_signed_auth_code );
 	}
 	maa_adapter_assert( false !== strpos( $controller, 'rest_response_with_retry_after' ), 'Pairing rate limit responses carry the standard Retry-After header.' );
-	$nonce_claim = substr( $controller, (int) strpos( $controller, 'private function claim_signature_nonce' ), 5200 );
+	$nonce_claim = substr( $signing_auth, (int) strpos( $signing_auth, 'public function claim_signature_nonce' ), 5200 );
 	maa_adapter_assert( false !== strpos( $nonce_claim, 'insert_signature_nonce_option( $nonce_key, $expires_at )' ), 'Signature nonce claim uses an insert-only options primitive.' );
 	maa_adapter_assert( false !== strpos( $nonce_claim, 'delete_expired_signature_nonce_option' ), 'Expired nonce reclaim uses conditional deletion.' );
 	maa_adapter_assert( false !== strpos( $nonce_claim, 'SIGNATURE_NONCE_CLEANUP_BATCH' ), 'Signature nonce cleanup remains bounded.' );
-	$nonce_insert = substr( $controller, (int) strpos( $controller, 'private function insert_signature_nonce_option' ), 1500 );
+	$nonce_insert = substr( $signing_auth, (int) strpos( $signing_auth, 'public function insert_signature_nonce_option' ), 1500 );
 	maa_adapter_assert( false !== strpos( $nonce_insert, 'INSERT IGNORE INTO' ) && false !== strpos( $nonce_insert, "'off'" ), 'Signature nonce claim is strict insert-only and non-autoloaded.' );
 	maa_adapter_assert( false === strpos( $nonce_insert, "wp_cache_delete( 'notoptions'" ), 'Signature nonce insertion does not flush the global missing-option cache.' );
-	$nonce_expiry = substr( $controller, (int) strpos( $controller, 'private function signature_nonce_option_expiry' ), 900 );
+	$nonce_expiry = substr( $signing_auth, (int) strpos( $signing_auth, 'public function signature_nonce_option_expiry' ), 900 );
 	maa_adapter_assert( false !== strpos( $nonce_expiry, 'SELECT option_value FROM' ) && false === strpos( $nonce_expiry, 'get_option(' ), 'Signature nonce expiry reads bypass the shared options cache.' );
 	maa_adapter_assert( false !== strpos( $nonce_claim, 'wp_rand( 1, 64 )' ), 'Signature nonce cleanup sampling is not controlled by client nonce values.' );
 	maa_adapter_assert( false === strpos( $controller, 'dbDelta(' ) && false === strpos( $controller, 'CREATE TABLE' ), 'Adapter controller does not create custom WordPress tables.' );
@@ -1398,18 +1407,18 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	$upstream_dispatch = substr( $controller, (int) strpos( $controller, 'private function dispatch_upstream( string' ), 1600 );
 	maa_adapter_assert( false !== strpos( $upstream_dispatch, 'x-npcink-adapter-signed-client-fingerprint' ), 'Adapter forwards signed client fingerprint to Core app-token requests.' );
 	maa_adapter_assert( false !== strpos( $upstream_dispatch, 'x-npcink-adapter-client-key-fingerprint' ), 'Adapter forwards compatible client key fingerprint alias to Core app-token requests.' );
-	maa_adapter_assert( false !== strpos( $controller, "'npcink_conn_'" ), 'Device pairing creates Npcink-branded connection ids.' );
+	maa_adapter_assert( false !== strpos( $controller_contract, "'npcink_conn_'" ), 'Device pairing creates Npcink-branded connection ids.' );
 	maa_adapter_assert( false === strpos( $controller, "'mag_conn_'" ), 'Device pairing no longer creates Magick-branded connection ids.' );
-	$client_key_scope = substr( $controller, (int) strpos( $controller, 'private function client_key_scope_allows_request' ), 1400 );
+	$client_key_scope = substr( $signing_auth, (int) strpos( $signing_auth, 'public function key_scope_allows' ), 1400 );
 			maa_adapter_assert( false === strpos( $client_key_scope, "'/media-derivative-runs'" ), 'Client key scopes no longer special-case media derivative runs.' );
 			maa_adapter_assert( false === strpos( $client_key_scope, "'/media-derivative-proposal-payload'" ), 'Client key scopes no longer special-case media derivative proposal payloads.' );
-		maa_adapter_assert( false !== strpos( $client_key_scope, 'client_key_route_requires_execute_scope' ), 'Client key scopes route final execution requests through execute scope.' );
+		maa_adapter_assert( false !== strpos( $client_key_scope, 'route_requires_execute_scope' ), 'Client key scopes route final execution requests through execute scope.' );
 		maa_adapter_assert( false !== strpos( $client_key_scope, "'npcink.execute'" ), 'Client key scopes require npcink.execute for final write routes.' );
 		maa_adapter_assert( false !== strpos( $client_key_scope, "'magick.execute'" ), 'Client key scopes preserve legacy Magick execute scope compatibility.' );
 		maa_adapter_assert( false !== strpos( $client_key_scope, "'magick.status'" ), 'Client key scopes preserve legacy Magick status scope compatibility.' );
 		maa_adapter_assert( false !== strpos( $client_key_scope, "'magick.propose'" ), 'Client key scopes preserve legacy Magick propose scope compatibility.' );
 		maa_adapter_assert( false !== strpos( $client_key_scope, "'magick.read'" ), 'Client key scopes preserve legacy Magick read scope compatibility.' );
-	$execute_scope_routes = substr( $controller, (int) strpos( $controller, 'private function client_key_route_requires_execute_scope' ), 700 );
+	$execute_scope_routes = substr( $signing_auth, (int) strpos( $signing_auth, 'public function route_requires_execute_scope' ), 700 );
 	maa_adapter_assert( false !== strpos( $execute_scope_routes, "'/commit-preflight'" ), 'Client key execute scope covers commit-preflight handoff consumption.' );
 	maa_adapter_assert( false === strpos( $execute_scope_routes, "'/approve-and-execute'" ), 'Client key execute scope no longer covers approve-and-execute.' );
 	maa_adapter_assert( false !== strpos( $client_key_scope, "strpos( \$route, '/approve-and-execute' )" ), 'Client key scope gate hard-denies the unified approve-and-execute route for every signed key scope.' );
@@ -1417,7 +1426,7 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	maa_adapter_assert( false !== strpos( $unified_route_registration, 'can_use_unified_approve_and_execute' ), 'Unified approve-and-execute route registers the admin-session permission callback.' );
 	maa_adapter_assert( 2 <= substr_count( $controller, 'npcink_openclaw_adapter_approve_requires_admin_session' ), 'Admin-session requirement is enforced at both the permission gate and the route handler.' );
 	maa_adapter_assert( false === strpos( $controller, 'npcink_openclaw_adapter_unified_action' ), 'Unified approve-and-execute no longer advertises an adapter-owned approval surface.' );
-	$requested_scopes = substr( $controller, (int) strpos( $controller, 'private function connection_requested_scopes' ), 900 );
+	$requested_scopes = substr( $signing_auth, (int) strpos( $signing_auth, 'public function requested_scopes' ), 900 );
 	maa_adapter_assert( false !== strpos( $requested_scopes, "'npcink.execute' => true" ), 'Device pairing can explicitly request npcink.execute.' );
 	maa_adapter_assert( false !== strpos( $requested_scopes, "\$default_scopes = array( 'npcink.read', 'npcink.propose', 'npcink.status' );" ), 'Device pairing defaults do not silently grant execute scope.' );
 	$plan_batch_metadata = substr( $controller, (int) strpos( $controller, 'private function normalize_plan_batch_metadata' ), 1400 );
@@ -1429,9 +1438,9 @@ maa_adapter_assert( false !== strpos( $plan_write_input_validation, "\$proposal_
 maa_adapter_assert( false !== strpos( $controller, 'min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint' ), 'Adapter list routes clamp caller supplied limits.' );
 maa_adapter_assert( false === strpos( $controller, 'HTTP_USER_AGENT' ), 'Public pairing rate limit is not weakened by caller-controlled user agents.' );
 maa_adapter_assert( false !== strpos( $controller, "approve_device_pairing( string \$user_code, string \$admin_label = '' )" ), 'Controller accepts an administrator label during device pairing approval.' );
-maa_adapter_assert( false !== strpos( $controller, '$admin_label = $this->bounded_text_field( $admin_label, 80 );' ), 'Controller bounds administrator device labels before storage.' );
-maa_adapter_assert( false !== strpos( $controller, "'admin_label'    => \$admin_label," ), 'Controller stores administrator device labels with key-pair records.' );
-maa_adapter_assert( false !== strpos( $controller, "'admin_label'   => (string) ( \$record['admin_label'] ?? '' )" ), 'Controller exposes administrator device labels to the current administrator key-pair view.' );
+maa_adapter_assert( false !== strpos( $controller_contract, '$admin_label = $this->bounded_text_field( $admin_label, 80 );' ), 'Controller bounds administrator device labels before storage.' );
+maa_adapter_assert( false !== strpos( $controller_contract, "'admin_label'    => \$admin_label," ), 'Controller stores administrator device labels with key-pair records.' );
+maa_adapter_assert( false !== strpos( $controller_contract, "'admin_label'   => (string) ( \$record['admin_label'] ?? '' )" ), 'Controller exposes administrator device labels to the current administrator key-pair view.' );
 maa_adapter_assert( false === strpos( $controller, '$supported_execute_ability_ids' ), 'Controller derives execute supported profiles from execution profiles.' );
 maa_adapter_assert( false === strpos( $controller, 'include_log_tail' ), 'Adapter does not implement old include_log_tail compatibility.' );
 maa_adapter_assert( false === strpos( $controller, 'include_error_log' ), 'Adapter does not use old include_error_log diagnostics input.' );
