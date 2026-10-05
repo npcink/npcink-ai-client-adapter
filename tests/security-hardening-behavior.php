@@ -266,6 +266,8 @@ require_once dirname( __DIR__ ) . '/includes/Rest/Contract_Metadata.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Signing_Auth.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Upstream_Dispatch.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Dependency_Status.php';
+require_once dirname( __DIR__ ) . '/includes/Rest/Execution_Records.php';
+require_once dirname( __DIR__ ) . '/includes/Rest/Preflight_Handoffs.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Controller.php';
 
 $reflection = new ReflectionClass( \Npcink\OpenClawAdapter\Rest\Controller::class );
@@ -295,6 +297,16 @@ $dependency_status_property->setValue(
     $controller,
     new Npcink\OpenClawAdapter\Rest\Dependency_Status(
         $upstream_dispatch_property->getValue( $controller )
+    )
+);
+$preflight_handoffs_property = $reflection->getProperty( 'preflight_handoffs' );
+$preflight_handoffs_property->setAccessible( true );
+$preflight_handoffs_property->setValue(
+    $controller,
+    new Npcink\OpenClawAdapter\Rest\Preflight_Handoffs(
+        new Npcink\OpenClawAdapter\Rest\Execution_Records(),
+        $signing_auth_property->getValue( $controller ),
+        static function (): string { return ''; }
     )
 );
 $fingerprint_property = $reflection->getProperty( 'current_signed_client_fingerprint' );
