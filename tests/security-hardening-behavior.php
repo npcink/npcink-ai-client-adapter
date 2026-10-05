@@ -265,6 +265,7 @@ function maa_security_media_derivative_artifact( array $overrides = array() ): a
 require_once dirname( __DIR__ ) . '/includes/Rest/Contract_Metadata.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Signing_Auth.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Upstream_Dispatch.php';
+require_once dirname( __DIR__ ) . '/includes/Rest/Dependency_Status.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Controller.php';
 
 $reflection = new ReflectionClass( \Npcink\OpenClawAdapter\Rest\Controller::class );
@@ -286,6 +287,14 @@ $upstream_dispatch_property->setValue(
         static function ( string $event_kind, float $started, $error, array $context = array() ): void {},
         static function ( string $route ) { return null; },
         static function (): string { return ''; }
+    )
+);
+$dependency_status_property = $reflection->getProperty( 'dependency_status' );
+$dependency_status_property->setAccessible( true );
+$dependency_status_property->setValue(
+    $controller,
+    new Npcink\OpenClawAdapter\Rest\Dependency_Status(
+        $upstream_dispatch_property->getValue( $controller )
     )
 );
 $fingerprint_property = $reflection->getProperty( 'current_signed_client_fingerprint' );
