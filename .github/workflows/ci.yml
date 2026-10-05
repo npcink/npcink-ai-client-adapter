@@ -81,5 +81,5 @@ jobs:
 
       # Newer-PHP execution leg: the floor stays 8.0, this catches forward
       # compatibility drift on the current development runtime.
-      - name: Run static contracts on PHP 8.4
-        run: composer test
+      - name: Run full contracts suite on PHP 8.4
+        run: composer test:all
