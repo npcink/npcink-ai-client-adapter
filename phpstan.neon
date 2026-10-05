@@ -22,7 +22,11 @@ parameters:
 		-
 			message: '#^Call to function is_array\(\) with array(<.*)? will always evaluate to true\.$#'
 			path: includes/Rest/Controller.php
-			count: 4
+			count: 2
+		-
+			message: '#^Call to function is_array\(\) with array(<.*)? will always evaluate to true\.$#'
+			path: includes/Rest/Proposal_Review.php
+			count: 2
 		-
 			message: '#^Call to function is_array\(\) with array(<.*)? will always evaluate to true\.$#'
 			path: includes/Rest/Signing_Auth.php
