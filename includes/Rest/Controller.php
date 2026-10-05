@@ -143,6 +143,13 @@ final class Controller {
 	private $proposal_review;
 
 	/**
+	 * Read governance service: sensitivity, redaction, context validation.
+	 *
+	 * @var Read_Governance
+	 */
+	private $read_governance;
+
+	/**
 	 * Creates the REST controller with the canonical execution profile rules.
 	 */
 	public function __construct() {
@@ -174,6 +181,7 @@ final class Controller {
 		);
 		$this->execution_input_validator = new Execution_Input_Validator( self::execution_profiles() );
 		$this->proposal_review           = new Proposal_Review( $this->execution_input_validator );
+		$this->read_governance           = new Read_Governance( $this->dependency_status, $this->signing_auth, $this->preflight_handoffs );
 		$this->execution_action_runner   = new Execution_Action_Runner(
 			self::execution_profiles(),
 			function ( array $context, string $method, string $route, array $params, bool $query_params, bool $json_body ) {
@@ -1958,6 +1966,49 @@ final class Controller {
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Applies governed redaction and bounds to a read result.
+	 *
+	 * @param mixed              $result Read result.
+	 * @param array<string,mixed> $read_context Read context.
+	 * @return array<string,mixed>
+	 */
+	private function apply_read_redaction( $result, array $read_context ): array {
+		return $this->read_governance->apply_redaction( $result, $read_context );
+	}
+
+	/**
+	 * Returns whether a capability requires the Core read-request flow.
+	 *
+	 * @param array<string,mixed> $capability Core capability.
+	 * @return bool
+	 */
+	private function core_read_authorization_required( array $capability ): bool {
+		return $this->read_governance->authorization_required( $capability );
+	}
+
+	/**
+	 * Validates a Core read authorization context.
+	 *
+	 * @param array<string,mixed> $context Context.
+	 * @param string              $ability_id Ability id.
+	 * @param string              $request_id Read request id.
+	 * @return array<string,mixed>|WP_Error Sanitized context or validation error.
+	 */
+	private function validate_core_read_authorization_context( array $context, string $ability_id, string $request_id ) {
+		return $this->read_governance->validate_authorization_context( $context, $ability_id, $request_id );
+	}
+
+	/**
+	 * Infers the read sensitivity classification for an ability id.
+	 *
+	 * @param string $ability_id Ability id.
+	 * @return string
+	 */
+	private function infer_read_sensitivity( string $ability_id ): string {
+		return $this->read_governance->infer_sensitivity( $ability_id );
 	}
 
 	/**
@@ -4521,30 +4572,6 @@ final class Controller {
 	}
 
 	/**
-	 * Validates Core context site binding.
-	 *
-	 * @param array<string,mixed> $context Core context.
-	 * @param string              $code_prefix Error code prefix.
-	 * @param int                 $status HTTP status.
-	 * @return WP_Error|true Error or true when bound.
-	 */
-	private function validate_core_context_site_binding( array $context, string $code_prefix, int $status ) {
-		return $this->preflight_handoffs->validate_context_site_binding( $context, $code_prefix, $status );
-	}
-
-	/**
-	 * Validates Core context signed client binding.
-	 *
-	 * @param array<string,mixed> $context Core context.
-	 * @param string              $code_prefix Error code prefix.
-	 * @param int                 $status HTTP status.
-	 * @return WP_Error|true Error or true when bound.
-	 */
-	private function validate_core_context_signed_client_binding( array $context, string $code_prefix, int $status ) {
-		return $this->preflight_handoffs->validate_context_signed_client( $context, $code_prefix, $status );
-	}
-
-	/**
 	 * Stores one successful execution record.
 	 *
 	 * @param string              $proposal_id Proposal id.
@@ -4878,25 +4905,6 @@ final class Controller {
 		return $this->sanitize_log_context( $log_context, true );
 	}
 
-	/**
-	 * Returns whether Core requires an explicit read authorization before Adapter may run a direct-read ability.
-	 *
-	 * @param array<string,mixed> $capability Capability row.
-	 * @return bool
-	 */
-	private function core_read_authorization_required( array $capability ): bool {
-		$read_policy        = sanitize_key( (string) ( $capability['read_policy'] ?? '' ) );
-		$governance_mode    = sanitize_key( (string) ( $capability['governance_mode'] ?? '' ) );
-		$authorization_mode = sanitize_key( (string) ( $capability['authorization_mode'] ?? '' ) );
-		$read_authorization = is_array( $capability['read_authorization'] ?? null ) ? $capability['read_authorization'] : array();
-
-		return true === (bool) ( $capability['read_authorization_required'] ?? false )
-			|| true === (bool) ( $capability['requires_read_authorization'] ?? false )
-			|| true === (bool) ( $read_authorization['required'] ?? false )
-			|| 'core_read_authorization_required' === $read_policy
-			|| 'core_read_authorization_required' === $governance_mode
-			|| 'core_read_request' === $authorization_mode;
-	}
 
 	/**
 	 * Calls Core read-preflight and validates the returned grant.
@@ -4964,109 +4972,7 @@ final class Controller {
 		return $validated;
 	}
 
-	/**
-	 * Validates a Core read authorization context.
-	 *
-	 * @param array<string,mixed> $context Grant context.
-	 * @param string              $ability_id Ability id.
-	 * @param string              $request_id Request id.
-	 * @return array<string,mixed>|WP_Error
-	 */
-	private function validate_core_read_authorization_context( array $context, string $ability_id, string $request_id ) {
-		if ( true !== (bool) ( $context['read_authorization_granted'] ?? false ) ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_core_read_grant_not_granted',
-				__( 'Core read authorization was not granted.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 403 )
-			);
-		}
-		if ( 'npcink_governance_core' !== (string) ( $context['core_authorization_truth'] ?? '' ) ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_core_read_grant_truth_invalid',
-				__( 'Core read authorization truth marker is invalid.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 403 )
-			);
-		}
-		if ( (string) ( $context['ability_id'] ?? '' ) !== $ability_id || (string) ( $context['request_id'] ?? '' ) !== $request_id ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_core_read_grant_target_mismatch',
-				__( 'Core read authorization context does not match the requested ability or read request.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 403 )
-			);
-		}
-		if ( '' === sanitize_text_field( (string) ( $context['approved_input_hash'] ?? '' ) ) ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_core_read_grant_hash_missing',
-				__( 'Core read authorization context is missing the approved input hash.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 403 )
-			);
-		}
-		if ( true === (bool) ( $context['commit_execution'] ?? false ) || true === (bool) ( $context['write_execution'] ?? false ) ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_core_read_grant_execution_invalid',
-				__( 'Core read authorization context must not enable write or commit execution.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 403 )
-			);
-		}
 
-		$site_binding = $this->validate_core_context_site_binding( $context, 'npcink_openclaw_adapter_core_read_grant', 403 );
-		if ( is_wp_error( $site_binding ) ) {
-			return $site_binding;
-		}
-		$client_binding = $this->validate_core_context_signed_client_binding( $context, 'npcink_openclaw_adapter_core_read_grant', 403 );
-		if ( is_wp_error( $client_binding ) ) {
-			return $client_binding;
-		}
-
-		$expires_at = strtotime( (string) ( $context['expires_at'] ?? '' ) );
-		if ( false === $expires_at || $expires_at <= time() ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_core_read_grant_expired',
-				__( 'Core read authorization context is expired.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 403 )
-			);
-		}
-
-		return $this->sanitize_core_read_authorization_context( $context );
-	}
-
-	/**
-	 * Sanitizes a Core read authorization context for runtime use and logs.
-	 *
-	 * @param array<string,mixed> $context Grant context.
-	 * @return array<string,mixed>
-	 */
-	private function sanitize_core_read_authorization_context( array $context ): array {
-		$bounds = is_array( $context['bounds'] ?? null ) ? (array) $context['bounds'] : array();
-
-		return array(
-			'request_id'                 => sanitize_text_field( (string) ( $context['request_id'] ?? '' ) ),
-			'ability_id'                 => sanitize_text_field( (string) ( $context['ability_id'] ?? '' ) ),
-			'approved_input_hash'        => sanitize_text_field( (string) ( $context['approved_input_hash'] ?? '' ) ),
-			'correlation_id'             => sanitize_text_field( (string) ( $context['correlation_id'] ?? '' ) ),
-			'policy_version'             => sanitize_text_field( (string) ( $context['policy_version'] ?? '' ) ),
-			'site_url'                   => sanitize_text_field( (string) ( $context['site_url'] ?? '' ) ),
-			'home_url'                   => sanitize_text_field( (string) ( $context['home_url'] ?? '' ) ),
-			'blog_id'                    => absint( $context['blog_id'] ?? 0 ),
-			'signed_client_fingerprint'  => $this->signing_auth->sanitize_signed_client_fingerprint( (string) ( $context['signed_client_fingerprint'] ?? '' ) ),
-			'client_key_fingerprint'     => $this->signing_auth->sanitize_signed_client_fingerprint( (string) ( $context['client_key_fingerprint'] ?? '' ) ),
-			'sensitivity'                => sanitize_key( (string) ( $context['sensitivity'] ?? 'sensitive' ) ),
-			'data_classes'               => $this->sanitize_string_list( is_array( $context['data_classes'] ?? null ) ? (array) $context['data_classes'] : array() ),
-			'redaction_level'            => sanitize_key( (string) ( $context['redaction_level'] ?? 'strict' ) ),
-			'expires_at'                 => sanitize_text_field( (string) ( $context['expires_at'] ?? '' ) ),
-			'bounds'                     => array(
-				'max_rows'       => absint( $bounds['max_rows'] ?? 0 ),
-				'tail_lines'     => absint( $bounds['tail_lines'] ?? 0 ),
-				'allowed_fields' => $this->sanitize_string_list( is_array( $bounds['allowed_fields'] ?? null ) ? (array) $bounds['allowed_fields'] : array() ),
-				'denied_fields'  => $this->sanitize_string_list( is_array( $bounds['denied_fields'] ?? null ) ? (array) $bounds['denied_fields'] : array() ),
-				'one_time'       => ! empty( $bounds['one_time'] ),
-			),
-			'read_authorization_granted' => true,
-			'core_authorization_truth'   => 'npcink_governance_core',
-			'commit_execution'           => false,
-			'write_execution'            => false,
-		);
-	}
 
 	/**
 	 * Builds the fail-closed response for Core-managed sensitive read authorization.
@@ -5102,206 +5008,13 @@ final class Controller {
 		);
 	}
 
-	/**
-	 * Applies read redaction according to Core read policy.
-	 *
-	 * @param mixed               $result Read result.
-	 * @param array<string,mixed> $read_context Read context.
-	 * @return array{result:mixed,redaction_applied:bool,redaction_summary:array<string,mixed>}
-	 */
-	private function apply_read_redaction( $result, array $read_context ): array {
-		$required = (bool) ( $read_context['redaction_required'] ?? false );
-		$count    = 0;
-		$bounds   = is_array( $read_context['read_authorization_bounds'] ?? null ) ? (array) $read_context['read_authorization_bounds'] : array();
 
-		if ( $required ) {
-			$result = $this->apply_read_bounds( $result, $bounds, $count );
-			$result = $this->redact_read_value( $result, $count, $this->sanitize_string_list( is_array( $bounds['denied_fields'] ?? null ) ? (array) $bounds['denied_fields'] : array() ) );
-		}
 
-		return array(
-			'result'            => $result,
-			'redaction_applied' => $required,
-			'redaction_summary' => array(
-				'policy_applied'       => $required,
-				'redacted_field_count' => $count,
-				'max_rows'             => absint( $bounds['max_rows'] ?? 0 ),
-				'tail_lines'           => absint( $bounds['tail_lines'] ?? 0 ),
-				'allowed_fields'       => $this->sanitize_string_list( is_array( $bounds['allowed_fields'] ?? null ) ? (array) $bounds['allowed_fields'] : array() ),
-				'denied_fields'        => $this->sanitize_string_list( is_array( $bounds['denied_fields'] ?? null ) ? (array) $bounds['denied_fields'] : array() ),
-			),
-		);
-	}
 
-	/**
-	 * Applies Core read bounds to a result tree.
-	 *
-	 * @param mixed               $value Value.
-	 * @param array<string,mixed> $bounds Bounds.
-	 * @param int                 $count Redaction count.
-	 * @return mixed
-	 */
-	private function apply_read_bounds( $value, array $bounds, int &$count ) {
-		$max_rows       = absint( $bounds['max_rows'] ?? 0 );
-		$tail_lines     = absint( $bounds['tail_lines'] ?? 0 );
-		$allowed_fields = $this->sanitize_string_list( is_array( $bounds['allowed_fields'] ?? null ) ? (array) $bounds['allowed_fields'] : array() );
 
-		if ( is_string( $value ) && $tail_lines > 0 ) {
-			$lines = preg_split( '/\R/', $value );
-			if ( is_array( $lines ) && count( $lines ) > $tail_lines ) {
-				$value = implode( "\n", array_slice( $lines, - $tail_lines ) );
-				++$count;
-			}
-			return $value;
-		}
 
-		if ( ! is_array( $value ) ) {
-			return $value;
-		}
 
-		if ( $this->is_list_array( $value ) ) {
-			$items = $max_rows > 0 && count( $value ) > $max_rows ? array_slice( $value, 0, $max_rows ) : $value;
-			if ( count( $items ) !== count( $value ) ) {
-				++$count;
-			}
-			return array_map(
-				function ( $item ) use ( $bounds, &$count ) {
-					return $this->apply_read_bounds( $item, $bounds, $count );
-				},
-				$items
-			);
-		}
 
-		$clean = array();
-		foreach ( $value as $key => $item ) {
-			$key_string = is_string( $key ) ? $key : (string) $key;
-			if ( ! empty( $allowed_fields ) && ! in_array( $key_string, $allowed_fields, true ) && ! $this->is_read_result_structural_key( $key_string ) ) {
-				++$count;
-				continue;
-			}
-			$clean[ $key ] = $this->apply_read_bounds( $item, $bounds, $count );
-		}
-
-		return $clean;
-	}
-
-	/**
-	 * Redacts sensitive values in a read result.
-	 *
-	 * @param mixed $value Value.
-	 * @param int   $count Redacted field count.
-	 * @param array<int,string> $denied_fields Denied fields from Core.
-	 * @return mixed
-	 */
-	private function redact_read_value( $value, int &$count, array $denied_fields = array() ) {
-		if ( ! is_array( $value ) ) {
-			return $value;
-		}
-
-		$denied_fields = array_map( 'strtolower', $denied_fields );
-		$clean         = array();
-		foreach ( $value as $key => $item ) {
-			$key_string     = is_string( $key ) ? $key : (string) $key;
-			$key_normalized = strtolower( $key_string );
-			if ( 'authorization' === $key_normalized && ! in_array( $key_normalized, $denied_fields, true ) && $this->is_safe_governance_authorization_envelope( $item ) ) {
-				$clean[ $key ] = $item;
-				continue;
-			}
-			if ( in_array( $key_normalized, $denied_fields, true ) || $this->is_sensitive_read_key( $key_string ) ) {
-				$clean[ $key ] = '[REDACTED]';
-				++$count;
-				continue;
-			}
-
-			$clean[ $key ] = $this->redact_read_value( $item, $count, $denied_fields );
-		}
-
-		return $clean;
-	}
-
-	/**
-	 * Identifies the bounded non-secret authorization envelope used by Core-ready plans.
-	 *
-	 * @param mixed $value Candidate value.
-	 * @return bool
-	 */
-	private function is_safe_governance_authorization_envelope( $value ): bool {
-		if ( ! is_array( $value ) || array() !== array_diff( array_keys( $value ), array( 'classification', 'authority' ) ) ) {
-			return false;
-		}
-
-		return 'core_proposal_required' === ( $value['classification'] ?? null )
-			&& 'npcink-governance-core' === ( $value['authority'] ?? null );
-	}
-
-	/**
-	 * Returns whether an array is a list.
-	 *
-	 * @param array<mixed> $value Value.
-	 * @return bool
-	 */
-	private function is_list_array( array $value ): bool {
-		if ( function_exists( 'array_is_list' ) ) {
-			return array_is_list( $value );
-		}
-
-		return array_keys( $value ) === range( 0, count( $value ) - 1 );
-	}
-
-	/**
-	 * Returns whether a key is structural and should survive allowed-field filtering.
-	 *
-	 * @param string $key Key.
-	 * @return bool
-	 */
-	private function is_read_result_structural_key( string $key ): bool {
-		return in_array(
-			$key,
-			array( 'ok', 'status', 'data', 'result', 'results', 'items', 'rows', 'entries', 'summary', 'meta', 'metadata', 'counts', 'count', 'total' ),
-			true
-		);
-	}
-
-	/**
-	 * Returns whether a read result key must be redacted.
-	 *
-	 * @param string $key Result key.
-	 * @return bool
-	 */
-	private function is_sensitive_read_key( string $key ): bool {
-		$key = strtolower( $key );
-		foreach ( array( 'password', 'pass', 'secret', 'token', 'authorization', 'cookie', 'nonce', 'user_email', 'email', 'api_key', 'private_key' ) as $needle ) {
-			if ( false !== strpos( $key, $needle ) ) {
-				return true;
-			}
-		}
-
-		return false;
-	}
-
-	/**
-	 * Infers read sensitivity when Core capability guidance predates read policy.
-	 *
-	 * @param string $ability_id Ability id.
-	 * @return string
-	 */
-	private function infer_read_sensitivity( string $ability_id ): string {
-		$ability_id = strtolower( $ability_id );
-
-		foreach ( array( 'diagnostic', 'permissions', 'database', 'error-log', 'plugin-conflict', 'ops' ) as $needle ) {
-			if ( false !== strpos( $ability_id, $needle ) ) {
-				return 'sensitive';
-			}
-		}
-
-		foreach ( array( 'inventory', 'plan', 'media', 'pages', 'posts', 'users', 'menu', 'term', 'workflow' ) as $needle ) {
-			if ( false !== strpos( $ability_id, $needle ) ) {
-				return 'internal';
-			}
-		}
-
-		return 'public';
-	}
 
 	/**
 	 * Dispatches an upstream request while adding governance context to AI logs.

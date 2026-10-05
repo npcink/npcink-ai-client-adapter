@@ -268,6 +268,7 @@ require_once dirname( __DIR__ ) . '/includes/Rest/Upstream_Dispatch.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Dependency_Status.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Execution_Records.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Preflight_Handoffs.php';
+require_once dirname( __DIR__ ) . '/includes/Rest/Read_Governance.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Controller.php';
 
 $reflection = new ReflectionClass( \Npcink\OpenClawAdapter\Rest\Controller::class );
@@ -309,6 +310,16 @@ $preflight_handoffs_property->setValue(
         static function (): string { return ''; }
     )
 );
+$read_governance_property = $reflection->getProperty( 'read_governance' );
+$read_governance_property->setAccessible( true );
+$read_governance_property->setValue(
+    $controller,
+    new Npcink\OpenClawAdapter\Rest\Read_Governance(
+        $dependency_status_property->getValue( $controller ),
+        $signing_auth_property->getValue( $controller ),
+        $preflight_handoffs_property->getValue( $controller )
+    )
+);
 $fingerprint_property = $reflection->getProperty( 'current_signed_client_fingerprint' );
 $fingerprint_property->setAccessible( true );
 $trusted_fingerprint = 'sha256:' . str_repeat( 'a', 64 );
@@ -319,7 +330,7 @@ $safe_authorization = array(
 	'authority'      => 'npcink-governance-core',
 );
 maa_security_assert(
-	true === maa_security_invoke( $controller, 'is_safe_governance_authorization_envelope', array( $safe_authorization ) ),
+	true === maa_security_invoke( $read_governance_property->getValue( $controller ), 'is_safe_authorization_envelope', array( $safe_authorization ) ),
 	'Exact Core proposal authorization envelope is safe to retain.'
 );
 
@@ -346,7 +357,7 @@ $authorization_redaction_args  = array(
 	),
 	&$authorization_redaction_count,
 );
-$authorization_redacted = maa_security_invoke( $controller, 'redact_read_value', $authorization_redaction_args );
+$authorization_redacted = maa_security_invoke( $read_governance_property->getValue( $controller ), 'redact_value', $authorization_redaction_args );
 maa_security_assert( $safe_authorization === ( $authorization_redacted['safe_plan']['authorization'] ?? null ), 'Exact Core proposal authorization envelope survives read redaction.' );
 maa_security_assert( '[REDACTED]' === ( $authorization_redacted['extra_field_case']['authorization'] ?? null ), 'Authorization envelope with an extra secret field is fully redacted.' );
 maa_security_assert( '[REDACTED]' === ( $authorization_redacted['wrong_classification']['authorization'] ?? null ), 'Authorization envelope with another classification is fully redacted.' );
@@ -360,7 +371,7 @@ $denied_authorization_args  = array(
 	&$denied_authorization_count,
 	array( 'Authorization' ),
 );
-$denied_authorization = maa_security_invoke( $controller, 'redact_read_value', $denied_authorization_args );
+$denied_authorization = maa_security_invoke( $read_governance_property->getValue( $controller ), 'redact_value', $denied_authorization_args );
 maa_security_assert( '[REDACTED]' === ( $denied_authorization['authorization'] ?? null ), 'Core denied fields override the safe governance authorization exception regardless of case.' );
 maa_security_assert( 1 === $denied_authorization_count, 'Core-denied governance authorization is counted as redacted.' );
 
