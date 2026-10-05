@@ -24,7 +24,7 @@ trap 'rm -f "$output_file"' EXIT
 "$WP_CLI_PHP_VALUE" "${php_args[@]}" "$WP_CLI_BIN" \
 	--path="$WP_PATH_VALUE" --no-color \
 	plugin check npcink-ai-client-adapter --format=table \
-	--exclude-directories=tests,.git,.github,vendor,node_modules,build,sj,scripts \
+	--exclude-directories=tests,.git,.github,vendor,node_modules,build,sj,scripts,phpstan,docs \
 	--exclude-files=.gitignore,.distignore,AGENTS.md,composer.json,composer.lock,phpcs.xml,phpcs.xml.dist,phpstan.neon,phpstan.neon.dist \
 	| tee "$output_file"
 
