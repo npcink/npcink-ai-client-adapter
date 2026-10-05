@@ -1,4 +1,37 @@
-<?
+<?php
+/**
+ * Static contracts for Npcink AI Client Adapter.
+ *
+ * @package NpcinkOpenClawAdapter
+ */
+
+$root = dirname( __DIR__ );
+
+/**
+ * Assertion helper.
+ *
+ * @param bool   $condition Condition.
+ * @param string $message Message.
+ * @return void
+ */
+function maa_adapter_assert( bool $condition, string $message ): void {
+	if ( ! $condition ) {
+		fwrite( STDERR, '[fail] ' . $message . "\n" );
+		exit( 1 );
+	}
+}
+
+/**
+ * Reads a file.
+ *
+ * @param string $path Path.
+ * @return string
+ */
+function maa_adapter_read( string $path ): string {
+	$contents = is_readable( $path ) ? file_get_contents( $path ) : false;
+	return is_string( $contents ) ? $contents : '';
+}
+
 /**
  * Returns the sorted aggregation of every first-party runtime PHP file under includes/.
  *
@@ -32,39 +65,6 @@ function maa_adapter_runtime_sources(): string {
 	}
 
 	return implode( "\n/* --- maa aggregated file boundary --- */\n", $parts );
-}
-php
-/**
- * Static contracts for Npcink AI Client Adapter.
- *
- * @package NpcinkOpenClawAdapter
- */
-
-$root = dirname( __DIR__ );
-
-/**
- * Assertion helper.
- *
- * @param bool   $condition Condition.
- * @param string $message Message.
- * @return void
- */
-function maa_adapter_assert( bool $condition, string $message ): void {
-	if ( ! $condition ) {
-		fwrite( STDERR, '[fail] ' . $message . "\n" );
-		exit( 1 );
-	}
-}
-
-/**
- * Reads a file.
- *
- * @param string $path Path.
- * @return string
- */
-function maa_adapter_read( string $path ): string {
-	$contents = is_readable( $path ) ? file_get_contents( $path ) : false;
-	return is_string( $contents ) ? $contents : '';
 }
 
 /**
@@ -692,8 +692,8 @@ foreach (
 		'adapter_contract_metadata',
 		'dependency_contracts',
 			'dependency_contracts_ready',
-			'dependency_contract_summary',
-			'dependency_contract_boundary_summary',
+			'contract_summary',
+			'contract_boundary_summary',
 			'contract_semantics_supported',
 			'core_boundary_supported',
 			'context_bindings',
@@ -978,7 +978,7 @@ foreach (
 			'batch_review_feedback',
 			'batch_review_feedback_from_proposals',
 			'batch_review_feedback_from_preflight',
-			'batch_review_feedback_from_summary',
+			'feedback_from_summary',
 			'npcink_openclaw_adapter_batch_review_feedback.v1',
 			'core-batch-review-summary-v1',
 			'selected_count',
@@ -1020,15 +1020,15 @@ foreach (
 			'preflight_handoffs',
 			'store_preflight_handoff',
 			'contract_preflight',
-			'consume_cached_preflight_handoff',
-			'prune_preflight_handoffs',
+			'public function consume(',
+			'public function prune(',
 			'validate_preflight_binding',
-			'validate_execution_handoff_binding',
-			'proposal_handoff_ability_ids',
+			'validate_execution_handoff',
+			'handoff_ability_ids',
 			'validate_core_context_site_binding',
-			'validate_core_context_expiry',
+			'validate_context_expiry',
 			'validate_core_context_signed_client_binding',
-			'proposal_input_hash',
+			'input_hash',
 			'npcink_openclaw_adapter_preflight_input_hash_mismatch',
 			'npcink_openclaw_adapter_preflight_policy_version_invalid',
 			'npcink_openclaw_adapter_preflight_expired',
@@ -1097,8 +1097,8 @@ foreach (
 				'unmatched_rules',
 				'compact_execution_verification',
 				'block_write_readback_verification',
-				'sanitize_public_verification_summary',
-				'aggregate_execution_verification',
+				'sanitize_verification_summary',
+				'aggregate_verification',
 				'block_readback_status',
 				'block_readback_verified_count',
 				'post_reference_count',
@@ -1407,7 +1407,11 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	maa_adapter_assert( false !== strpos( $nonce_expiry, 'SELECT option_value FROM' ) && false === strpos( $nonce_expiry, 'get_option(' ), 'Signature nonce expiry reads bypass the shared options cache.' );
 	maa_adapter_assert( false !== strpos( $nonce_claim, 'wp_rand( 1, 64 )' ), 'Signature nonce cleanup sampling is not controlled by client nonce values.' );
 	maa_adapter_assert( false === strpos( $controller, 'dbDelta(' ) && false === strpos( $controller, 'CREATE TABLE' ), 'Adapter controller does not create custom WordPress tables.' );
-	$core_token_source = substr( $controller, (int) strpos( $controller, 'private function core_app_token_source' ), 900 );
+	$core_token_start = strpos( $controller_contract, 'public function core_app_token_source' );
+	maa_adapter_assert( false !== $core_token_start, 'Core app token source function exists.' );
+	$core_token_source = substr( $controller_contract, $core_token_start, (int) strpos( $controller_contract, "
+	}
+", $core_token_start ) - $core_token_start );
 	maa_adapter_assert( false !== strpos( $core_token_source, 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) && false !== strpos( $core_token_source, "return 'environment';" ), 'Core app token source is restricted to constant or environment configuration.' );
 	maa_adapter_assert( false === strpos( $core_token_source, 'get_option(' ), 'Core app token source does not read plaintext WordPress options.' );
 	$caller_context = substr( $controller, (int) strpos( $controller, 'private function proposal_caller_context' ), 1900 );
@@ -1443,15 +1447,19 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 			"const PREFLIGHT_HANDOFFS_OPTION            = 'npcink_openclaw_adapter_preflight_handoffs'",
 			'const MAX_PREFLIGHT_HANDOFFS               = 500;',
 			'const PREFLIGHT_HANDOFF_RETENTION_TTL      = 900',
-			'private function preflight_handoffs()',
-			'private function prune_preflight_handoffs',
-			'update_option( self::PREFLIGHT_HANDOFFS_OPTION, $records, false )',
+			'public function handoffs()',
+			'public function prune',
+			'update_option( Controller::PREFLIGHT_HANDOFFS_OPTION, $records, false )',
 			'consume_cached_preflight_handoff',
 		) as $required_preflight_handoff_boundary
 	) {
 		maa_adapter_assert( false !== strpos( $controller, $required_preflight_handoff_boundary ), 'Adapter preflight handoffs remain bounded bridge state: ' . $required_preflight_handoff_boundary );
 	}
-	$upstream_dispatch = substr( $controller, (int) strpos( $controller, 'private function dispatch_upstream( string' ), 1600 );
+	$upstream_send_start = strpos( $controller_contract, 'public function send( string $method' );
+	maa_adapter_assert( false !== $upstream_send_start, 'Upstream send transport function exists.' );
+	$upstream_dispatch = substr( $controller_contract, $upstream_send_start, (int) strpos( $controller_contract, "
+	}
+", $upstream_send_start ) - $upstream_send_start );
 	maa_adapter_assert( false !== strpos( $upstream_dispatch, 'x-npcink-adapter-signed-client-fingerprint' ), 'Adapter forwards signed client fingerprint to Core app-token requests.' );
 	maa_adapter_assert( false !== strpos( $upstream_dispatch, 'x-npcink-adapter-client-key-fingerprint' ), 'Adapter forwards compatible client key fingerprint alias to Core app-token requests.' );
 	maa_adapter_assert( false !== strpos( $controller_contract, "'npcink_conn_'" ), 'Device pairing creates Npcink-branded connection ids.' );
@@ -1476,11 +1484,11 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	$requested_scopes = substr( $signing_auth, (int) strpos( $signing_auth, 'public function requested_scopes' ), 900 );
 	maa_adapter_assert( false !== strpos( $requested_scopes, "'npcink.execute' => true" ), 'Device pairing can explicitly request npcink.execute.' );
 	maa_adapter_assert( false !== strpos( $requested_scopes, "\$default_scopes = array( 'npcink.read', 'npcink.propose', 'npcink.status' );" ), 'Device pairing defaults do not silently grant execute scope.' );
-	$plan_batch_metadata = substr( $controller, (int) strpos( $controller, 'private function normalize_plan_batch_metadata' ), 1400 );
+	$plan_batch_metadata = substr( $controller, (int) strpos( $controller_contract, 'public function normalize_batch_metadata' ), 1400 );
 maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['proposal_mode']            = 'batch';" ), 'Adapter makes dependent plan batches explicit before Core from-plan forwarding.' );
 maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['batch_approval']           = true;" ), 'Adapter makes dependent plan batch approval explicit before Core from-plan forwarding.' );
 maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['atomicity']                = 'non_atomic';" ) && false !== strpos( $plan_batch_metadata, "\$plan['partial_success_possible'] = true;" ), 'Adapter declares batch execution as non-atomic with possible partial success.' );
-$plan_write_input_validation = substr( $controller, (int) strpos( $controller, 'private function validate_plan_write_action_inputs' ), 3000 );
+$plan_write_input_validation = substr( $controller_contract, (int) strpos( $controller_contract, 'public function validate_plan_write_actions' ), 3000 );
 maa_adapter_assert( false !== strpos( $plan_write_input_validation, "\$proposal_ready = array_key_exists( 'proposal_ready', \$raw_action )" ) && false !== strpos( $plan_write_input_validation, "\$requires_input = array_values( array_map( 'sanitize_key', (array) ( \$raw_action['requires_input'] ?? array() ) ) )" ) && false !== strpos( $plan_write_input_validation, "'npcink_openclaw_adapter_plan_action_input_invalid'" ), 'Adapter rejects malformed and requires-input plan actions before Core proposal forwarding.' );
 maa_adapter_assert( false !== strpos( $controller, 'min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint' ), 'Adapter list routes clamp caller supplied limits.' );
 maa_adapter_assert( false === strpos( $controller, 'HTTP_USER_AGENT' ), 'Public pairing rate limit is not weakened by caller-controlled user agents.' );

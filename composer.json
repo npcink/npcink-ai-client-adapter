@@ -15,7 +15,7 @@
     "lint:php": "find . -name '*.php' -not -path './.git/*' -not -path './build/*' -not -path './vendor/*' -not -path './node_modules/*' -print0 | xargs -0 -n1 php -l",
     "analyse:php": "vendor/bin/phpstan analyse --memory-limit=1G",
     "lint:standards": "vendor/bin/phpcs -d memory_limit=2G",
-    "test": "php tests/run.php",
+    "test": "@php tests/run.php 2>&1 | tee /dev/stderr | grep -q 'Static contracts: ok'",
     "test:execution-input-validator": "php tests/execution-input-validator-behavior.php",
     "test:execution-action-runner": "php tests/execution-action-runner-behavior.php",
     "test:security-hardening": "php tests/security-hardening-behavior.php",
