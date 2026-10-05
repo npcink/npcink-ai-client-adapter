@@ -94,13 +94,6 @@ final class Controller {
 	private $dependency_contracts_cache = null;
 
 	/**
-	 * Request-local Core capability discovery cache.
-	 *
-	 * @var array<string,mixed>|null
-	 */
-	private $core_capabilities_cache = null;
-
-	/**
 	 * Adapter-owned execution input validator.
 	 *
 	 * @var Execution_Input_Validator
@@ -129,13 +122,32 @@ final class Controller {
 	private $execution_records;
 
 	/**
+	 * Upstream Core/Toolkit REST transport service.
+	 *
+	 * @var Upstream_Dispatch
+	 */
+	private $upstream_dispatch;
+
+	/**
 	 * Creates the REST controller with the canonical execution profile rules.
 	 */
 	public function __construct() {
-		$this->execution_records         = new Execution_Records();
 		$this->signing_auth              = new Signing_Auth(
 			function ( string $event_kind, float $started, $error, array $context = array() ): void {
 				$this->emit_operation_event( $event_kind, $started, $error, $context );
+			}
+		);
+		$this->execution_records         = new Execution_Records();
+		$this->upstream_dispatch         = new Upstream_Dispatch(
+			$this->signing_auth,
+			function ( string $event_kind, float $started, $error, array $context = array() ): void {
+				$this->emit_operation_event( $event_kind, $started, $error, $context );
+			},
+			function ( string $route ) {
+				return $this->missing_dependency_for_route( $route );
+			},
+			function (): string {
+				return $this->current_signed_client_fingerprint();
 			}
 		);
 		$this->execution_input_validator = new Execution_Input_Validator( self::execution_profiles() );
@@ -2076,8 +2088,7 @@ final class Controller {
 
 		$data = $response->get_data();
 		if ( is_array( $data ) ) {
-			$this->core_capabilities_cache = $data;
-			set_transient( 'npcink_openclaw_adapter_core_capabilities_v1', $data, self::DISCOVERY_CACHE_TTL );
+			$this->upstream_dispatch->prime_capabilities( $data );
 		}
 
 		return $response;
@@ -6457,6 +6468,50 @@ final class Controller {
 	}
 
 	/**
+	 * Sends one upstream REST request with request-scoped identity context.
+	 *
+	 * @param string $method HTTP method.
+	 * @param string $route REST route.
+	 * @param array<string,mixed> $params Params.
+	 * @param bool   $query_params Whether params should be query params.
+	 * @param bool   $json_body Whether params should be encoded as JSON body.
+	 * @param bool   $use_core_app_token Whether to attach the Core app token.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	private function dispatch_upstream( string $method, string $route, array $params = array(), bool $query_params = false, bool $json_body = false, bool $use_core_app_token = true ) {
+		return $this->upstream_dispatch->send( $method, $route, $params, $query_params, $json_body, $use_core_app_token, $this->current_signed_client_fingerprint() );
+	}
+
+	/**
+	 * Returns where the Core application token is configured.
+	 *
+	 * @return string
+	 */
+	private function core_app_token_source(): string {
+		return $this->upstream_dispatch->core_app_token_source();
+	}
+
+	/**
+	 * Returns whether a REST route is currently registered.
+	 *
+	 * @param string $route Route.
+	 * @return bool
+	 */
+	private function rest_route_available( string $route ): bool {
+		return $this->upstream_dispatch->rest_route_available( $route );
+	}
+
+	/**
+	 * Finds one Core capability by ability id.
+	 *
+	 * @param string $ability_id Ability id.
+	 * @return array<string,mixed>|WP_Error Capability row or discovery error.
+	 */
+	private function find_core_capability( string $ability_id ) {
+		return $this->upstream_dispatch->find_core_capability( $ability_id );
+	}
+
+	/**
 	 * Dispatches an upstream request with host approval runtime context.
 	 *
 	 * @param array<string,mixed> $runtime_context Runtime context.
@@ -6532,251 +6587,11 @@ final class Controller {
 		return $context;
 	}
 
-	/**
-	 * Finds one capability row from Core.
-	 *
-	 * @param string $ability_id Ability id.
-	 * @return array<string,mixed>|WP_Error
-	 */
-	private function find_core_capability( string $ability_id ) {
-		$data = $this->core_capabilities_data();
-		if ( is_wp_error( $data ) ) {
-			return $data;
-		}
 
-		foreach ( (array) ( is_array( $data ) ? ( $data['items'] ?? array() ) : array() ) as $item ) {
-			if ( is_array( $item ) && (string) ( $item['ability_id'] ?? '' ) === $ability_id ) {
-				return $item;
-			}
-		}
 
-		return new WP_Error(
-			'npcink_openclaw_adapter_ability_not_found',
-			__( 'The requested ability is not discoverable through Core.', 'npcink-ai-client-adapter' ),
-			array( 'status' => 404 )
-		);
-	}
 
-	/**
-	 * Returns Core capability discovery with request-local and short transient caching.
-	 *
-	 * @return array<string,mixed>|WP_Error
-	 */
-	private function core_capabilities_data() {
-		if ( is_array( $this->core_capabilities_cache ) ) {
-			return $this->core_capabilities_cache;
-		}
 
-		$cached = get_transient( 'npcink_openclaw_adapter_core_capabilities_v1' );
-		if ( is_array( $cached ) ) {
-			$this->core_capabilities_cache = $cached;
-			return $cached;
-		}
 
-		$response = $this->dispatch_upstream( 'GET', '/npcink-governance-core/v1/capabilities' );
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-
-		$data = $response->get_data();
-		if ( ! is_array( $data ) ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_invalid_core_capabilities',
-				__( 'Core capabilities response is invalid.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 502 )
-			);
-		}
-
-		$this->core_capabilities_cache = $data;
-		set_transient( 'npcink_openclaw_adapter_core_capabilities_v1', $data, self::DISCOVERY_CACHE_TTL );
-
-		return $data;
-	}
-
-	/**
-	 * Dispatches an internal REST request.
-	 *
-	 * @param string              $method HTTP method.
-	 * @param string              $route REST route.
-	 * @param array<string,mixed> $params Params.
-	 * @param bool                $query_params Whether params should be query params.
-	 * @param bool                $json_body Whether params should be encoded as JSON body.
-	 * @param bool                $use_core_app_token Whether configured Core app token should be used.
-	 * @return WP_REST_Response|WP_Error
-	 */
-	private function dispatch_upstream( string $method, string $route, array $params = array(), bool $query_params = false, bool $json_body = false, bool $use_core_app_token = true ) {
-		$started          = microtime( true );
-		$dependency_error = $this->missing_dependency_for_route( $route );
-		if ( is_wp_error( $dependency_error ) ) {
-			$this->emit_operation_event(
-				'adapter.core.request',
-				$started,
-				$dependency_error,
-				array(
-					'method'      => strtoupper( $method ),
-					'route'       => $route,
-					'status_code' => $this->error_status_code( $dependency_error, 503 ),
-				)
-			);
-
-			return $dependency_error;
-		}
-
-		$request = new WP_REST_Request( $method, $route );
-		$token   = $use_core_app_token ? $this->core_app_token() : '';
-		$user_id = get_current_user_id();
-
-		if ( '' !== $token && 0 === strpos( $route, '/npcink-governance-core/v1/' ) ) {
-			$request->set_header( 'x-npcink-governance-core-app-token', $token );
-			$fingerprint = $this->current_signed_client_fingerprint();
-			if ( '' !== $fingerprint ) {
-				$request->set_header( 'x-npcink-adapter-signed-client-fingerprint', $fingerprint );
-				$request->set_header( 'x-npcink-adapter-client-key-fingerprint', $fingerprint );
-			}
-			wp_set_current_user( 0 );
-		}
-
-		if ( $query_params ) {
-			$request->set_query_params( $params );
-		} elseif ( $json_body ) {
-			$request->set_header( 'content-type', 'application/json' );
-			$request->set_body( (string) wp_json_encode( $params ) );
-		} else {
-			foreach ( $params as $key => $value ) {
-				$request->set_param( $key, $value );
-			}
-		}
-
-		$response = rest_do_request( $request );
-		if ( '' !== $token && 0 === strpos( $route, '/npcink-governance-core/v1/' ) ) {
-			wp_set_current_user( $user_id );
-		}
-		$status = (int) $response->get_status();
-
-		if ( $status < 200 || $status >= 300 ) {
-			$data    = $response->get_data();
-			$code    = is_array( $data ) ? (string) ( $data['code'] ?? 'npcink_openclaw_adapter_upstream_failed' ) : 'npcink_openclaw_adapter_upstream_failed';
-			$message = is_array( $data ) ? (string) ( $data['message'] ?? __( 'The upstream WordPress REST request failed.', 'npcink-ai-client-adapter' ) ) : __( 'The upstream WordPress REST request failed.', 'npcink-ai-client-adapter' );
-
-			$this->emit_operation_event(
-				'adapter.core.request',
-				$started,
-				new WP_Error( $code, $message, array( 'status' => $status ) ),
-				array(
-					'method'      => strtoupper( $method ),
-					'route'       => $route,
-					'status_code' => $status,
-				)
-			);
-
-			return new WP_Error(
-				$code,
-				$message,
-				array(
-					'status'         => $status,
-					'upstream_route' => $route,
-					'upstream_data'  => $this->public_upstream_error_data( $data ),
-				)
-			);
-		}
-
-		$this->emit_operation_event(
-			'adapter.core.request',
-			$started,
-			null,
-			array(
-				'method'      => strtoupper( $method ),
-				'route'       => $route,
-				'status_code' => $status,
-			)
-		);
-
-		return new WP_REST_Response( $response->get_data(), $status );
-	}
-
-	/**
-	 * Returns a bounded, redacted upstream error summary for public Adapter errors.
-	 *
-	 * @param mixed $data Upstream response data.
-	 * @return array<string,mixed>
-	 */
-	private function public_upstream_error_data( $data ): array {
-		$summary = $this->sanitize_public_response_value( $data, 0 );
-		if ( ! is_array( $summary ) ) {
-			$summary = array( 'message' => (string) $summary );
-		}
-
-		$encoded = wp_json_encode( $summary );
-		if ( is_string( $encoded ) && strlen( $encoded ) > self::MAX_UPSTREAM_ERROR_DETAIL_BYTES ) {
-			return array(
-				'truncated' => true,
-				'bytes'     => strlen( $encoded ),
-				'code'      => sanitize_key( (string) ( $summary['code'] ?? '' ) ),
-				'message'   => sanitize_text_field( (string) ( $summary['message'] ?? __( 'The upstream WordPress REST request failed.', 'npcink-ai-client-adapter' ) ) ),
-			);
-		}
-
-		return $summary;
-	}
-
-	/**
-	 * Sanitizes a value for bounded public diagnostics.
-	 *
-	 * @param mixed $value Value.
-	 * @param int   $depth Current depth.
-	 * @return mixed
-	 */
-	private function sanitize_public_response_value( $value, int $depth ) {
-		if ( $depth > 4 ) {
-			return '[truncated]';
-		}
-
-		if ( is_scalar( $value ) || null === $value ) {
-			if ( is_string( $value ) ) {
-				return $this->bounded_text_field( $value, 500 );
-			}
-			return $value;
-		}
-
-		if ( ! is_array( $value ) ) {
-			return '[unsupported]';
-		}
-
-		$output = array();
-		$index  = 0;
-		foreach ( $value as $key => $child ) {
-			if ( $index >= 50 ) {
-				$output['truncated'] = true;
-				break;
-			}
-			$key_text = is_string( $key ) ? sanitize_key( $key ) : $key;
-			if ( is_string( $key ) && $this->is_sensitive_public_response_key( $key ) ) {
-				$output[ $key_text ] = '[redacted]';
-			} else {
-				$output[ $key_text ] = $this->sanitize_public_response_value( $child, $depth + 1 );
-			}
-			++$index;
-		}
-
-		return $output;
-	}
-
-	/**
-	 * Returns whether a public diagnostic key should be redacted.
-	 *
-	 * @param string $key Key.
-	 * @return bool
-	 */
-	private function is_sensitive_public_response_key( string $key ): bool {
-		$key = strtolower( $key );
-		foreach ( array( 'password', 'token', 'secret', 'credential', 'authorization', 'cookie', 'nonce', 'signature', 'private_key', 'prompt', 'content', 'html', 'blocks' ) as $needle ) {
-			if ( false !== strpos( $key, $needle ) ) {
-				return true;
-			}
-		}
-
-		return false;
-	}
 
 	/**
 	 * Returns suite dependency status for productized Adapter entry.
@@ -6900,53 +6715,8 @@ final class Controller {
 		return $response;
 	}
 
-	/**
-	 * Returns whether a REST route is registered.
-	 *
-	 * @param string $route REST route.
-	 * @return bool
-	 */
-	private function rest_route_available( string $route ): bool {
-		$routes = rest_get_server()->get_routes();
-		return isset( $routes[ $route ] );
-	}
 
-	/**
-	 * Returns the configured Core app token without exposing it in responses.
-	 *
-	 * @return string
-	 */
-	private function core_app_token(): string {
-		$source = $this->core_app_token_source();
-		if ( 'constant' === $source ) {
-			return trim( (string) constant( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) );
-		}
 
-		if ( 'environment' === $source ) {
-			$env_token = getenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
-			return trim( (string) $env_token );
-		}
-
-		return '';
-	}
-
-	/**
-	 * Returns the configured Core app token source without exposing the token.
-	 *
-	 * @return string constant|environment|none
-	 */
-	private function core_app_token_source(): string {
-		if ( defined( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) && '' !== trim( (string) constant( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' ) ) ) {
-			return 'constant';
-		}
-
-		$env_token = getenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
-		if ( is_string( $env_token ) && '' !== trim( $env_token ) ) {
-			return 'environment';
-		}
-
-		return 'none';
-	}
 
 	/**
 	 * Returns request input.

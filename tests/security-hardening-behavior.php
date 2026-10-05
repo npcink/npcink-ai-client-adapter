@@ -264,6 +264,7 @@ function maa_security_media_derivative_artifact( array $overrides = array() ): a
 
 require_once dirname( __DIR__ ) . '/includes/Rest/Contract_Metadata.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Signing_Auth.php';
+require_once dirname( __DIR__ ) . '/includes/Rest/Upstream_Dispatch.php';
 require_once dirname( __DIR__ ) . '/includes/Rest/Controller.php';
 
 $reflection = new ReflectionClass( \Npcink\OpenClawAdapter\Rest\Controller::class );
@@ -274,6 +275,17 @@ $signing_auth_property->setValue(
     $controller,
     new Npcink\OpenClawAdapter\Rest\Signing_Auth(
         static function ( string $event_kind, float $started, $error, array $context = array() ): void {}
+    )
+);
+$upstream_dispatch_property = $reflection->getProperty( 'upstream_dispatch' );
+$upstream_dispatch_property->setAccessible( true );
+$upstream_dispatch_property->setValue(
+    $controller,
+    new Npcink\OpenClawAdapter\Rest\Upstream_Dispatch(
+        $signing_auth_property->getValue( $controller ),
+        static function ( string $event_kind, float $started, $error, array $context = array() ): void {},
+        static function ( string $route ) { return null; },
+        static function (): string { return ''; }
     )
 );
 $fingerprint_property = $reflection->getProperty( 'current_signed_client_fingerprint' );
@@ -444,11 +456,11 @@ maa_security_assert( ! isset( $deep_context['level_one']['level_two']['level_thr
 $previous_token = getenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
 putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN=environment-token' );
 maa_security_assert( 'environment' === maa_security_invoke( $controller, 'core_app_token_source' ), 'Core app token accepts environment source.' );
-maa_security_assert( 'environment-token' === maa_security_invoke( $controller, 'core_app_token' ), 'Core app token reads environment value.' );
+maa_security_assert( 'environment-token' === maa_security_invoke( $upstream_dispatch_property->getValue( $controller ), 'core_app_token' ), 'Core app token reads environment value.' );
 putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN' );
 $GLOBALS['maa_security_options']['npcink_openclaw_adapter_core_app_token'] = 'legacy-option-token';
 maa_security_assert( 'none' === maa_security_invoke( $controller, 'core_app_token_source' ), 'Legacy plaintext option is ignored.' );
-maa_security_assert( '' === maa_security_invoke( $controller, 'core_app_token' ), 'Legacy plaintext option is not returned.' );
+maa_security_assert( '' === maa_security_invoke( $upstream_dispatch_property->getValue( $controller ), 'core_app_token' ), 'Legacy plaintext option is not returned.' );
 if ( false !== $previous_token ) {
 	putenv( 'NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN=' . $previous_token );
 }
