@@ -41,10 +41,10 @@ final class Controller {
 	const MAX_EXECUTION_RECORDS                = 500;
 	const MAX_PREFLIGHT_HANDOFFS               = 500;
 	const EXECUTION_LOCK_TTL                   = 300;
-	const DISCOVERY_CACHE_TTL                  = 60;
+	const DISCOVERY_CACHE_TTL                  = Upstream_Dispatch::DISCOVERY_CACHE_TTL;
 	const PREFLIGHT_HANDOFF_RETENTION_TTL      = 900;
 	const EXECUTION_RECORD_RETENTION_TTL       = 604800;
-	const MAX_UPSTREAM_ERROR_DETAIL_BYTES      = 8192;
+	const MAX_UPSTREAM_ERROR_DETAIL_BYTES      = Upstream_Dispatch::MAX_UPSTREAM_ERROR_DETAIL_BYTES;
 	const CLIENT_KEY_LAST_USED_WRITE_TTL       = 60;
 	const MAX_REST_BODY_BYTES                  = 1048576;
 	const MAX_PROPOSAL_LIST_LIMIT              = 100;
@@ -1343,7 +1343,7 @@ final class Controller {
 	 * @param array<string,mixed> $preflight Preflight response.
 	 * @return array<string,mixed>
 	 */
-	private function preflight_operator_feedback( $error, array $proposal, array $preflight = array() ): array {
+	private function preflight_operator_feedback( ?WP_Error $error, array $proposal, array $preflight = array() ): array {
 		return $this->proposal_review->preflight_feedback( $error, $proposal, $preflight );
 	}
 
