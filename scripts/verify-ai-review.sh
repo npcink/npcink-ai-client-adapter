@@ -298,7 +298,11 @@ if [ -z "${summary_body}" ]; then
 		fail "no OpenCodeReview summary comment for run ${run_id} attempt ${attempt}; delivery contract unverifiable"
 	fi
 else
-	expected_findings="$(printf '%s\n' "${summary_body}" | grep -oE 'found \*\*[0-9]+\*\*' | grep -oE '[0-9]+' | head -1 || true)"
+	found_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'found \*\*[0-9]+\*\*' | grep -oE '[0-9]+' | sort -u)"
+	if [ "$(printf '%s\n' "${found_counts}" | grep -c . || true)" -gt 1 ]; then
+		fail "ambiguous OpenCodeReview summary for run ${run_id} attempt ${attempt} (multiple differing counts); failing closed"
+	fi
+	expected_findings="${found_counts}"
 	case "${expected_findings}" in
 		''|*[!0-9]*)
 			fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
