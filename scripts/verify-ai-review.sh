@@ -419,13 +419,15 @@ if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 			path = ""
 		}
 		# Embedded blocks render as: badge line, then the "### `path` (Lx-Ly)"
-		# header, then the description.
+		# header, then the description. A buffered badge only belongs to a
+		# block when the header follows it directly; badge-like lines inside
+		# a description are discarded.
 		/^### .*\(L[0-9]+-L[0-9]+\)$/ {
 			flush()
 			path = $0
 			sub(/^### [^`]*`/, "", path)
 			sub(/`.*$/, "", path)
-			line = "?"
+			line = "L?"
 			if (match($0, /\(L[0-9]+-/)) { line = "L" substr($0, RSTART + 2, RLENGTH - 3) }
 			label = pending_badge != "" ? pending_badge : "finding"
 			pending_badge = ""
@@ -435,6 +437,8 @@ if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 			if (match($0, /!\[[^]]*\]/)) { pending_badge = substr($0, RSTART + 2, RLENGTH - 3) }
 			next
 		}
+		NF == 0 { next }
+		{ pending_badge = "" }
 		END { flush() }
 	')"
 	embedded_count="$(printf '%s\n' "${embedded}" | grep -c . || true)"
