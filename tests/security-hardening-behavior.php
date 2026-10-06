@@ -102,6 +102,26 @@ function get_option( $name, $default = false ) {
 	return array_key_exists( $name, $GLOBALS['maa_security_options'] ) ? $GLOBALS['maa_security_options'][ $name ] : $default;
 }
 
+function add_option( $name, $value, $deprecated = '', $autoload = null ): bool {
+	if ( array_key_exists( $name, $GLOBALS['maa_security_options'] ) ) {
+		return false;
+	}
+	$GLOBALS['maa_security_options'][ $name ] = $value;
+	return true;
+}
+
+function delete_option( $name ): bool {
+	if ( ! array_key_exists( $name, $GLOBALS['maa_security_options'] ) ) {
+		return false;
+	}
+	unset( $GLOBALS['maa_security_options'][ $name ] );
+	return true;
+}
+
+function wp_generate_password( $length = 12, $special_chars = true, $extra_special_chars = false ): string {
+	return substr( bin2hex( random_bytes( (int) ceil( $length / 2 ) + 1 ) ), 0, (int) $length );
+}
+
 function maybe_serialize( $value ) {
 	return is_array( $value ) || is_object( $value ) ? serialize( $value ) : $value;
 }
@@ -673,5 +693,103 @@ if ( ! function_exists( 'sodium_crypto_sign_verify_detached' ) ) {
 
 	fwrite( STDOUT, "Signed request auth behavior: ok\n" );
 }
+
+// AI review backlog hardening (2026-10-06): token-guarded execution locks
+// and validate-before-burn handoff consumption, covered with standalone
+// domain instances against the option store stub.
+$backlog_execution_records = new Npcink\OpenClawAdapter\Rest\Execution_Records();
+$backlog_signing_auth      = new Npcink\OpenClawAdapter\Rest\Signing_Auth(
+	static function (): void {}
+);
+$backlog_current_fingerprint = '';
+$backlog_handoffs            = new Npcink\OpenClawAdapter\Rest\Preflight_Handoffs(
+	$backlog_execution_records,
+	$backlog_signing_auth,
+	static function () use ( &$backlog_current_fingerprint ): string {
+		return $backlog_current_fingerprint;
+	}
+);
+
+// Lock acquisition returns key + token; a live lock contends; an expired
+// lock is taken over in place; a stale holder's release leaves the newer
+// lock alone.
+$backlog_lock = $backlog_execution_records->acquire_lock( 'backlog-lock-proposal' );
+maa_security_assert( is_array( $backlog_lock ) && isset( $backlog_lock[0], $backlog_lock[1] ), 'Execution lock acquisition returns a key and a token.' );
+maa_security_assert( is_wp_error( $backlog_execution_records->acquire_lock( 'backlog-lock-proposal' ) ), 'Live execution lock contends with a second acquisition.' );
+$backlog_lock_row = $GLOBALS['maa_security_options'][ $backlog_lock[0] ] ?? array();
+maa_security_assert( is_array( $backlog_lock_row ) && ! empty( $backlog_lock_row['token'] ), 'Stored execution lock carries a token.' );
+$backlog_lock_row['expires_at'] = time() - 1;
+$GLOBALS['maa_security_options'][ $backlog_lock[0] ] = $backlog_lock_row;
+$backlog_new_lock = $backlog_execution_records->acquire_lock( 'backlog-lock-proposal' );
+maa_security_assert( is_array( $backlog_new_lock ), 'Expired execution lock is taken over in place.' );
+$backlog_execution_records->release_lock( $backlog_lock[0], $backlog_lock[1] );
+maa_security_assert( is_array( $GLOBALS['maa_security_options'][ $backlog_new_lock[0] ] ?? null ), 'Stale holder release leaves the newer holder lock in place.' );
+$backlog_execution_records->release_lock( $backlog_new_lock[0], $backlog_new_lock[1] );
+maa_security_assert( ! isset( $GLOBALS['maa_security_options'][ $backlog_new_lock[0] ] ), 'Current holder release deletes the lock.' );
+
+// Unbound Core contexts fail closed for signed clients, pass for unsigned
+// session flows.
+$backlog_current_fingerprint = 'sha256:' . str_repeat( 'b', 64 );
+$backlog_unbound = $backlog_handoffs->validate_context_signed_client( array(), 'npcink_openclaw_adapter_backlog', 409 );
+maa_security_assert(
+	is_wp_error( $backlog_unbound ) && 'npcink_openclaw_adapter_backlog_signed_client_fingerprint_missing' === $backlog_unbound->get_error_code(),
+	'Unbound Core context is rejected while the request carries a signed client fingerprint.'
+);
+$backlog_current_fingerprint = '';
+maa_security_assert( true === $backlog_handoffs->validate_context_signed_client( array(), 'npcink_openclaw_adapter_backlog', 409 ), 'Unbound Core context still passes for unsigned session flows.' );
+
+// Handoff consumption: hash binding is required on the handoff itself, and
+// a failed validation must not burn the one-time record.
+$backlog_proposal = array(
+	'proposal_id' => 'backlog-handoff-proposal',
+	'ability_id'  => 'npcink-toolbox/backlog-test',
+	'input'       => array( 'kind' => 'backlog' ),
+);
+$backlog_hash        = $backlog_handoffs->input_hash( $backlog_proposal );
+$backlog_expires     = gmdate( 'c', time() + 600 );
+$backlog_preflight   = array(
+	'commit_execution' => false,
+	'correlation_id'   => 'corr-backlog-1',
+	'approval_context' => array(
+		'proposal_id'                => 'backlog-handoff-proposal',
+		'approval_commit_authorized' => true,
+		'approved_input_hash'        => $backlog_hash,
+		'policy_version'             => 'core-preflight-v1',
+		'expires_at'                 => $backlog_expires,
+	),
+	'execution_handoff' => array(
+		'executor'            => 'adapter_after_core_preflight',
+		'execution_surface'   => 'wp_abilities_rest',
+		'core_proxy_execute'  => false,
+		'commit_execution'    => false,
+		'proposal_id'         => 'backlog-handoff-proposal',
+		'ability_id'          => 'npcink-toolbox/backlog-test',
+		'correlation_id'      => 'corr-backlog-1',
+		'approved_input_hash' => $backlog_hash,
+		'policy_version'      => 'core-preflight-v1',
+		'expires_at'          => $backlog_expires,
+	),
+);
+$backlog_no_handoff_hash                       = $backlog_preflight;
+$backlog_no_handoff_hash['execution_handoff']  = $backlog_preflight['execution_handoff'];
+unset( $backlog_no_handoff_hash['execution_handoff']['approved_input_hash'] );
+$backlog_missing_hash_binding = $backlog_handoffs->validate_binding( 'backlog-handoff-proposal', $backlog_proposal, $backlog_no_handoff_hash );
+maa_security_assert(
+	is_wp_error( $backlog_missing_hash_binding ) && 'npcink_openclaw_adapter_preflight_handoff_input_hash_missing' === $backlog_missing_hash_binding->get_error_code(),
+	'Execution handoff without its own approved input hash is rejected.'
+);
+maa_security_assert( null === $backlog_handoffs->store( 'backlog-handoff-proposal', $backlog_proposal, $backlog_no_handoff_hash ), 'Handoff without its own hash binding is not stored.' );
+
+maa_security_assert( is_array( $backlog_handoffs->store( 'backlog-handoff-proposal', $backlog_proposal, $backlog_preflight ) ), 'Fully bound handoff stores.' );
+
+$backlog_wrong_input                     = $backlog_proposal;
+$backlog_wrong_input['input']['kind']    = 'mutated';
+maa_security_assert( null === $backlog_handoffs->consume( 'backlog-handoff-proposal', $backlog_wrong_input ), 'Handoff consumption fails on input hash mismatch.' );
+maa_security_assert( is_array( $backlog_handoffs->cached_for_status( 'backlog-handoff-proposal', $backlog_proposal ) ), 'Failed validation does not burn the stored handoff.' );
+
+maa_security_assert( is_array( $backlog_handoffs->consume( 'backlog-handoff-proposal', $backlog_proposal ) ), 'Matching handoff consumption succeeds.' );
+maa_security_assert( null === $backlog_handoffs->cached_for_status( 'backlog-handoff-proposal', $backlog_proposal ), 'Successful consumption burns the one-time handoff.' );
+
+fwrite( STDOUT, "Governed write backlog hardening: ok\n" );
 
 fwrite( STDOUT, "Security hardening behavior: ok\n" );

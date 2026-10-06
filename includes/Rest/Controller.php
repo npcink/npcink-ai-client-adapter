@@ -3765,15 +3765,15 @@ final class Controller {
 	 * @return array<string,mixed>|WP_Error
 	 */
 	private function execute_core_approved_proposal( WP_REST_Request $request, string $proposal_id, array $proposal ) {
-		$lock_key = $this->acquire_execution_lock( $proposal_id );
-		if ( is_wp_error( $lock_key ) ) {
-			return $lock_key;
+		$lock = $this->acquire_execution_lock( $proposal_id );
+		if ( is_wp_error( $lock ) ) {
+			return $lock;
 		}
 
 		try {
 			return $this->execute_core_approved_proposal_locked( $request, $proposal_id, $proposal );
 		} finally {
-			$this->release_execution_lock( $lock_key );
+			$this->release_execution_lock( $lock[0], $lock[1] );
 		}
 	}
 
@@ -4509,7 +4509,7 @@ final class Controller {
 	 * Acquires the execution lock for a proposal.
 	 *
 	 * @param string $proposal_id Proposal id.
-	 * @return string|WP_Error Lock key or lock contention error.
+	 * @return array{0:string,1:string}|WP_Error Array of lock key and lock token, or lock contention error.
 	 */
 	private function acquire_execution_lock( string $proposal_id ) {
 		return $this->execution_records->acquire_lock( $proposal_id );
@@ -4519,10 +4519,11 @@ final class Controller {
 	 * Releases an execution lock.
 	 *
 	 * @param string $lock_key Lock key.
+	 * @param string $lock_token Lock token from acquisition.
 	 * @return void
 	 */
-	private function release_execution_lock( string $lock_key ): void {
-		$this->execution_records->release_lock( $lock_key );
+	private function release_execution_lock( string $lock_key, string $lock_token = '' ): void {
+		$this->execution_records->release_lock( $lock_key, $lock_token );
 	}
 
 	/**

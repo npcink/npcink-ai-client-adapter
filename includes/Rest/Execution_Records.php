@@ -63,8 +63,8 @@ final class Execution_Records {
 		uasort(
 			$records,
 			static function ( $left, $right ): int {
-				$left_time  = is_array( $left ) ? (string) ( $left['executed_at'] ?? '' ) : '';
-				$right_time = is_array( $right ) ? (string) ( $right['executed_at'] ?? '' ) : '';
+				$left_time  = is_array( $left ) ? (string) ( $left['executed_at'] ?? ( $left['failed_at'] ?? '' ) ) : '';
+				$right_time = is_array( $right ) ? (string) ( $right['executed_at'] ?? ( $right['failed_at'] ?? '' ) ) : '';
 
 				return strcmp( $left_time, $right_time );
 			}
@@ -326,8 +326,18 @@ final class Execution_Records {
 	/**
 	 * Acquires a short per-proposal execution lock.
 	 *
+	 * The lock value carries a unique token: release_lock() deletes the
+	 * option only while the stored token still matches, so a holder whose
+	 * execution outlived the TTL cannot delete a newer holder's live lock.
+	 * Expired rows are taken over by update_option() in place - never by
+	 * delete-then-add, which could destroy a lock another request had just
+	 * acquired - and the takeover is confirmed by reading the token back.
+	 * A takeover confirmed here can still be overwritten microseconds later
+	 * by another takeover; the token-guarded release keeps that later holder
+	 * safe from the earlier holder.
+	 *
 	 * @param string $proposal_id Proposal id.
-	 * @return string|WP_Error Option key when locked.
+	 * @return array{0:string,1:string}|WP_Error Array of lock option key and unique lock token, or lock contention error.
 	 */
 	public function acquire_lock( string $proposal_id ) {
 		$key      = 'npcink_openclaw_adapter_exec_lock_' . md5( $proposal_id );
@@ -345,17 +355,35 @@ final class Execution_Records {
 			);
 		}
 
-		if ( is_array( $existing ) ) {
-			delete_option( $key );
-		}
-
 		$lock = array(
 			'proposal_id' => $proposal_id,
+			'token'       => wp_generate_password( 32, false, false ),
 			'acquired_at' => gmdate( 'c', $now ),
 			'expires_at'  => $now + Controller::EXECUTION_LOCK_TTL,
 		);
-		if ( add_option( $key, $lock, '', false ) ) {
-			return $key;
+
+		if ( ! is_array( $existing ) ) {
+			// add_option() is atomic: it fails when any row exists, so a
+			// concurrent first acquisition cannot be silently overwritten.
+			if ( add_option( $key, $lock, '', false ) ) {
+				return array( $key, $lock['token'] );
+			}
+
+			return new WP_Error(
+				'npcink_openclaw_adapter_execution_in_progress',
+				__( 'This proposal is already being executed. Try again shortly.', 'npcink-ai-client-adapter' ),
+				array(
+					'status'      => 409,
+					'proposal_id' => $proposal_id,
+					'retry_after' => Controller::EXECUTION_LOCK_TTL,
+				)
+			);
+		}
+
+		update_option( $key, $lock, false );
+		$confirm = get_option( $key, null );
+		if ( is_array( $confirm ) && hash_equals( $lock['token'], (string) ( $confirm['token'] ?? '' ) ) ) {
+			return array( $key, $lock['token'] );
 		}
 
 		return new WP_Error(
@@ -371,12 +399,27 @@ final class Execution_Records {
 	/**
 	 * Releases a per-proposal execution lock.
 	 *
-	 * @param string $lock_key Option key.
+	 * Deletes the option only while the stored token still matches this
+	 * holder's acquisition token, so a holder whose execution outlived the
+	 * TTL leaves the newer holder's live lock untouched.
+	 *
+	 * @param string $lock_key Lock option key.
+	 * @param string $lock_token Unique lock token returned by acquire_lock().
 	 * @return void
 	 */
-	public function release_lock( string $lock_key ): void {
-		if ( '' !== $lock_key ) {
-			delete_option( $lock_key );
+	public function release_lock( string $lock_key, string $lock_token = '' ): void {
+		if ( '' === $lock_key ) {
+			return;
 		}
+
+		$stored = get_option( $lock_key, null );
+		if ( ! is_array( $stored ) ) {
+			return;
+		}
+		if ( '' !== $lock_token && ! hash_equals( $lock_token, (string) ( $stored['token'] ?? '' ) ) ) {
+			return;
+		}
+
+		delete_option( $lock_key );
 	}
 }

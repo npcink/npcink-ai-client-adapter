@@ -238,6 +238,17 @@ final class Preflight_Handoffs {
 
 		$context_fingerprint = '' !== $primary ? $primary : $alias;
 		if ( '' === $context_fingerprint ) {
+			// Fail closed: an approval or handoff issued without a client
+			// binding must not be consumable by a signed client - that would
+			// let any signed client replay another client's unbound context.
+			$current_fingerprint = (string) call_user_func( $this->fingerprint_provider );
+			if ( '' !== $current_fingerprint ) {
+				return new WP_Error(
+					$code_prefix . '_signed_client_fingerprint_missing',
+					__( 'Core authorization context is missing the signed client fingerprint binding.', 'npcink-ai-client-adapter' ),
+					array( 'status' => $status )
+				);
+			}
 			return true;
 		}
 
@@ -395,7 +406,23 @@ final class Preflight_Handoffs {
 		$execution_handoff = is_array( $preflight['execution_handoff'] ?? null ) ? $preflight['execution_handoff'] : array();
 		$current_hash      = $this->input_hash( $proposal );
 		$approved_hash     = sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? '' ) );
-		$handoff_hash      = sanitize_text_field( (string) ( $execution_handoff['approved_input_hash'] ?? $approved_hash ) );
+		$handoff_hash      = sanitize_text_field( (string) ( $execution_handoff['approved_input_hash'] ?? '' ) );
+
+		if ( '' === $handoff_hash ) {
+			// The handoff must carry its own binding: falling back to the
+			// approval-context hash made this check vacuous for handoffs
+			// that omit the field.
+			return new WP_Error(
+				'npcink_openclaw_adapter_preflight_handoff_input_hash_missing',
+				__( 'Core execution handoff is missing its approved input hash binding.', 'npcink-ai-client-adapter' ),
+				array(
+					'status'              => 409,
+					'proposal_id'         => $proposal_id,
+					'approved_input_hash' => $approved_hash,
+					'commit_execution'    => false,
+				)
+			);
+		}
 
 		if ( '' === $approved_hash || $approved_hash !== $current_hash || $handoff_hash !== $approved_hash ) {
 			return new WP_Error(
@@ -525,6 +552,13 @@ final class Preflight_Handoffs {
 	/**
 	 * Consumes a cached preflight handoff when it still matches the proposal.
 	 *
+	 * One-time semantics apply to a fully validated consumption only: every
+	 * check runs before the record is removed, so a failed validation
+	 * leaves the handoff retryable instead of burning it. Cross-request
+	 * double consumption is serialized by the caller-held per-proposal
+	 * execution lock (Controller::execute_core_approved_proposal); the
+	 * read-modify-write below relies on that lock, not on option locking.
+	 *
 	 * @param string              $proposal_id Proposal id.
 	 * @param array<string,mixed> $proposal Core proposal.
 	 * @return array<string,mixed>|null
@@ -536,9 +570,6 @@ final class Preflight_Handoffs {
 		if ( empty( $record ) ) {
 			return null;
 		}
-
-		unset( $records[ $key ] );
-		update_option( Controller::PREFLIGHT_HANDOFFS_OPTION, $records, false );
 
 		$preflight        = is_array( $record['preflight'] ?? null ) ? $record['preflight'] : array();
 		$approval_context = is_array( $preflight['approval_context'] ?? null ) ? $preflight['approval_context'] : array();
@@ -561,6 +592,11 @@ final class Preflight_Handoffs {
 		if ( is_wp_error( $binding ) ) {
 			return null;
 		}
+
+		// All validation passed: burn the one-time handoff now, under the
+		// caller-held execution lock.
+		unset( $records[ $key ] );
+		update_option( Controller::PREFLIGHT_HANDOFFS_OPTION, $records, false );
 
 		return $preflight;
 	}
