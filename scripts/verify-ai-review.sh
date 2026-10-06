@@ -93,6 +93,9 @@ esac
 case "${head_sha}" in
 	''|*[!0-9a-fA-F]*) fail '--head-sha must be a commit sha' ;;
 esac
+# The runs API matches head_sha case-sensitively against the lowercase
+# commit sha, so normalize instead of timing out on an uppercase input.
+head_sha="$(printf '%s' "${head_sha}" | tr '[:upper:]' '[:lower:]')"
 
 command -v gh >/dev/null 2>&1 || fail 'GitHub CLI (gh) is required'
 command -v jq >/dev/null 2>&1 || fail 'jq is required'
@@ -114,13 +117,12 @@ run_discovery_max=6
 # result, which the polling loops treat as "not delivered yet" and
 # eventually fail closed.
 latest_review_run() {
-	gh api "repos/${github_repo}/actions/runs?head_sha=${head_sha}&per_page=100" --jq '
-		[.workflow_runs[]
+	gh api --paginate "repos/${github_repo}/actions/runs?head_sha=${head_sha}&per_page=100" \
+	| jq -s '
+		[ .[][]
 			| select(.path == ".github/workflows/ocr-review.yml")
-			| select(.event == "pull_request_target")]
-		| max_by(.run_number)
-		| select(. != null)
-		| {id: .id}
+			| select(.event == "pull_request_target")
+		] | max_by(.run_number) | select(. != null) | {id: .id}
 	' || true
 }
 
@@ -132,7 +134,7 @@ run_field() {
 # Refresh run_json from the pinned run id.
 run_state() {
 	run_json="$(gh api "repos/${github_repo}/actions/runs/${run_id}" \
-		--jq '{status: .status, conclusion: .conclusion, attempt: .run_attempt}' || true)"
+		--jq '{status: .status, conclusion: .conclusion, attempt: .run_attempt, created_at: .created_at}' || true)"
 	[ -n "${run_json}" ]
 }
 
@@ -159,12 +161,16 @@ undelivered_exit() {
 		# repeated --no-review-because run appends to the existing
 		# exceptions section instead of stacking headers.
 		current="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
+		exception_line="- ${stamp} — merged without a delivered OpenCodeReview round (${cause}): ${review_exception}"
 		if printf '%s\n' "${current}" | grep -Eq '^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$'; then
-			new_body="$(printf '%s\n- %s — merged without a delivered OpenCodeReview round (%s): %s\n' \
-				"${current}" "${stamp}" "${cause}" "${review_exception}")"
+			# Insert directly under the existing header: appending at the
+			# body end could land the bullet after any later sections.
+			new_body="$(printf '%s\n' "${current}" | awk -v line="${exception_line}" '
+				!inserted && /^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$/ { print; print line; inserted = 1; next }
+				{ print }
+			')"
 		else
-			new_body="$(printf '%s\n\n## AI Review Exceptions\n\n- %s — merged without a delivered OpenCodeReview round (%s): %s\n' \
-				"${current}" "${stamp}" "${cause}" "${review_exception}")"
+			new_body="$(printf '%s\n\n## AI Review Exceptions\n\n%s\n' "${current}" "${exception_line}")"
 		fi
 		printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null
 		echo "[ai-review-gate] ${cause}; exception recorded in the PR body, proceeding"
@@ -190,6 +196,9 @@ for discovery_attempt in $(seq 1 "${run_discovery_max}"); do
 	sleep 15
 done
 [ -n "${run_id}" ] || undelivered_exit 'no OpenCodeReview run registered for this head'
+
+run_state || undelivered_exit 'the OpenCodeReview run state is unreadable'
+run_created="$(run_field created_at)"
 
 if ! wait_for_completion; then
 	undelivered_exit 'the OpenCodeReview run did not complete in time'
@@ -285,18 +294,32 @@ if ! summary_body="$(
 	fail 'could not fetch pull request comments for the summary reconciliation'
 fi
 if [ -z "${summary_body}" ]; then
-	if ! summary_body="$(
+	# Skipped rounds post an untagged summary, so identity can only be
+	# bounded in time: the newest untagged summary must postdate this
+	# run's creation. An older round's "Review skipped" must not stand in
+	# for a round that never posted its own summary. Residual ambiguity
+	# (a later same-head skipped round) is harmless: the merge is pinned
+	# to this head sha and that round reviewed the same diff.
+	if ! summary_record="$(
 		gh api --paginate "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
 		| jq -rs --arg tag "<!-- ocr-summary -->" \
-			'[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains($tag)) | .body ] | last // empty'
+			'[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains($tag)) ]
+			| last | if . == null then empty else (.created_at + "\t" + .body) end'
 	)"; then
 		fail 'could not fetch pull request comments for the summary reconciliation'
 	fi
-	if printf '%s\n' "${summary_body}" | grep -qF 'Review skipped'; then
-		expected_findings=0
-	else
+	summary_created="${summary_record%%$'\t'*}"
+	summary_body="${summary_record#*$'\t'}"
+	if [ -z "${summary_body}" ]; then
 		fail "no OpenCodeReview summary comment for run ${run_id} attempt ${attempt}; delivery contract unverifiable"
 	fi
+	if [[ "${summary_created}" < "${run_created}" ]]; then
+		fail "the newest untagged summary predates run ${run_id}; no summary posted for this run - failing closed"
+	fi
+	if ! printf '%s\n' "${summary_body}" | grep -qF 'Review skipped'; then
+		fail "no OpenCodeReview summary comment for run ${run_id} attempt ${attempt}; delivery contract unverifiable"
+	fi
+	expected_findings=0
 else
 	found_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'found \*\*[0-9]+\*\*' | grep -oE '[0-9]+' | sort -u)"
 	if [ "$(printf '%s\n' "${found_counts}" | grep -c . || true)" -gt 1 ]; then
