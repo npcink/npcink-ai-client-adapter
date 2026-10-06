@@ -158,7 +158,6 @@ msgstr "LocalWP TLS 选项。仅用于 localhost 或 .local 测试。"
 #: includes/Admin/Connection_Page.php:260
 msgid "I understand this fallback creates a WordPress Application Password and the signed key-pair connection is preferred because only a paired key is an enforced boundary."
 msgstr "我理解此备用方式会创建一个 WordPress 应用密码；推荐使用签名密钥对连接，因为只有已配对的密钥才处于受强制的边界内。"
-"我理解此备用方式会创建 WordPress 应用密码，且优先推荐使用签名密钥连接。"
 
 #: includes/Admin/Connection_Page.php:265
 msgid "Create Application Password connection"
@@ -710,7 +709,7 @@ msgstr "需要 proposal_id。"
 
 #: includes/Rest/Controller.php:4120
 msgid "Approved by Npcink AI Client Adapter approve-and-execute."
-msgstr "由 Npcink OpenClaw 适配器 approve-and-execute 批准。"
+msgstr "由 Npcink AI 客户端适配器 approve-and-execute 批准。"
 
 #: includes/Rest/Controller.php:4140
 msgid "Core did not return an approved proposal state."

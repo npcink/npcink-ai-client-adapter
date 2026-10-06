@@ -65,18 +65,32 @@ function npcink_openclaw_adapter_i18n_entries( $path ) {
 			npcink_openclaw_adapter_i18n_glue( $lines, $i, 'msgid_plural' );
 		}
 
-		$msgstr = '';
+		$msgstr          = '';
+		$plural_msgstrs  = array();
 		if ( $i < $count && 0 === strpos( $lines[ $i ], 'msgstr' ) ) {
 			$msgstr = npcink_openclaw_adapter_i18n_glue( $lines, $i, 'msgstr(?:\[\d+\])?' );
-			while ( $i < $count && 0 === strpos( $lines[ $i ], 'msgstr[' ) ) {
-				npcink_openclaw_adapter_i18n_glue( $lines, $i, 'msgstr(?:\[\d+\])?' );
+			if ( $plural ) {
+				$plural_msgstrs[] = $msgstr;
 			}
+			while ( $i < $count && 0 === strpos( $lines[ $i ], 'msgstr[' ) ) {
+				$form = npcink_openclaw_adapter_i18n_glue( $lines, $i, 'msgstr(?:\[\d+\])?' );
+				if ( $plural ) {
+					$plural_msgstrs[] = $form;
+				}
+			}
+		}
+
+		if ( $plural ) {
+			// A plural entry counts as translated only when at least one
+			// plural form carries a non-empty value; a bare 'plural'
+			// placeholder let all-empty forms pass the coverage guard.
+			$msgstr = '' !== implode( '', $plural_msgstrs ) ? 'plural' : '';
 		}
 
 		$entries[] = array(
 			'comment' => $comment,
 			'msgid'   => $msgid,
-			'msgstr'  => $plural ? 'plural' : $msgstr,
+			'msgstr'  => $msgstr,
 			'plural'  => $plural,
 		);
 		$comment = '';
