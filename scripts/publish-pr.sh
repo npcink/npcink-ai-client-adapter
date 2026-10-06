@@ -208,6 +208,7 @@ if [ -n "${existing_pr}" ]; then
 		retry_network gh pr view "${existing_pr}" --json headRefOid,baseRefName \
 			--jq '.headRefOid + " " + .baseRefName'
 	)"
+	[ -n "${existing_head_base}" ] || fail "could not read head/base of existing pull request ${existing_pr}"
 	existing_head="${existing_head_base%% *}"
 	existing_base="${existing_head_base##* }"
 	[ "${existing_head}" = "${head_sha}" ] \

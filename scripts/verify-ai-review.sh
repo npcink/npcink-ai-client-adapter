@@ -198,14 +198,29 @@ fi
 conclusion="$(run_field conclusion)"
 if [ "${conclusion}" != 'success' ]; then
 	attempt_before="$(run_field attempt)"
+	case "${attempt_before}" in
+		''|*[!0-9]*) undelivered_exit 'the review run state is unreadable' ;;
+	esac
 	echo "[ai-review-gate] review run ${run_id} failed (${conclusion}); re-running its failed jobs once"
 	gh run rerun "${run_id}" --failed >/dev/null 2>&1 || true
-	# The re-run registers as an attempt bump; a short job can also finish
-	# within one poll, so break on either signal - not on status alone.
+	# The re-run registers as an attempt bump, but a short job can also
+	# finish within one poll while the attempt field still lags - and the
+	# pre-rerun conclusion was not success, so a completed+success read
+	# here means the re-run landed. Break on any of the three signals.
 	rerun_settled=0
 	for settle_attempt in 1 2 3 4 5 6; do
 		if run_state; then
-			if [ "$(run_field attempt)" -gt "${attempt_before}" ] || [ "$(run_field status)" != 'completed' ]; then
+			settled=0
+			if [ "$(run_field attempt)" -gt "${attempt_before}" ] 2>/dev/null; then
+				settled=1
+			fi
+			if [ "$(run_field status)" != 'completed' ]; then
+				settled=1
+			fi
+			if [ "$(run_field status)" = 'completed' ] && [ "$(run_field conclusion)" = 'success' ]; then
+				settled=1
+			fi
+			if [ "${settled}" = '1' ]; then
 				rerun_settled=1
 				break
 			fi
@@ -251,7 +266,7 @@ if ! comments_tsv="$(
 )"; then
 	fail 'could not fetch inline review comments for the pull request'
 fi
-findings="$(printf '%s\n' "${comments_tsv}" | awk -F'\t' -v run="${run_id}" -v att="${attempt}" '$2 == run && $3 == att { print $1 "\t" $4 "\t" $5 }')"
+findings="$(printf '%s\n' "${comments_tsv}" | awk -F'\t' -v run="${run_id}" -v att="${attempt}" '$2 == run && $3 == att && !seen[$1]++ { print $1 "\t" $4 "\t" $5 }')"
 finding_count="$(printf '%s\n' "${findings}" | grep -c . || true)"
 
 # Delivery-contract reconciliation: the action's own summary comment for
@@ -262,19 +277,21 @@ finding_count="$(printf '%s\n' "${findings}" | grep -c . || true)"
 # parse miss as "no findings". Skipped rounds post an untagged summary,
 # so a run-tagged body wins; otherwise the newest summary must say
 # "Review skipped" and the marker extraction must be empty.
-summary_body="$(
+if ! summary_body="$(
 	gh api --paginate "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
 	| jq -rs --arg tag "ocr-summary-run:${run_id}-${attempt}" \
-		'[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains($tag)) | .body ] | last // empty' \
-	|| true
-)"
+		'[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains($tag)) | .body ] | last // empty'
+)"; then
+	fail 'could not fetch pull request comments for the summary reconciliation'
+fi
 if [ -z "${summary_body}" ]; then
-	summary_body="$(
+	if ! summary_body="$(
 		gh api --paginate "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
 		| jq -rs --arg tag "<!-- ocr-summary -->" \
-			'[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains($tag)) | .body ] | last // empty' \
-		|| true
-	)"
+			'[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains($tag)) | .body ] | last // empty'
+	)"; then
+		fail 'could not fetch pull request comments for the summary reconciliation'
+	fi
 	if printf '%s\n' "${summary_body}" | grep -qF 'Review skipped'; then
 		expected_findings=0
 	else
@@ -309,6 +326,11 @@ pending=''
 pending_count=0
 while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	[ -n "${finding_id}" ] || continue
+	# Defense against producer drift: ids are hex by contract, and the
+	# id is interpolated into the triage-line regex below.
+	case "${finding_id}" in
+		*[!0-9a-f]*|'') fail "finding id '${finding_id}' is not hex; producer format may have drifted" ;;
+	esac
 	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); finding
 	# ids are hex-only, so the id itself is regex-safe. An unanchored
 	# match could count an id mentioned anywhere in the body as triaged.
