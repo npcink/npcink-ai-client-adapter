@@ -595,7 +595,7 @@ function mcpToolDescriptors() {
       inputSchema: {
         type: 'object',
         properties: {
-          ability_id: { type: 'string' },
+          ability_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN },
           input: { type: 'object', description: 'Ability input as documented in /capabilities.' },
           read_request_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN, description: 'Approved Core read request id for sensitive reads.' },
           log_context: { type: 'object', description: 'Optional bounded correlation fields such as correlation_id or external_thread_id.' },
@@ -621,7 +621,7 @@ function mcpToolDescriptors() {
       inputSchema: {
         type: 'object',
         properties: {
-          ability_id: { type: 'string' },
+          ability_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN },
           input: { type: 'object' },
           purpose: { type: 'string', description: 'Operator-facing purpose for the sensitive read.' },
           data_classes: { type: 'array', items: { type: 'string' }, description: 'Data classes such as diagnostics or logs.' },
@@ -662,7 +662,7 @@ function mcpToolDescriptors() {
       inputSchema: {
         type: 'object',
         properties: {
-          ability_id: { type: 'string' },
+          ability_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN },
           input: { type: 'object' },
           preview: { type: 'object', description: 'Optional preview evidence for the reviewer.' },
           title: { type: 'string' },
@@ -757,6 +757,12 @@ async function mcpCallTool(parsed, tools, params) {
     if (expectedType === 'string' && typeof value !== 'string') {
       return mcpToolResult({ ok: false, error: 'invalid_params', message: `Argument ${key} must be a string.` }, true);
     }
+    if (expectedType === 'integer' && (typeof value !== 'number' || !Number.isInteger(value))) {
+      return mcpToolResult({ ok: false, error: 'invalid_params', message: `Argument ${key} must be an integer.` }, true);
+    }
+    if (expectedType === 'number' && typeof value !== 'number') {
+      return mcpToolResult({ ok: false, error: 'invalid_params', message: `Argument ${key} must be a number.` }, true);
+    }
   }
   const idFields = Array.isArray(tool.idFields) ? tool.idFields : [];
   for (const key of idFields) {
@@ -811,11 +817,8 @@ async function mcp(args) {
     process.stdout.write(`${JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } })}\n`);
   };
 
-  const handleMessage = async (line) => {
-    let message = null;
-    try {
-      message = JSON.parse(line);
-    } catch (error) {
+  const handleMessage = async (message, parseOk) => {
+    if (!parseOk) {
       respondError(null, -32700, 'Parse error.');
       return;
     }
@@ -872,24 +875,31 @@ async function mcp(args) {
     respondError(id, -32601, `Unknown method: ${method || '(empty)'}.`);
   };
 
-  // Handle one message at a time: a client cannot spawn concurrent wrapper
-  // processes through this server, and responses stay bounded.
+  // Tool calls spawn a wrapper child process, so they serialize on one
+  // chain: a client cannot spawn concurrent wrappers through this server
+  // and responses stay bounded. Cheap protocol methods (initialize, ping,
+  // tools/list) answer immediately instead of waiting behind a slow tool
+  // call. The line is parsed once here and handed to handleMessage.
   let dispatchChain = Promise.resolve();
   const dispatchMessage = (line) => {
-    let requestId = null;
+    let message;
+    let parseOk = true;
     try {
-      const parsedLine = JSON.parse(line);
-      if (parsedLine && typeof parsedLine === 'object' && !Array.isArray(parsedLine) && parsedLine.id !== undefined) {
-        requestId = parsedLine.id;
-      }
+      message = JSON.parse(line);
     } catch (error) {
-      // Parse errors are answered inside handleMessage.
+      parseOk = false;
     }
-    dispatchChain = dispatchChain
-      .then(() => handleMessage(line))
-      .catch((error) => {
-        respondError(requestId, -32603, `Internal error: ${error && error.message ? String(error.message) : 'unknown'}.`);
-      });
+    const isObjectMessage = !!message && typeof message === 'object' && !Array.isArray(message);
+    const requestId = parseOk && isObjectMessage && message.id !== undefined ? message.id : null;
+    const internalError = (error) => {
+      respondError(requestId, -32603, `Internal error: ${error && error.message ? String(error.message) : 'unknown'}.`);
+    };
+    const run = () => handleMessage(message, parseOk);
+    if (parseOk && isObjectMessage && message.method === 'tools/call') {
+      dispatchChain = dispatchChain.then(run).catch(internalError);
+    } else {
+      Promise.resolve().then(run).catch(internalError);
+    }
   };
 
   let buffer = '';
@@ -926,13 +936,15 @@ async function mcp(args) {
       dispatchMessage(line);
     }
   });
-  // A dead MCP client surfaces as EPIPE on the next write; exit cleanly
-  // instead of crashing the long-lived server with an unhandled error.
+  // A dead MCP client surfaces as EPIPE on the next write. Exit non-zero:
+  // exit code 0 would tell the parent this server finished cleanly while
+  // in-flight tool calls were dropped without responses.
   process.stdin.on('error', () => {
-    process.exit(0);
+    console.error('npcink-openclaw-adapter: stdin failed; exiting.');
+    process.exit(1);
   });
   process.stdout.on('error', () => {
-    process.exit(0);
+    process.exit(1);
   });
 }
 
@@ -1088,7 +1100,7 @@ function safeErrorMessage(stdout, stderr) {
         ? parsed.data
         : null;
       if (data && Object.keys(data).length > 0) {
-        message += ` ${JSON.stringify(data).slice(0, 2000)}`;
+        message += ` ${JSON.stringify(redactOutput(data)).slice(0, 2000)}`;
       }
       return sanitizeOutputText(message);
     } catch (error) {

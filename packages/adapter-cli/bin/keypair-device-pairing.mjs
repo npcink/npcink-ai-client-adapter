@@ -12,6 +12,7 @@ function cliVersion() {
   try {
     return String(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version || '0.0.0');
   } catch (error) {
+    console.error(`keypair-device-pairing: could not read package.json version (${error && error.message ? String(error.message) : 'unknown'}); falling back to 0.0.0`);
     return '0.0.0';
   }
 }
