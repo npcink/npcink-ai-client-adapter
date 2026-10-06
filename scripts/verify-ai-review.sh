@@ -432,7 +432,7 @@ if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 			path = $0
 			sub(/^### [^`]*`/, "", path)
 			sub(/`.*$/, "", path)
-			line = "L?"
+			gsub(/\t/, " ", path)
 			if (match($0, /\(L[0-9]+-/)) { line = "L" substr($0, RSTART + 2, RLENGTH - 3) }
 			label = pending_badge != "" ? pending_badge : "finding"
 			pending_badge = ""
@@ -448,8 +448,14 @@ if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 		END { flush() }
 	')"
 	embedded_count="$(printf '%s\n' "${embedded}" | grep -c . || true)"
-	if [ "${embedded_count}" != "${failed_inline}" ]; then
+	# Below-count always fails closed; above-count (earlier retry-step
+	# rounds leaving extra embedded blocks) mirrors the inline tolerance:
+	# triage them all.
+	if [ "${embedded_count}" -lt "${failed_inline}" ]; then
 		fail "embedded-findings parse mismatch: summary reports ${failed_inline} failed inline, parser extracted ${embedded_count}; failing closed"
+	fi
+	if [ "${embedded_count}" -gt "${failed_inline}" ]; then
+		echo "[ai-review-gate] note: ${embedded_count} embedded finding(s) exceed the summary's ${failed_inline} (earlier retry-step round); all will require triage"
 	fi
 	findings="$(printf '%s\n%s\n' "${findings}" "${embedded}")"
 	finding_count=$(( finding_count + embedded_count ))
