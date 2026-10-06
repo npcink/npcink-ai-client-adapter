@@ -353,6 +353,17 @@ if [ -n "${existing_pr}" ]; then
 	[ -n "${existing_head_base}" ] || fail "could not read head/base of existing pull request ${existing_pr}"
 	existing_head="${existing_head_base%% *}"
 	existing_base="${existing_head_base##* }"
+	[ "${existing_head}" = "${head_sha}" ] || {
+		# The PR record can lag the ref update; re-read once before failing.
+		sleep 10
+		existing_head_base="$(
+			retry_network gh pr view "${existing_pr}" --json headRefOid,baseRefName \
+				--jq '.headRefOid + " " + .baseRefName'
+		)"
+		[ -n "${existing_head_base}" ] || fail "could not read head/base of existing pull request ${existing_pr}"
+		existing_head="${existing_head_base%% *}"
+		existing_base="${existing_head_base##* }"
+	}
 	[ "${existing_head}" = "${head_sha}" ] \
 		|| fail "open pull request head ${existing_head} does not match this branch head ${head_sha}"
 	[ "${existing_base}" = "${base_branch}" ] \
@@ -394,7 +405,10 @@ case "${review_gate_status}" in
 	0)
 		;;
 	2)
-		fail "AI review findings pending triage (gate exit 2); auto-merge NOT requested. Complete the triage guidance above, then re-run composer pr:publish."
+		# Propagate the gate's exit contract: 2 means actionable triage
+		# pending, not a fatal failure.
+		echo "[pr-publish] error: AI review findings pending triage (gate exit 2); auto-merge NOT requested. Complete the triage guidance above, then re-run composer pr:publish." >&2
+		exit 2
 		;;
 	*)
 		fail "AI review gate did not pass (exit ${review_gate_status}); no review was delivered or verification failed closed - re-run composer pr:publish after connectivity/provider recovery (the gate re-runs a failed review itself), or record an exception with --no-review-because."

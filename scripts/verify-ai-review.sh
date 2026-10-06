@@ -342,7 +342,7 @@ fi
 if printf '%s\n' "${summary_body}" | grep -qF 'Review partially complete'; then
 	fail "round ${run_id} is partially complete (a selected item failed its review); re-run composer pr:publish for a full round or record an exception with --no-review-because"
 fi
-if printf '%s\n' "${summary_body}" | grep -Eq "ocr-summary-run:${run_id}-${attempt}(-->|[^0-9])"; then
+if printf '%s\n' "${summary_body}" | grep -Eq "ocr-summary-run:${run_id}-${attempt}(-->|[^0-9]|\$)"; then
 	found_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'found \*\*[0-9]+\*\*' | grep -oE '[0-9]+' | sort -u)"
 	if [ "$(printf '%s\n' "${found_counts}" | grep -c . || true)" -gt 1 ]; then
 		fail "ambiguous OpenCodeReview summary for run ${run_id} attempt ${attempt} (multiple differing counts); failing closed"
@@ -358,8 +358,17 @@ elif printf '%s\n' "${summary_body}" | grep -qF 'Review skipped'; then
 else
 	fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
 fi
-if [ "${expected_findings}" != "${finding_count}" ]; then
+# The workflow's in-run step retries all post markers under the same
+# run-attempt prefix, and the rolling summary reflects only the last
+# step execution. A unique-marker count BELOW the summary count means
+# findings went missing (fail closed); ABOVE it means earlier step
+# executions left extra real findings (triage them all - stricter, and
+# never fewer than the delivered summary promised).
+if [ "${finding_count}" -lt "${expected_findings}" ]; then
 	fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), marker parser extracted ${finding_count}; failing closed"
+fi
+if [ "${finding_count}" -gt "${expected_findings}" ]; then
+	echo "[ai-review-gate] note: ${finding_count} unique finding(s) exceed the summary's ${expected_findings} (earlier retry-step round); all will require triage"
 fi
 
 if [ "${finding_count}" -eq 0 ]; then
@@ -369,7 +378,9 @@ fi
 
 echo "[ai-review-gate] ${finding_count} finding(s) from run ${run_id} attempt ${attempt}; verifying triage lines"
 
-pr_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
+if ! pr_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"; then
+	fail 'could not fetch the pull request body for triage verification'
+fi
 # Only the "## AI Review Triage" section counts; a - <id> fix:/accept:
 # shaped line elsewhere in the body (quoted example, code block) must
 # not satisfy the gate.
