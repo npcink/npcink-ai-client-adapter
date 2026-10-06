@@ -388,7 +388,10 @@ if [ "$(printf '%s\n' "${posted_counts}" | grep -c . || true)" -gt 1 ] || [ "$(p
 fi
 posted_inline="$(printf '%s\n' "${posted_counts}" | head -1 || true)"
 failed_inline="$(printf '%s\n' "${failed_counts}" | head -1 || true)"
-if [ -n "${posted_inline}" ]; then
+if [ -n "${posted_inline}" ] || [ -n "${failed_inline}" ]; then
+	# Either status line selects the strict split; a failed-line without a
+	# posted-line means posted=0 rather than a legacy-shape fallback.
+	posted_inline="${posted_inline:-0}"
 	failed_inline="${failed_inline:-0}"
 	if [ "${expected_findings}" -ne $(( posted_inline + failed_inline )) ]; then
 		fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), posted ${posted_inline} + failed ${failed_inline} inline; failing closed"
@@ -420,8 +423,10 @@ if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 		}
 		# Embedded blocks render as: badge line, then the "### `path` (Lx-Ly)"
 		# header, then the description. A buffered badge only belongs to a
-		# block when the header follows it directly; badge-like lines inside
-		# a description are discarded.
+		# block when the header follows it directly; blank lines and
+		# badge-like images inside a description are discarded. Repeated
+		# path+line findings gain #N suffixes in summary-body order, and the
+		# pending list printed by the gate is the authoritative key spelling.
 		/^### .*\(L[0-9]+-L[0-9]+\)$/ {
 			flush()
 			path = $0
@@ -439,7 +444,6 @@ if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 			if (match($0, /!\[[^]]*\]/)) { pending_badge = substr($0, RSTART + 2, RLENGTH - 3) }
 			next
 		}
-		NF == 0 { next }
 		{ pending_badge = "" }
 		END { flush() }
 	')"
