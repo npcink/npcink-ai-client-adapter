@@ -49,7 +49,7 @@
       "@test:execution-input-validator",
       "@test:execution-action-runner",
       "@test:security-hardening",
-    "@test:ai-review-gate",
+      "@test:ai-review-gate",
       "@test"
     ]
   },

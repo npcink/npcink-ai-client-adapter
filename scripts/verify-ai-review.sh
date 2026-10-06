@@ -44,10 +44,13 @@ usage() {
 	cat <<'EOF'
 Usage:
   scripts/verify-ai-review.sh --pr N --head-sha SHA [--no-review-because REASON]
+  scripts/verify-ai-review.sh --self-test
 
 Verifies the advisory OpenCodeReview round for one pull request head, then
 verifies that every delivered inline finding has a fix:/accept: triage line
-in the pull request body's "## AI Review Triage" section.
+in the pull request body's "## AI Review Triage" section. --self-test runs
+the producer-contract fixtures only (composer test:ai-review-gate) and
+cannot be combined with the gate arguments.
 EOF
 }
 
@@ -178,9 +181,10 @@ gate_escape_id() {
 	printf '%s' "$1" | awk '{ gsub(/\\/, "\\\\&"); gsub(/[][^$()*+?{}.|]/, "\\\\&"); print }'
 }
 
-# Anchored triage-line match for one escaped finding id.
+# Anchored triage-line match for one raw finding id; escaping is folded in
+# so no caller can forget it.
 gate_triage_matches() {
-	grep -Eq "^[[:space:]]*[-*][[:space:]]*(\\[[ xX]\\][[:space:]]*)?$2[[:space:]]+(fix|accept):" <<< "$1"
+	grep -Eq "^[[:space:]]*[-*][[:space:]]*(\\[[ xX]\\][[:space:]]*)?$(gate_escape_id "$2")[[:space:]]+(fix|accept):" <<< "$1"
 }
 
 # --- Self-test ---------------------------------------------------------------
@@ -263,9 +267,9 @@ Third block, different file.'
 - 2b8d2a4f5d1a325f fix: switched to a portable form
 - [x] emb:a\b(c).L1 accept: dev-only
 - unrelated prose mentioning 2b8d2a4f5d1a325f loosely'
-	check 'triage line matches hex id' "$(gate_triage_matches "${triage_slice}" "$(gate_escape_id '2b8d2a4f5d1a325f')" && echo yes)" 'yes'
-	check 'triage line matches embedded id' "$(gate_triage_matches "${triage_slice}" "$(gate_escape_id 'emb:a\b(c).L1')" && echo yes)" 'yes'
-	check 'unanchored mention does not count' "$(gate_triage_matches "elsewhere: see 2b8d2a4f5d1a325f in prose" "$(gate_escape_id '2b8d2a4f5d1a325f')" || echo no)" 'no'
+	check 'triage line matches hex id' "$(gate_triage_matches "${triage_slice}" '2b8d2a4f5d1a325f' && echo yes)" 'yes'
+	check 'triage line matches embedded id' "$(gate_triage_matches "${triage_slice}" 'emb:a\b(c).L1' && echo yes)" 'yes'
+	check 'unanchored mention does not count' "$(gate_triage_matches "elsewhere: see 2b8d2a4f5d1a325f in prose" '2b8d2a4f5d1a325f' || echo no)" 'no'
 
 	if [ "${failures}" -ne 0 ]; then
 		echo "[ai-review-gate] self-test failed (${failures} assertion(s))" >&2
@@ -276,6 +280,9 @@ Third block, different file.'
 }
 
 if [ "${self_test}" = '1' ]; then
+	if [ -n "${pr_number}" ] || [ -n "${head_sha}" ] || [ -n "${review_exception}" ]; then
+		fail '--self-test cannot be combined with --pr/--head-sha/--no-review-because'
+	fi
 	gate_self_test
 	exit $?
 fi
@@ -631,8 +638,7 @@ while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	# triaged. The backslash gets its own gsub (regex /\\/ is unambiguous
 	# everywhere); the remaining ERE metacharacters follow in a class that
 	# contains no backslash, so the doubled backslashes survive untouched.
-	escaped_id="$(gate_escape_id "${finding_id}")"
-	if gate_triage_matches "${triage_slice}" "${escaped_id}"; then
+	if gate_triage_matches "${triage_slice}" "${finding_id}"; then
 		continue
 	fi
 	pending_count=$((pending_count + 1))
