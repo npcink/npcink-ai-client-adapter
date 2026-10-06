@@ -74,6 +74,9 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--no-review-because)
 			[ "$#" -ge 2 ] || fail '--no-review-because requires a value'
+			case "$2" in
+				*$'\n'*) fail '--no-review-because must be a single line' ;;
+			esac
 			review_exception="$2"
 			shift 2
 			;;
@@ -165,7 +168,13 @@ wait_for_completion() {
 # awk -v would process backslash escapes in the free-text reason.
 exception_body_from() {
 	local body="$1"
-	if printf '%s\n' "${body}" | grep -Eq '^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$'; then
+	# Idempotent for the bullet itself: an identical exception line means
+	# the body already records this exception.
+	if grep -Fq -- "${exception_line}" <<< "${body}"; then
+		printf '%s\n' "${body}"
+		return 0
+	fi
+	if grep -Eq '^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$' <<< "${body}"; then
 		printf '%s\n' "${body}" | EXCEPTION_LINE="${exception_line}" awk '
 			BEGIN { line = ENVIRON["EXCEPTION_LINE"] }
 			!inserted && /^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$/ { print; print line; inserted = 1; next }
@@ -193,16 +202,16 @@ undelivered_exit() {
 			fail "could not write the exception line to PR #${pr_number}; the exception is NOT recorded and publishing must stop"
 		fi
 		verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
-		if ! printf '%s\n' "${verify_body}" | grep -Fq -- "${exception_line}"; then
+		if ! grep -Fq -- "${exception_line}" <<< "${verify_body}"; then
 			echo '[ai-review-gate] the exception line did not land (concurrent body edit); retrying once' >&2
 			current="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
-			if ! printf '%s\n' "${current}" | grep -Fq -- "${exception_line}"; then
+			if ! grep -Fq -- "${exception_line}" <<< "${current}"; then
 				new_body="$(exception_body_from "${current}")"
 				if ! printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null 2>&1; then
 					fail "could not write the retried exception line to PR #${pr_number}; the exception is NOT recorded and publishing must stop"
 				fi
 				verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
-				printf '%s\n' "${verify_body}" | grep -Fq -- "${exception_line}" \
+				grep -Fq -- "${exception_line}" <<< "${verify_body}" \
 					|| fail 'the exception line did not land after retry; the exception is NOT recorded and publishing must stop'
 			fi
 		fi
@@ -339,10 +348,10 @@ fi
 if [[ "${summary_updated}" < "${run_created}" ]]; then
 	fail "the summary comment body predates run ${run_id}; no summary posted for this run - failing closed"
 fi
-if printf '%s\n' "${summary_body}" | grep -qF 'Review partially complete'; then
+if grep -qF 'Review partially complete' <<< "${summary_body}"; then
 	fail "round ${run_id} is partially complete (a selected item failed its review); re-run composer pr:publish for a full round or record an exception with --no-review-because"
 fi
-if printf '%s\n' "${summary_body}" | grep -Eq "ocr-summary-run:${run_id}-${attempt}(-->|[^0-9]|\$)"; then
+if grep -Eq "ocr-summary-run:${run_id}-${attempt}(-->|[^0-9]|\$)" <<< "${summary_body}"; then
 	found_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'found \*\*[0-9]+\*\*' | grep -oE '[0-9]+' | sort -u)"
 	if [ "$(printf '%s\n' "${found_counts}" | grep -c . || true)" -gt 1 ]; then
 		fail "ambiguous OpenCodeReview summary for run ${run_id} attempt ${attempt} (multiple differing counts); failing closed"
@@ -353,7 +362,7 @@ if printf '%s\n' "${summary_body}" | grep -Eq "ocr-summary-run:${run_id}-${attem
 			fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
 			;;
 	esac
-elif printf '%s\n' "${summary_body}" | grep -qF 'Review skipped'; then
+elif grep -qF 'Review skipped' <<< "${summary_body}"; then
 	expected_findings=0
 else
 	fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
@@ -398,7 +407,7 @@ while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); finding
 	# ids are hex-only, so the id itself is regex-safe. An unanchored
 	# match could count an id mentioned anywhere in the body as triaged.
-	if printf '%s\n' "${triage_slice}" | grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${finding_id}[[:space:]]+(fix|accept):" >/dev/null 2>&1; then
+	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${finding_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
 		continue
 	fi
 	pending_count=$((pending_count + 1))

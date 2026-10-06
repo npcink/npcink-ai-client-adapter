@@ -371,13 +371,37 @@ if [ -n "${existing_pr}" ]; then
 fi
 
 if [ -z "${existing_pr}" ]; then
-	pr_url="$(
-		retry_network gh pr create \
-			--base "${base_branch}" \
-			--head "${branch}" \
-			--title "${title}" \
-			--body-file "${body_path}"
-	)"
+	# A lost response (proxy drop after GitHub accepted the create) makes
+	# every retry fail with "already exists", so treat that error as a
+	# signal to reuse the pull request that was in fact created.
+	create_attempt=1
+	create_delay=45
+	until pr_url="$(gh pr create \
+		--base "${base_branch}" \
+		--head "${branch}" \
+		--title "${title}" \
+		--body-file "${body_path}" 2>&1)"; do
+		if printf '%s\n' "${pr_url}" | grep -qi 'already exists'; then
+			pr_url="$(
+				retry_network gh pr list \
+					--state open \
+					--head "${branch}" \
+					--json url \
+					--jq '.[0].url // empty'
+			)"
+			[ -n "${pr_url}" ] \
+				|| fail 'gh pr create reported an existing pull request that could not be found'
+			echo '[pr-publish] pull request was created despite the failed response; reusing it'
+			break
+		fi
+		if [ "${create_attempt}" -ge 4 ]; then
+			fail "gh pr create failed after ${create_attempt} attempts: ${pr_url}"
+		fi
+		echo "[pr-publish] pr create failed (attempt ${create_attempt}/4); retrying in ${create_delay}s" >&2
+		sleep "${create_delay}"
+		create_delay=$((create_delay * 2))
+		create_attempt=$((create_attempt + 1))
+	done
 else
 	pr_url="${existing_pr}"
 fi
