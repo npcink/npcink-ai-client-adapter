@@ -85,12 +85,20 @@ Adapter, and Adapter does not own their callbacks.
   `composer check:i18n` gates POT/PO coverage, rejects fuzzy entries, and
   verifies `.mo` freshness; it also runs as part of
   `composer release:verify`.
-- Run the advisory AI review gate before publishing, and treat findings as a
-  second opinion (fix real defects or record why they are acceptable):
-  `ocr review --from origin/master --to HEAD`. Follows AI Code Review Standard
-  v1 in `npcink-workflow-toolbox` `docs/platform/ai-code-review-standard-v1.md`;
-  the CI workflow posting the same review on pull requests is advisory and
-  never a required check.
+- Advisory AI review follows AI Code Review Standard v1 in
+  `npcink-workflow-toolbox` `docs/platform/ai-code-review-standard-v1.md`;
+  the CI workflow posting reviews on pull requests is advisory and never
+  a required check. `composer pr:publish` waits for the delivered
+  OpenCodeReview round on the pull request head before requesting
+  auto-merge, and requires every finding to be triaged in the PR body's
+  `## AI Review Triage` section: fix it and push, or add
+  `- <finding-id> accept: <reason>`. Low-severity findings may be
+  accepted with a one-line reason; bug findings at medium severity or
+  higher must be fixed or accepted with an explicit operator-visible
+  rationale. If no review can be delivered, publish only with
+  `-- --no-review-because "<reason>"`, which records the exception in
+  the PR body. Findings are a second opinion and never replace
+  deterministic gates.
 - For multi-repo milestones, run the central matrix from
   `/Users/muze/gitee/npcink-workflow-toolbox` instead of copying the script into Adapter:
   `composer quality:matrix` for status and `composer quality:matrix:run` before

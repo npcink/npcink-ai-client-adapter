@@ -24,6 +24,15 @@
 - Residual risk:
 - Rollback plan:
 
+## AI Review Triage
+
+Filled in after OpenCodeReview delivers its review on this pull request;
+`composer pr:publish` verifies this section before requesting auto-merge.
+One line per finding id from the delivered review:
+
+- [ ] <finding-id> fix: <what changed>
+- [ ] <finding-id> accept: <one-line reason>
+
 ## Release Impact
 
 - [ ] No release impact.

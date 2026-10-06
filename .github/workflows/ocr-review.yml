@@ -102,7 +102,19 @@ jobs:
             core.setOutput('base_ref', pullRequest.base.ref);
             core.setOutput('head_sha', pullRequest.head.sha);
 
-      - name: Run OpenCodeReview
+      # Transient provider/transport failures cost the whole review round
+      # when a single step fails (npcink-ai-client-adapter run 37268559643
+      # died in 12s on a git fetch, exit 128, and its pull request merged
+      # with no review delivered). GitHub Actions has no native step retry
+      # and no YAML anchors, so the review step is duplicated deliberately:
+      # attempts 1-2 continue-on-error with growing pauses, attempt 3 is
+      # allowed to fail the job so the failure-marker step below still
+      # fires. A partially delivered earlier attempt can leave near-
+      # duplicate inline comments with the same run ids; triage consumers
+      # dedupe by finding id.
+      - name: Run OpenCodeReview (attempt 1 of 3)
+        id: ocr_review_1
+        continue-on-error: true
         # alibaba/open-code-review v1.12.10 (tag object b465046, commit
         # 579b931; pinned by commit SHA because the action receives the LLM
         # auth token - bump deliberately and record the new tag->commit pair).
@@ -113,6 +125,41 @@ jobs:
           llm_model: ${{ vars.OCR_LLM_MODEL }}
           llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
           # Review-comment language; switch to Chinese if preferred.
+          language: English
+          base_ref: ${{ steps.pr-context.outputs.base_ref }}
+          head_sha: ${{ steps.pr-context.outputs.head_sha }}
+
+      - name: Pause before the second review attempt
+        if: steps.ocr_review_1.outcome == 'failure'
+        run: sleep 45
+
+      - name: Run OpenCodeReview (attempt 2 of 3)
+        id: ocr_review_2
+        if: steps.ocr_review_1.outcome == 'failure'
+        continue-on-error: true
+        uses: alibaba/open-code-review@579b9319151aa734f2d25df6e59efa59eec5a577
+        with:
+          llm_url: ${{ secrets.OCR_LLM_URL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ vars.OCR_LLM_MODEL }}
+          llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
+          language: English
+          base_ref: ${{ steps.pr-context.outputs.base_ref }}
+          head_sha: ${{ steps.pr-context.outputs.head_sha }}
+
+      - name: Pause before the final review attempt
+        if: steps.ocr_review_2.outcome == 'failure'
+        run: sleep 90
+
+      - name: Run OpenCodeReview (attempt 3 of 3)
+        id: ocr_review_3
+        if: steps.ocr_review_2.outcome == 'failure'
+        uses: alibaba/open-code-review@579b9319151aa734f2d25df6e59efa59eec5a577
+        with:
+          llm_url: ${{ secrets.OCR_LLM_URL }}
+          llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
+          llm_model: ${{ vars.OCR_LLM_MODEL }}
+          llm_use_anthropic: ${{ vars.OCR_LLM_USE_ANTHROPIC }}
           language: English
           base_ref: ${{ steps.pr-context.outputs.base_ref }}
           head_sha: ${{ steps.pr-context.outputs.head_sha }}
