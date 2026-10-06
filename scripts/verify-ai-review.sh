@@ -494,7 +494,7 @@ while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	# awk gsub is portable across BSD and GNU userlands (sed bracket-class
 	# parsing is not); the class escapes every ERE metacharacter including
 	# the backslash in one pass.
-	escaped_id="$(printf '%s' "${finding_id}" | awk '{ gsub(/[][^$()*+?{}.|\\]/, "\\&"); print }')"
+	escaped_id="$(printf '%s' "${finding_id}" | awk '{ gsub(/[][^$()*+?{}.|\\\\]/, "\\\\&"); print }')"
 	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${escaped_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
 		continue
 	fi
