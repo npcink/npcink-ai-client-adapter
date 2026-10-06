@@ -361,6 +361,7 @@ final class Execution_Records {
 			)
 		);
 		if ( 1 === (int) $inserted ) {
+			wp_cache_delete( $key, 'options' );
 			return array( $key, $lock['token'] );
 		}
 
@@ -394,6 +395,7 @@ final class Execution_Records {
 			)
 		);
 		if ( 1 === (int) $took_over ) {
+			wp_cache_delete( $key, 'options' );
 			return array( $key, $lock['token'] );
 		}
 
@@ -439,12 +441,15 @@ final class Execution_Records {
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Conditional delete removes only this holder's unchanged row.
-		$wpdb->query(
+		$deleted = $wpdb->query(
 			$wpdb->prepare(
 				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
 				$lock_key,
 				$raw
 			)
 		);
+		if ( 1 === (int) $deleted ) {
+			wp_cache_delete( $lock_key, 'options' );
+		}
 	}
 }

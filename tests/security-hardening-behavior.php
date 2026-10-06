@@ -118,6 +118,10 @@ function delete_option( $name ): bool {
 	return true;
 }
 
+function wp_cache_delete( $key, $group = '' ): bool {
+	return true;
+}
+
 function wp_generate_password( $length = 12, $special_chars = true, $extra_special_chars = false ): string {
 	return substr( bin2hex( random_bytes( (int) ceil( $length / 2 ) + 1 ) ), 0, (int) $length );
 }
