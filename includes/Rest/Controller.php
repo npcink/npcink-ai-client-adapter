@@ -4522,7 +4522,7 @@ final class Controller {
 	 * @param string $lock_token Lock token from acquisition.
 	 * @return void
 	 */
-	private function release_execution_lock( string $lock_key, string $lock_token = '' ): void {
+	private function release_execution_lock( string $lock_key, string $lock_token ): void {
 		$this->execution_records->release_lock( $lock_key, $lock_token );
 	}
 

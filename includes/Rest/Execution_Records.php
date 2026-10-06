@@ -326,35 +326,24 @@ final class Execution_Records {
 	/**
 	 * Acquires a short per-proposal execution lock.
 	 *
-	 * The lock value carries a unique token: release_lock() deletes the
-	 * option only while the stored token still matches, so a holder whose
-	 * execution outlived the TTL cannot delete a newer holder's live lock.
-	 * Expired rows are taken over by update_option() in place - never by
-	 * delete-then-add, which could destroy a lock another request had just
-	 * acquired - and the takeover is confirmed by reading the token back.
-	 * A takeover confirmed here can still be overwritten microseconds later
-	 * by another takeover; the token-guarded release keeps that later holder
-	 * safe from the earlier holder.
+	 * The lock value carries a unique token: release_lock() deletes the row
+	 * only while the stored token still matches, so a holder whose execution
+	 * outlived the TTL cannot delete a newer holder's live lock. Atomicity
+	 * follows the Signing_Auth nonce-claim pattern: INSERT IGNORE is the
+	 * strict fresh-row claim (WordPress 7 add_option() degrades to
+	 * ON DUPLICATE KEY UPDATE), and an expired row is taken over by a
+	 * conditional UPDATE that only lands while the stored value is still
+	 * the expired row that was read, so at most one concurrent takeover
+	 * can win.
 	 *
 	 * @param string $proposal_id Proposal id.
 	 * @return array{0:string,1:string}|WP_Error Array of lock option key and unique lock token, or lock contention error.
 	 */
 	public function acquire_lock( string $proposal_id ) {
-		$key      = 'npcink_openclaw_adapter_exec_lock_' . md5( $proposal_id );
-		$now      = time();
-		$existing = get_option( $key, null );
-		if ( is_array( $existing ) && $now < (int) ( $existing['expires_at'] ?? 0 ) ) {
-			return new WP_Error(
-				'npcink_openclaw_adapter_execution_in_progress',
-				__( 'This proposal is already being executed. Try again shortly.', 'npcink-ai-client-adapter' ),
-				array(
-					'status'      => 409,
-					'proposal_id' => $proposal_id,
-					'retry_after' => Controller::EXECUTION_LOCK_TTL,
-				)
-			);
-		}
+		global $wpdb;
 
+		$key  = 'npcink_openclaw_adapter_exec_lock_' . md5( $proposal_id );
+		$now  = time();
 		$lock = array(
 			'proposal_id' => $proposal_id,
 			'token'       => wp_generate_password( 32, false, false ),
@@ -362,13 +351,28 @@ final class Execution_Records {
 			'expires_at'  => $now + Controller::EXECUTION_LOCK_TTL,
 		);
 
-		if ( ! is_array( $existing ) ) {
-			// add_option() is atomic: it fails when any row exists, so a
-			// concurrent first acquisition cannot be silently overwritten.
-			if ( add_option( $key, $lock, '', false ) ) {
-				return array( $key, $lock['token'] );
-			}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- INSERT IGNORE is the atomic lock claim primitive.
+		$inserted = $wpdb->query(
+			$wpdb->prepare(
+				"INSERT IGNORE INTO {$wpdb->options} (option_name, option_value, autoload) VALUES (%s, %s, %s)",
+				$key,
+				maybe_serialize( $lock ),
+				'off'
+			)
+		);
+		if ( 1 === (int) $inserted ) {
+			return array( $key, $lock['token'] );
+		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Raw read bypasses the options cache to preserve lock claim semantics.
+		$raw      = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+				$key
+			)
+		);
+		$existing = is_string( $raw ) ? maybe_unserialize( $raw ) : null;
+		if ( ! is_array( $existing ) || $now < (int) ( $existing['expires_at'] ?? 0 ) ) {
 			return new WP_Error(
 				'npcink_openclaw_adapter_execution_in_progress',
 				__( 'This proposal is already being executed. Try again shortly.', 'npcink-ai-client-adapter' ),
@@ -380,9 +384,16 @@ final class Execution_Records {
 			);
 		}
 
-		update_option( $key, $lock, false );
-		$confirm = get_option( $key, null );
-		if ( is_array( $confirm ) && hash_equals( $lock['token'], (string) ( $confirm['token'] ?? '' ) ) ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Conditional update is the compare-and-swap takeover of the expired row.
+		$took_over = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s",
+				maybe_serialize( $lock ),
+				$key,
+				$raw
+			)
+		);
+		if ( 1 === (int) $took_over ) {
 			return array( $key, $lock['token'] );
 		}
 
@@ -399,27 +410,41 @@ final class Execution_Records {
 	/**
 	 * Releases a per-proposal execution lock.
 	 *
-	 * Deletes the option only while the stored token still matches this
-	 * holder's acquisition token, so a holder whose execution outlived the
-	 * TTL leaves the newer holder's live lock untouched.
+	 * Deletes the row only while the stored token still matches this
+	 * holder's acquisition token, and only while the stored value is
+	 * unchanged since it was read, so neither a newer holder's live lock
+	 * nor a takeover landing mid-release can be removed.
 	 *
 	 * @param string $lock_key Lock option key.
 	 * @param string $lock_token Unique lock token returned by acquire_lock().
 	 * @return void
 	 */
-	public function release_lock( string $lock_key, string $lock_token = '' ): void {
+	public function release_lock( string $lock_key, string $lock_token ): void {
+		global $wpdb;
+
 		if ( '' === $lock_key ) {
 			return;
 		}
 
-		$stored = get_option( $lock_key, null );
-		if ( ! is_array( $stored ) ) {
-			return;
-		}
-		if ( '' !== $lock_token && ! hash_equals( $lock_token, (string) ( $stored['token'] ?? '' ) ) ) {
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Raw read bypasses the options cache to preserve lock release semantics.
+		$raw    = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT option_value FROM {$wpdb->options} WHERE option_name = %s LIMIT 1",
+				$lock_key
+			)
+		);
+		$stored = is_string( $raw ) ? maybe_unserialize( $raw ) : null;
+		if ( ! is_array( $stored ) || ! hash_equals( $lock_token, (string) ( $stored['token'] ?? '' ) ) ) {
 			return;
 		}
 
-		delete_option( $lock_key );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Conditional delete removes only this holder's unchanged row.
+		$wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s",
+				$lock_key,
+				$raw
+			)
+		);
 	}
 }

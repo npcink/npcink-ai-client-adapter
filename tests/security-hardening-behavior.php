@@ -126,6 +126,11 @@ function maybe_serialize( $value ) {
 	return is_array( $value ) || is_object( $value ) ? serialize( $value ) : $value;
 }
 
+function maybe_unserialize( $value ) {
+	$unserialized = is_string( $value ) ? @unserialize( $value, array( 'allowed_classes' => false ) ) : $value;
+	return false === $unserialized && 'b:0;' !== $value ? $value : $unserialized;
+}
+
 function wp_rand( $min = 0, $max = 0 ): int {
 	return 2;
 }
@@ -152,6 +157,18 @@ final class MAA_Security_WPDB {
 
 			$GLOBALS['maa_security_options'][ $name ] = $this->prepared_args[1] ?? '';
 			$GLOBALS['maa_security_nonce_autoload']   = (string) ( $this->prepared_args[2] ?? '' );
+			return 1;
+		}
+
+		if ( 0 === strpos( $query, 'UPDATE ' ) ) {
+			// "UPDATE ... SET option_value = %s WHERE option_name = %s AND option_value = %s"
+			$new_value = $this->prepared_args[0] ?? null;
+			$name      = (string) ( $this->prepared_args[1] ?? '' );
+			$expected  = $this->prepared_args[2] ?? null;
+			if ( '' === $name || ! array_key_exists( $name, $GLOBALS['maa_security_options'] ) || $GLOBALS['maa_security_options'][ $name ] != $expected ) {
+				return 0;
+			}
+			$GLOBALS['maa_security_options'][ $name ] = $new_value;
 			return 1;
 		}
 
@@ -716,14 +733,14 @@ $backlog_handoffs            = new Npcink\OpenClawAdapter\Rest\Preflight_Handoff
 $backlog_lock = $backlog_execution_records->acquire_lock( 'backlog-lock-proposal' );
 maa_security_assert( is_array( $backlog_lock ) && isset( $backlog_lock[0], $backlog_lock[1] ), 'Execution lock acquisition returns a key and a token.' );
 maa_security_assert( is_wp_error( $backlog_execution_records->acquire_lock( 'backlog-lock-proposal' ) ), 'Live execution lock contends with a second acquisition.' );
-$backlog_lock_row = $GLOBALS['maa_security_options'][ $backlog_lock[0] ] ?? array();
+$backlog_lock_row = maybe_unserialize( $GLOBALS['maa_security_options'][ $backlog_lock[0] ] ?? '' );
 maa_security_assert( is_array( $backlog_lock_row ) && ! empty( $backlog_lock_row['token'] ), 'Stored execution lock carries a token.' );
 $backlog_lock_row['expires_at'] = time() - 1;
-$GLOBALS['maa_security_options'][ $backlog_lock[0] ] = $backlog_lock_row;
+$GLOBALS['maa_security_options'][ $backlog_lock[0] ] = maybe_serialize( $backlog_lock_row );
 $backlog_new_lock = $backlog_execution_records->acquire_lock( 'backlog-lock-proposal' );
 maa_security_assert( is_array( $backlog_new_lock ), 'Expired execution lock is taken over in place.' );
 $backlog_execution_records->release_lock( $backlog_lock[0], $backlog_lock[1] );
-maa_security_assert( is_array( $GLOBALS['maa_security_options'][ $backlog_new_lock[0] ] ?? null ), 'Stale holder release leaves the newer holder lock in place.' );
+maa_security_assert( isset( $GLOBALS['maa_security_options'][ $backlog_new_lock[0] ] ), 'Stale holder release leaves the newer holder lock in place.' );
 $backlog_execution_records->release_lock( $backlog_new_lock[0], $backlog_new_lock[1] );
 maa_security_assert( ! isset( $GLOBALS['maa_security_options'][ $backlog_new_lock[0] ] ), 'Current holder release deletes the lock.' );
 
