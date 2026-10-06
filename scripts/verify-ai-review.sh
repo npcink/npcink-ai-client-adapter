@@ -373,17 +373,93 @@ case "${expected_findings}" in
 		fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
 		;;
 esac
-# The workflow's in-run step retries all post markers under the same
-# run-attempt prefix, and the rolling summary reflects only the last
-# step execution. A unique-marker count BELOW the summary count means
-# findings went missing (fail closed); ABOVE it means earlier step
-# executions left extra real findings (triage them all - stricter, and
-# never fewer than the delivered summary promised).
-if [ "${finding_count}" -lt "${expected_findings}" ]; then
-	fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), marker parser extracted ${finding_count}; failing closed"
+# The finding-round summary splits delivery into "Successfully posted
+# inline: M" and "Failed to post inline: K" - findings that could not be
+# posted inline (typically anchored outside the diff hunks) are embedded
+# in the summary body itself under "### `path` (Lx-Ly)" headers. Those
+# are keyed for triage as emb:<path>:<line>. Below-count always fails
+# closed; above-count means the workflow's in-run retries left extra
+# real findings (triage them all - stricter, never fewer than the
+# summary promised).
+posted_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'Successfully posted inline: [0-9]+ comments?' | grep -oE '[0-9]+' | sort -u || true)"
+failed_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'Failed to post inline: [0-9]+ comments?' | grep -oE '[0-9]+' | sort -u || true)"
+if [ "$(printf '%s\n' "${posted_counts}" | grep -c . || true)" -gt 1 ] || [ "$(printf '%s\n' "${failed_counts}" | grep -c . || true)" -gt 1 ]; then
+	fail "ambiguous OpenCodeReview inline-posting counts for run ${run_id} attempt ${attempt}; failing closed"
 fi
-if [ "${finding_count}" -gt "${expected_findings}" ]; then
-	echo "[ai-review-gate] note: ${finding_count} unique finding(s) exceed the summary's ${expected_findings} (earlier retry-step round); all will require triage"
+posted_inline="$(printf '%s\n' "${posted_counts}" | head -1 || true)"
+failed_inline="$(printf '%s\n' "${failed_counts}" | head -1 || true)"
+if [ -n "${posted_inline}" ] || [ -n "${failed_inline}" ]; then
+	# Either status line selects the strict split; a failed-line without a
+	# posted-line means posted=0 rather than a legacy-shape fallback.
+	posted_inline="${posted_inline:-0}"
+	failed_inline="${failed_inline:-0}"
+	if [ "${expected_findings}" -ne $(( posted_inline + failed_inline )) ]; then
+		fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), posted ${posted_inline} + failed ${failed_inline} inline; failing closed"
+	fi
+	if [ "${finding_count}" -lt "${posted_inline}" ]; then
+		fail "delivery contract mismatch: summary posted ${posted_inline} inline, marker parser extracted ${finding_count}; failing closed"
+	fi
+	if [ "${finding_count}" -gt "${posted_inline}" ]; then
+		echo "[ai-review-gate] note: ${finding_count} unique inline finding(s) exceed the summary's ${posted_inline} (earlier retry-step round); all will require triage"
+	fi
+else
+	if [ "${finding_count}" -lt "${expected_findings}" ]; then
+		fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), marker parser extracted ${finding_count}; failing closed"
+	fi
+	if [ "${finding_count}" -gt "${expected_findings}" ]; then
+		echo "[ai-review-gate] note: ${finding_count} unique finding(s) exceed the summary's ${expected_findings} (earlier retry-step round); all will require triage"
+	fi
+fi
+
+if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
+	embedded="$(printf '%s\n' "${summary_body}" | awk '
+		function flush() {
+			if (path != "") {
+				seen[path ":" line]++
+				key = "emb:" path ":" line (seen[path ":" line] > 1 ? "#" seen[path ":" line] : "")
+				print key "\t" label "\t" path ":" line
+			}
+			path = ""
+		}
+		# Embedded blocks render as: badge line, then the "### `path` (Lx-Ly)"
+		# header, then the description. A buffered badge only belongs to a
+		# block when the header follows it directly; blank lines and
+		# badge-like images inside a description are discarded. Repeated
+		# path+line findings gain #N suffixes in summary-body order, and the
+		# pending list printed by the gate is the authoritative key spelling.
+		/^### .*\(L[0-9]+-L[0-9]+\)$/ {
+			flush()
+			path = $0
+			sub(/^### [^`]*`/, "", path)
+			sub(/`.*$/, "", path)
+			gsub(/\t/, " ", path)
+			if (match($0, /\(L[0-9]+-/)) { line = "L" substr($0, RSTART + 2, RLENGTH - 3) }
+			label = pending_badge != "" ? pending_badge : "finding"
+			pending_badge = ""
+			next
+		}
+		# A badge is a whole-line image whose header follows; a trailing
+		# description screenshot also lands here but is replaced by the
+		# next real badge or invalidated by the next content line.
+		/^!\[[^]]*\]\([^)]*\)[[:space:]]*$/ {
+			pending_badge = substr($0, 3, index($0, "]") - 3)
+			next
+		}
+		{ pending_badge = "" }
+		END { flush() }
+	')"
+	embedded_count="$(printf '%s\n' "${embedded}" | grep -c . || true)"
+	# Below-count always fails closed; above-count (earlier retry-step
+	# rounds leaving extra embedded blocks) mirrors the inline tolerance:
+	# triage them all.
+	if [ "${embedded_count}" -lt "${failed_inline}" ]; then
+		fail "embedded-findings parse mismatch: summary reports ${failed_inline} failed inline, parser extracted ${embedded_count}; failing closed"
+	fi
+	if [ "${embedded_count}" -gt "${failed_inline}" ]; then
+		echo "[ai-review-gate] note: ${embedded_count} embedded finding(s) exceed the summary's ${failed_inline} (earlier retry-step round); all will require triage"
+	fi
+	findings="$(printf '%s\n%s\n' "${findings}" "${embedded}")"
+	finding_count=$(( finding_count + embedded_count ))
 fi
 
 if [ "${finding_count}" -eq 0 ]; then
@@ -405,15 +481,20 @@ pending=''
 pending_count=0
 while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	[ -n "${finding_id}" ] || continue
-	# Defense against producer drift: ids are hex by contract, and the
-	# id is interpolated into the triage-line regex below.
+	# Defense against producer drift: marker ids are hex by contract and
+	# embedded-summary keys are emb:<path>:<line>; the escape step below is
+	# what makes either shape regex-safe before interpolation.
 	case "${finding_id}" in
+		emb:*) ;;
 		*[!0-9a-f]*|'') fail "finding id '${finding_id}' is not hex; producer format may have drifted" ;;
 	esac
-	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); finding
-	# ids are hex-only, so the id itself is regex-safe. An unanchored
-	# match could count an id mentioned anywhere in the body as triaged.
-	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${finding_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
+	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); an
+	# unanchored match could count an id mentioned anywhere in the body as
+	# triaged. The backslash gets its own gsub (regex /\\/ is unambiguous
+	# everywhere); the remaining ERE metacharacters follow in a class that
+	# contains no backslash, so the doubled backslashes survive untouched.
+	escaped_id="$(printf '%s' "${finding_id}" | awk '{ gsub(/\\/, "\\\\&"); gsub(/[][^$()*+?{}.|]/, "\\\\&"); print }')"
+	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${escaped_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
 		continue
 	fi
 	pending_count=$((pending_count + 1))
