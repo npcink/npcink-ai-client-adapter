@@ -325,14 +325,16 @@ finding_count="$(printf '%s\n' "${findings}" | grep -c . || true)"
 
 # Delivery-contract reconciliation against the action's single rolling
 # summary comment (one per PR, edited each round - freshness is judged
-# by updated_at, not created_at):
-#   "found **N** issue(s)" plus a matching run tag -> expect N
-#   "Review skipped: no items"                      -> expect 0
-#   "Review partially complete"                     -> fail closed: a
+# by updated_at, not created_at). Observed shapes from the pinned action
+# (v1.12.10, commit 579b931):
+#   "... found **N** issue(s) ..."                    -> expect N
+#   "Review complete: N finding(s) across K item(s)"  -> expect N
+#   "Review skipped: no items were selected"          -> expect 0
+#   "Review partially complete: ..."                  -> fail closed: a
 #     selected item failed its review and was never examined, which does
 #     not satisfy the standard's delivered-round rule
-#   anything else, or a body that predates the run  -> fail closed as
-#     unverifiable. A format drift must never read as "no findings".
+# Anything else, or a body that predates the run, fails closed as
+# unverifiable; a format drift must never read as "no findings".
 if ! summary_record="$(
 	gh api --paginate "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
 	| jq -rs '[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- ocr-summary -->")) ]
@@ -351,22 +353,26 @@ fi
 if grep -qF 'Review partially complete' <<< "${summary_body}"; then
 	fail "round ${run_id} is partially complete (a selected item failed its review); re-run composer pr:publish for a full round or record an exception with --no-review-because"
 fi
-if grep -Eq "ocr-summary-run:${run_id}-${attempt}(-->|[^0-9]|\$)" <<< "${summary_body}"; then
-	found_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'found \*\*[0-9]+\*\*' | grep -oE '[0-9]+' | sort -u)"
-	if [ "$(printf '%s\n' "${found_counts}" | grep -c . || true)" -gt 1 ]; then
-		fail "ambiguous OpenCodeReview summary for run ${run_id} attempt ${attempt} (multiple differing counts); failing closed"
-	fi
-	expected_findings="${found_counts}"
-	case "${expected_findings}" in
-		''|*[!0-9]*)
-			fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
-			;;
-	esac
+shape_counts="$(
+	printf '%s\n' "${summary_body}" \
+	| grep -oE 'found \*\*[0-9]+\*\*|Review complete: [0-9]+ finding' \
+	| grep -oE '[0-9]+' | sort -u || true
+)"
+if [ "$(printf '%s\n' "${shape_counts}" | grep -c . || true)" -gt 1 ]; then
+	fail "ambiguous OpenCodeReview summary for run ${run_id} attempt ${attempt} (multiple differing counts); failing closed"
+fi
+if [ -n "${shape_counts}" ]; then
+	expected_findings="${shape_counts}"
 elif grep -qF 'Review skipped' <<< "${summary_body}"; then
 	expected_findings=0
 else
 	fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
 fi
+case "${expected_findings}" in
+	''|*[!0-9]*)
+		fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
+		;;
+esac
 # The workflow's in-run step retries all post markers under the same
 # run-attempt prefix, and the rolling summary reflects only the last
 # step execution. A unique-marker count BELOW the summary count means
