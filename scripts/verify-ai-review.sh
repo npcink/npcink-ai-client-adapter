@@ -257,6 +257,17 @@ Third block, different file.'
 	check 'embedded third file key' "$(printf '%s\n' "${embedded_got}" | sed -n '3p')" 'emb:src/other.php:L10'
 	check 'embedded badge after description image' "$(gate_embedded_tsv "${embedded_body}" | sed -n '2p' | cut -f2)" 'bug · low'
 
+	# The main flow fails closed when the unique-count extractions return
+	# more than one value; the fixtures below pin that trigger condition.
+	local ambiguous_shape='<!-- ocr-summary -->
+**OpenCodeReview** found **5** issue(s) in this PR.
+**OpenCodeReview** found **3** issue(s) in this PR.'
+	check 'ambiguous shape counts surface both' "$(printf '%s\n' "$(gate_shape_counts "${ambiguous_shape}")" | grep -c . || true)" '2'
+	local ambiguous_posted='<!-- ocr-summary -->
+- Successfully posted inline: 5 comment(s)
+- Successfully posted inline: 2 comment(s)'
+	check 'ambiguous posted counts surface both' "$(printf '%s\n' "$(gate_posted_counts "${ambiguous_posted}")" | grep -c . || true)" '2'
+
 	local marker_json='[{"user":{"login":"github-actions[bot]"},"path":"composer.json","line":18,"body":"<!-- ocr-37341345875-1-2b8d2a4f5d1a325f -->\n![bug · low](https://img.shields.io/badge/bug-low-green)\nThe new test script relies on tee."},{"user":{"login":"someone"},"path":"x","line":1,"body":"noise"}]'
 	check 'marker extraction' "$(printf '%s' "${marker_json}" | gate_marker_tsv)" '2b8d2a4f5d1a325f	37341345875	1	bug · low	composer.json:18'
 
