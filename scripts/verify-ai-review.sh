@@ -438,10 +438,11 @@ if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 			pending_badge = ""
 			next
 		}
-		# A badge line is the whole line; badge-like images inside a
-		# description fall through and invalidate any pending badge.
+		# A badge is a whole-line image whose header follows; a trailing
+		# description screenshot also lands here but is replaced by the
+		# next real badge or invalidated by the next content line.
 		/^!\[[^]]*\]\([^)]*\)[[:space:]]*$/ {
-			if (match($0, /!\[[^]]*\]/)) { pending_badge = substr($0, RSTART + 2, RLENGTH - 3) }
+			pending_badge = substr($0, 3, index($0, "]") - 3)
 			next
 		}
 		{ pending_badge = "" }
