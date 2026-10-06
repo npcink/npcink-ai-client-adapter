@@ -117,9 +117,11 @@ run_discovery_max=6
 # result, which the polling loops treat as "not delivered yet" and
 # eventually fail closed.
 latest_review_run() {
+	# The runs endpoint returns {"total_count":N,"workflow_runs":[...]}
+	# per page (an object, unlike the bare-array comment endpoints).
 	gh api --paginate "repos/${github_repo}/actions/runs?head_sha=${head_sha}&per_page=100" \
 	| jq -s '
-		[ .[][]
+		[ .[] | .workflow_runs[]
 			| select(.path == ".github/workflows/ocr-review.yml")
 			| select(.event == "pull_request_target")
 		] | max_by(.run_number) | select(. != null) | {id: .id}
