@@ -195,7 +195,7 @@ fi
 # triage loop pushes fixes or updates the PR body, then re-runs the
 # publisher to re-verify and finally request auto-merge.
 existing_pr="$(
-	gh pr list \
+	retry_network gh pr list \
 		--state open \
 		--head "${branch}" \
 		--json url \
@@ -205,7 +205,7 @@ if [ -n "${existing_pr}" ]; then
 	echo "[pr-publish] reusing open pull request: ${existing_pr}"
 	echo '[pr-publish] note: --body-file is not re-applied to an existing pull request; edit the body with gh pr edit (e.g. triage lines)'
 	existing_head_base="$(
-		gh pr view "${existing_pr}" --json headRefOid,baseRefName \
+		retry_network gh pr view "${existing_pr}" --json headRefOid,baseRefName \
 			--jq '.headRefOid + " " + .baseRefName'
 	)"
 	existing_head="${existing_head_base%% *}"
@@ -361,6 +361,9 @@ else
 	pr_url="${existing_pr}"
 fi
 pr_number="${pr_url##*/}"
+case "${pr_number}" in
+	''|*[!0-9]*) fail "could not parse pull request number from ${pr_url}" ;;
+esac
 
 # Advisory AI review gate (AI Code Review Standard v1): no auto-merge is
 # requested until OpenCodeReview has delivered a review for this exact
@@ -368,15 +371,25 @@ pr_number="${pr_url##*/}"
 # in the PR body. The gate re-runs a failed review run once itself; the
 # only way past an undelivered review is --no-review-because, which the
 # gate records in the PR body.
+# Not wrapped in retry_network: the gate already polls for up to twenty
+# minutes per completion wait and re-runs a failed review once itself, so
+# an outer retry would multiply the bounded waits.
 review_gate_args=( --pr "${pr_number}" --head-sha "${head_sha}" )
 if [ -n "${review_exception}" ]; then
 	review_gate_args+=( --no-review-because "${review_exception}" )
 fi
 review_gate_status=0
 bash scripts/verify-ai-review.sh "${review_gate_args[@]}" || review_gate_status=$?
-if [ "${review_gate_status}" -ne 0 ]; then
-	fail "AI review gate did not pass (exit ${review_gate_status}); auto-merge NOT requested. Complete the triage guidance above, then re-run composer pr:publish."
-fi
+case "${review_gate_status}" in
+	0)
+		;;
+	2)
+		fail "AI review findings pending triage (gate exit 2); auto-merge NOT requested. Complete the triage guidance above, then re-run composer pr:publish."
+		;;
+	*)
+		fail "AI review gate did not pass (exit ${review_gate_status}); no review was delivered or verification failed closed - re-run composer pr:publish after connectivity/provider recovery (the gate re-runs a failed review itself), or record an exception with --no-review-because."
+		;;
+esac
 
 retry_network gh pr merge "${pr_url}" --auto --squash --match-head-commit "${head_sha}"
 
