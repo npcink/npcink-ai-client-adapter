@@ -23,3 +23,11 @@ if ( ! defined( 'NPCINK_OPENCLAW_ADAPTER_FILE' ) ) {
 if ( ! defined( 'NPCINK_OPENCLAW_ADAPTER_DIR' ) ) {
 	define( 'NPCINK_OPENCLAW_ADAPTER_DIR', __DIR__ . '/../' );
 }
+
+// INPUT_* request-input constants for docblock-typed parameters (the
+// docblock union narrows filter_input() calls for phpstan).
+define('INPUT_GET', 0);
+define('INPUT_POST', 1);
+define('INPUT_COOKIE', 2);
+define('INPUT_SERVER', 4);
+define('INPUT_ENV', 5);
