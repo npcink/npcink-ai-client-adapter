@@ -615,8 +615,35 @@ trusted handoff, the key must include `proposals:read` for list/detail status.
 Do not put Core tokens in logs, proposal payloads, error responses, or docs
 examples.
 
-Adapter may also be configured with a Core app token only through the
-`NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` constant or environment variable. It
+Adapter requires a Core app token for the signed-client governed-write flow:
+without it, Adapter cannot forward the signed client fingerprint on internal
+commit-preflight calls, Core issues an unbound handoff, and Adapter fails
+closed with `npcink_openclaw_adapter_preflight_signed_client_fingerprint_missing`.
+The token is configured only through the
+`NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` constant or environment variable; it
 is not read from a WordPress option. This is Adapter internal
 configuration only; do not put the raw token into OpenClaw prompts, proposal
 payloads, screenshots, or handoff examples.
+
+Mint the Core app key with the trusted-Adapter scope set from
+`npcink-governance-core` `docs/app-auth-scope-policy.md`. The minimal working
+set for the signed-client flow is:
+
+```text
+capabilities:read
+proposals:create
+proposals:read
+commit:preflight
+commit:record_execution
+read_requests:create
+read_requests:read
+read_requests:preflight
+```
+
+`commit:record_execution` is deliberately absent from Core's default app-key
+scopes (generic MCP keys do not record execution results); it must be granted
+explicitly, or the execute step fails its final Core recording with
+`recorded=false`. The `proposals:approve`, `read_requests:approve`, and
+`read_requests:reject` scopes are not needed on this key: Adapter's unified
+approve-and-execute path performs approval through a WordPress administrator
+session, not through the app token.

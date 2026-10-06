@@ -903,13 +903,20 @@ Proposal-required write flow:
 Proposal list/detail are read-only Core proxies. They preserve Core response
 fields such as `proposal_id`, `ability_id`, `status`, `title`, `summary`,
 `input`, `preview`, `caller`, `created_at`, `updated_at`, and detail
-`audit_timeline` when Core returns it. Adapter may be configured with a Core app
-token only through the `NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` constant or
+`audit_timeline` when Core returns it. Adapter requires a Core app token for
+the signed-client governed-write flow (without it, commit preflight cannot
+carry the client fingerprint binding and execution fails closed), configured
+only through the `NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN` constant or
 environment variable; it is not read from a WordPress option. When configured, Adapter sends that
 token only on internal Core REST requests and does not print it. That key must
-include `proposals:read` for proposal status, plus the other scopes needed by
-the Core routes Adapter calls. The adapter must not print Core tokens in logs,
-proposal payloads, error responses, or documentation examples.
+be minted with the trusted-Adapter scope set from Core's
+`docs/app-auth-scope-policy.md` - notably `proposals:read` for proposal status
+plus `commit:record_execution` for execution recording, which Core deliberately
+keeps out of default app-key scopes - or proposal
+status, commit preflight, and execution recording will fail their scope checks.
+The adapter must not print Core tokens in logs,
+proposal payloads, error responses, or documentation examples. The concrete
+minimal scope recipe lives in `docs/openclaw-quickstart.md`.
 
 ## Persistence Boundary
 
