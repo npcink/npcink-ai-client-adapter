@@ -207,17 +207,6 @@ existing_pr="$(
 if [ -n "${existing_pr}" ]; then
 	echo "[pr-publish] reusing open pull request: ${existing_pr}"
 	echo '[pr-publish] note: --body-file and --title are not re-applied to an existing pull request; edit the body/title with gh pr edit (e.g. triage lines)'
-	existing_head_base="$(
-		retry_network gh pr view "${existing_pr}" --json headRefOid,baseRefName \
-			--jq '.headRefOid + " " + .baseRefName'
-	)"
-	[ -n "${existing_head_base}" ] || fail "could not read head/base of existing pull request ${existing_pr}"
-	existing_head="${existing_head_base%% *}"
-	existing_base="${existing_head_base##* }"
-	[ "${existing_head}" = "${head_sha}" ] \
-		|| fail "open pull request head ${existing_head} does not match this branch head ${head_sha}"
-	[ "${existing_base}" = "${base_branch}" ] \
-		|| fail "open pull request base ${existing_base} does not match --base ${base_branch}"
 fi
 
 # Direct git pushes can fail for a long time on some paths to github.com
@@ -352,6 +341,23 @@ PY
 }
 
 push_and_verify
+
+# Validate the reused PR only after the push: the triage loop commits
+# locally and re-runs the publisher, and this push is what reconciles
+# the PR head - checking earlier would abort a recoverable state.
+if [ -n "${existing_pr}" ]; then
+	existing_head_base="$(
+		retry_network gh pr view "${existing_pr}" --json headRefOid,baseRefName \
+			--jq '.headRefOid + " " + .baseRefName'
+	)"
+	[ -n "${existing_head_base}" ] || fail "could not read head/base of existing pull request ${existing_pr}"
+	existing_head="${existing_head_base%% *}"
+	existing_base="${existing_head_base##* }"
+	[ "${existing_head}" = "${head_sha}" ] \
+		|| fail "open pull request head ${existing_head} does not match this branch head ${head_sha}"
+	[ "${existing_base}" = "${base_branch}" ] \
+		|| fail "open pull request base ${existing_base} does not match --base ${base_branch}"
+fi
 
 if [ -z "${existing_pr}" ]; then
 	pr_url="$(

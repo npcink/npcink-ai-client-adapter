@@ -95,6 +95,10 @@ esac
 case "${head_sha}" in
 	''|*[!0-9a-fA-F]*) fail '--head-sha must be a commit sha' ;;
 esac
+case "${head_sha}" in
+	????????????????????????????????????????) ;;
+	*) fail '--head-sha must be a 40-character commit sha' ;;
+esac
 # The runs API matches head_sha case-sensitively against the lowercase
 # commit sha, so normalize instead of timing out on an uppercase input.
 head_sha="$(printf '%s' "${head_sha}" | tr '[:upper:]' '[:lower:]')"
@@ -110,7 +114,8 @@ github_repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)" \
 
 run_poll_seconds=20
 run_poll_max_iterations=60
-run_discovery_max=6
+discovery_poll_seconds=15
+discovery_poll_max=6
 
 # Latest pull_request_target run of the review workflow for this head.
 # Only used for discovery; afterwards the run id is pinned so a second
@@ -184,14 +189,21 @@ undelivered_exit() {
 		# existing exceptions section instead of stacking headers.
 		current="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
 		new_body="$(exception_body_from "${current}")"
-		printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null
+		if ! printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null 2>&1; then
+			fail "could not write the exception line to PR #${pr_number}; the exception is NOT recorded and publishing must stop"
+		fi
 		verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
 		if ! printf '%s\n' "${verify_body}" | grep -Fq -- "${exception_line}"; then
 			echo '[ai-review-gate] the exception line did not land (concurrent body edit); retrying once' >&2
 			current="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
 			if ! printf '%s\n' "${current}" | grep -Fq -- "${exception_line}"; then
 				new_body="$(exception_body_from "${current}")"
-				printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null
+				if ! printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null 2>&1; then
+					fail "could not write the retried exception line to PR #${pr_number}; the exception is NOT recorded and publishing must stop"
+				fi
+				verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
+				printf '%s\n' "${verify_body}" | grep -Fq -- "${exception_line}" \
+					|| fail 'the exception line did not land after retry; the exception is NOT recorded and publishing must stop'
 			fi
 		fi
 		echo "[ai-review-gate] ${cause}; exception recorded in the PR body, proceeding"
@@ -208,13 +220,13 @@ undelivered_exit() {
 echo "[ai-review-gate] waiting for the OpenCodeReview run on PR #${pr_number} head ${head_sha}"
 
 run_id=''
-for discovery_attempt in $(seq 1 "${run_discovery_max}"); do
+for discovery_attempt in $(seq 1 "${discovery_poll_max}"); do
 	discovery_json="$(latest_review_run)"
 	if [ -n "${discovery_json}" ]; then
 		run_id="$(printf '%s' "${discovery_json}" | jq -r '.id')"
 		break
 	fi
-	sleep 15
+	sleep "${discovery_poll_seconds}"
 done
 [ -n "${run_id}" ] || undelivered_exit 'no OpenCodeReview run registered for this head'
 
@@ -232,7 +244,10 @@ if [ "${conclusion}" != 'success' ]; then
 		''|*[!0-9]*) undelivered_exit 'the review run state is unreadable' ;;
 	esac
 	echo "[ai-review-gate] review run ${run_id} failed (${conclusion}); re-running its failed jobs once"
-	gh run rerun "${run_id}" --failed >/dev/null 2>&1 || true
+	if ! rerun_output="$(gh run rerun "${run_id}" --failed 2>&1)"; then
+		echo "[ai-review-gate] the re-run request itself failed: ${rerun_output}" >&2
+		undelivered_exit 'the re-run request failed'
+	fi
 	# The re-run registers as an attempt bump, but a short job can also
 	# finish within one poll while the attempt field still lags - and the
 	# pre-rerun conclusion was not success, so a completed+success read
