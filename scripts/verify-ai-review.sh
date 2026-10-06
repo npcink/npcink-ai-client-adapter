@@ -488,13 +488,12 @@ while IFS=$'\t' read -r finding_id finding_label finding_location; do
 		emb:*) ;;
 		*[!0-9a-f]*|'') fail "finding id '${finding_id}' is not hex; producer format may have drifted" ;;
 	esac
-	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); finding
-	# ids are hex-only, so the id itself is regex-safe. An unanchored
-	# match could count an id mentioned anywhere in the body as triaged.
-	# awk gsub is portable across BSD and GNU userlands (sed bracket-class
-	# parsing is not); the class escapes every ERE metacharacter including
-	# the backslash in one pass.
-	escaped_id="$(printf '%s' "${finding_id}" | awk '{ gsub(/[][^$()*+?{}.|\\\\]/, "\\\\&"); print }')"
+	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); an
+	# unanchored match could count an id mentioned anywhere in the body as
+	# triaged. The backslash gets its own gsub (regex /\\/ is unambiguous
+	# everywhere); the remaining ERE metacharacters follow in a class that
+	# contains no backslash, so the doubled backslashes survive untouched.
+	escaped_id="$(printf '%s' "${finding_id}" | awk '{ gsub(/\\/, "\\\\&"); gsub(/[][^$()*+?{}.|]/, "\\\\&"); print }')"
 	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${escaped_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
 		continue
 	fi
