@@ -181,7 +181,11 @@ head_sha="$(git rev-parse HEAD)"
 if [ "${dry_run}" = '1' ]; then
 	quote_command git push -u origin "${branch}"
 	quote_command gh pr create --base "${base_branch}" --head "${branch}" --title "${title}" --body-file "${body_path}"
-	quote_command bash scripts/verify-ai-review.sh --pr '<pr-number>' --head-sha "${head_sha}"
+	if [ -n "${review_exception}" ]; then
+		quote_command bash scripts/verify-ai-review.sh --pr '<pr-number>' --head-sha "${head_sha}" --no-review-because "${review_exception}"
+	else
+		quote_command bash scripts/verify-ai-review.sh --pr '<pr-number>' --head-sha "${head_sha}"
+	fi
 	quote_command gh pr merge '<created-pr-url>' --auto --squash --match-head-commit "${head_sha}"
 	echo '[pr-publish] dry-run passed'
 	exit 0
@@ -199,6 +203,7 @@ existing_pr="$(
 )"
 if [ -n "${existing_pr}" ]; then
 	echo "[pr-publish] reusing open pull request: ${existing_pr}"
+	echo '[pr-publish] note: --body-file is not re-applied to an existing pull request; edit the body with gh pr edit (e.g. triage lines)'
 	existing_head_base="$(
 		gh pr view "${existing_pr}" --json headRefOid,baseRefName \
 			--jq '.headRefOid + " " + .baseRefName'

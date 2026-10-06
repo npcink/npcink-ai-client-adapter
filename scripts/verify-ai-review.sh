@@ -89,16 +89,11 @@ command -v jq >/dev/null 2>&1 || fail 'jq is required'
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail 'run inside a Git worktree'
 cd "${repo_root}"
 
-github_repo="$(python3 - <<'PY'
-import re, subprocess
-url = subprocess.check_output(["git", "remote", "get-url", "origin"], text=True).strip()
-match = re.search(r"[:/]([^/:]+)/([^/]+?)(?:\.git)?$", url)
-print(f"{match.group(1)}/{match.group(2)}")
-PY
-)"
+github_repo="$(gh repo view --json nameWithOwner --jq .nameWithOwner)" \
+	|| fail 'could not resolve the repository from the gh context'
 
 run_poll_seconds=20
-run_poll_max=60
+run_poll_max_iterations=60
 run_discovery_max=6
 
 # Latest pull_request_target run of the review workflow for this head.
@@ -121,7 +116,7 @@ run_field() {
 
 wait_for_completion() {
 	local waited=0 status
-	while [ "${waited}" -lt "${run_poll_max}" ]; do
+	while [ "${waited}" -lt "${run_poll_max_iterations}" ]; do
 		run_json="$(latest_review_run)"
 		if [ -n "${run_json}" ]; then
 			status="$(run_field status)"
@@ -140,9 +135,17 @@ undelivered_exit() {
 	if [ -n "${review_exception}" ]; then
 		local stamp current new_body
 		stamp="$(date -u +%Y-%m-%d)"
-		current="$(gh pr view "${pr_number}" --json body --jq .body)"
-		new_body="$(printf '%s\n\n## AI Review Exceptions\n\n- %s — merged without a delivered OpenCodeReview round (%s): %s\n' \
-			"${current}" "${stamp}" "${cause}" "${review_exception}")"
+		# Fetched immediately before the edit; the write window is one API
+		# round trip. Idempotent: a repeated --no-review-because run appends
+		# to the existing exceptions section instead of stacking headers.
+		current="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
+		if printf '%s\n' "${current}" | grep -q '^## AI Review Exceptions'; then
+			new_body="$(printf '%s\n- %s — merged without a delivered OpenCodeReview round (%s): %s\n' \
+				"${current}" "${stamp}" "${cause}" "${review_exception}")"
+		else
+			new_body="$(printf '%s\n\n## AI Review Exceptions\n\n- %s — merged without a delivered OpenCodeReview round (%s): %s\n' \
+				"${current}" "${stamp}" "${cause}" "${review_exception}")"
+		fi
 		printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null
 		echo "[ai-review-gate] ${cause}; exception recorded in the PR body, proceeding"
 		exit 0
@@ -172,14 +175,19 @@ fi
 conclusion="$(run_field conclusion)"
 if [ "${conclusion}" != 'success' ]; then
 	run_id="$(run_field id)"
+	attempt_before="$(run_field attempt)"
 	echo "[ai-review-gate] review run ${run_id} failed (${conclusion}); re-running its failed jobs once"
 	gh run rerun "${run_id}" --failed >/dev/null 2>&1 || true
+	# The re-run registers as an attempt bump; a short job can also finish
+	# within one poll, so break on either signal - not on status alone.
 	rerun_settled=0
 	for settle_attempt in 1 2 3 4 5 6; do
 		run_json="$(latest_review_run)"
-		if [ -n "${run_json}" ] && [ "$(run_field status)" != 'completed' ]; then
-			rerun_settled=1
-			break
+		if [ -n "${run_json}" ]; then
+			if [ "$(run_field attempt)" -gt "${attempt_before}" ] || [ "$(run_field status)" != 'completed' ]; then
+				rerun_settled=1
+				break
+			fi
 		fi
 		sleep 10
 	done
@@ -217,13 +225,43 @@ if ! comments_tsv="$(gh api "repos/${github_repo}/pulls/${pr_number}/comments?pe
 	fail 'could not fetch inline review comments for the pull request'
 fi
 findings="$(printf '%s\n' "${comments_tsv}" | awk -F'\t' -v run="${run_id}" -v att="${attempt}" '$2 == run && $3 == att { print $1 "\t" $4 "\t" $5 }')"
+finding_count="$(printf '%s\n' "${findings}" | grep -c . || true)"
 
-if [ -z "${findings}" ]; then
+# Delivery-contract reconciliation: the action's own summary comment for
+# this exact run+attempt states how many findings it posted ("found N
+# issue(s)") or that nothing was reviewable ("Review skipped"). If the
+# inline-marker parser and the summary disagree - for example after an
+# upstream comment-format change - fail closed instead of reading a
+# parse miss as "no findings". Skipped rounds post an untagged summary,
+# so a run-tagged body wins; otherwise the newest summary must say
+# "Review skipped" and the marker extraction must be empty.
+summary_body="$(gh api "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
+	--jq "[.[] | select(.user.login == \"github-actions[bot]\") | select(.body | contains(\"ocr-summary-run:${run_id}-${attempt}\")) | .body] | last // empty" || true)"
+if [ -z "${summary_body}" ]; then
+	summary_body="$(gh api "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
+		--jq "[.[] | select(.user.login == \"github-actions[bot]\") | select(.body | contains(\"<!-- ocr-summary -->\")) | .body] | last // empty" || true)"
+	if printf '%s\n' "${summary_body}" | grep -qF 'Review skipped'; then
+		expected_findings=0
+	else
+		fail "no OpenCodeReview summary comment for run ${run_id} attempt ${attempt}; delivery contract unverifiable"
+	fi
+else
+	expected_findings="$(printf '%s\n' "${summary_body}" | grep -oE 'found \*\*[0-9]+\*\*' | grep -oE '[0-9]+' | head -1 || true)"
+	case "${expected_findings}" in
+		''|*[!0-9]*)
+			fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
+			;;
+	esac
+fi
+if [ "${expected_findings}" != "${finding_count}" ]; then
+	fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), marker parser extracted ${finding_count}; failing closed"
+fi
+
+if [ "${finding_count}" -eq 0 ]; then
 	echo '[ai-review-gate] delivered review raised no findings; triage not required'
 	exit 0
 fi
 
-finding_count="$(printf '%s\n' "${findings}" | grep -c .)"
 echo "[ai-review-gate] ${finding_count} finding(s) from run ${run_id} attempt ${attempt}; verifying triage lines"
 
 pr_body="$(gh pr view "${pr_number}" --json body --jq .body)"
@@ -232,7 +270,10 @@ pending=''
 pending_count=0
 while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	[ -n "${finding_id}" ] || continue
-	if printf '%s\n' "${pr_body}" | grep -E "${finding_id}[[:space:]]*(fix|accept):" >/dev/null 2>&1; then
+	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); finding
+	# ids are hex-only, so the id itself is regex-safe. An unanchored
+	# match could count an id mentioned anywhere in the body as triaged.
+	if printf '%s\n' "${pr_body}" | grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${finding_id}[[:space:]]+(fix|accept):" >/dev/null 2>&1; then
 		continue
 	fi
 	pending_count=$((pending_count + 1))
