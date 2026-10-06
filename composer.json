@@ -1,67 +1,69 @@
 {
-  "name": "npcink/npcink-ai-client-adapter",
-  "description": "Thin AI client adapter for Npcink Governance Core and WordPress Abilities API.",
-  "type": "wordpress-plugin",
-  "license": "GPL-2.0-or-later",
-  "require": {
-    "php": ">=8.0"
-  },
-  "autoload": {
-    "psr-4": {
-      "Npcink\\OpenClawAdapter\\": "includes/"
-    }
-  },
-  "scripts": {
-    "lint:php": "find . -name '*.php' -not -path './.git/*' -not -path './build/*' -not -path './vendor/*' -not -path './node_modules/*' -print0 | xargs -0 -n1 php -l",
-    "analyse:php": "vendor/bin/phpstan analyse --memory-limit=1G",
-    "lint:standards": "vendor/bin/phpcs -d memory_limit=2G",
-    "test": "@php tests/run.php 2>&1 | tee /dev/stderr | grep -q 'Static contracts: ok'",
-    "test:execution-input-validator": "php tests/execution-input-validator-behavior.php",
-    "test:execution-action-runner": "php tests/execution-action-runner-behavior.php",
-    "test:security-hardening": "php tests/security-hardening-behavior.php",
-    "smoke:wp": "bash tests/smoke-wp.sh",
-    "smoke:package-install": "bash tests/package-install-smoke.sh",
-    "accept:local-ai-client": "bash tests/local-ai-client-acceptance.sh",
-    "accept:local-ai-client-fixture": "bash tests/local-ai-client-fixture-acceptance.sh",
-    "accept:openclaw-zhihu-atomics": "bash tests/openclaw-zhihu-atomics-acceptance.sh",
-    "accept:block-theme-openclaw": "bash tests/block-theme-openclaw-acceptance.sh",
-    "visual:wp": "bash tests/visual-acceptance.sh",
-    "dev:article-template-visual": "bash tests/dev-article-template-visual.sh",
-    "dev:block-theme-template-visual": "bash tests/dev-block-theme-template-visual.sh",
-    "eval:lab": "sh scripts/eval-lab.sh",
-    "eval:project:quality": "sh scripts/eval-lab.sh task=project_quality_gate \"project=$PWD\" mode=working_diff",
-    "check:wporg": "@php scripts/check-wordpress-org-review-rules.php",
-    "check:i18n": "@php scripts/check-translation-coverage.php",
-    "pr:publish": "bash scripts/publish-pr.sh",
-    "i18n:pot": "WP_CLI_BIN=\"${WP_CLI_BIN:-/tmp/wp-cli.phar}\"; php \"$WP_CLI_BIN\" i18n make-pot . languages/npcink-ai-client-adapter.pot --slug=npcink-ai-client-adapter --domain=npcink-ai-client-adapter --exclude=build,vendor,node_modules,packages,sj,tests,tools,docs --package-name=\"Npcink AI Client Adapter\"",
-    "package:release": "rm -rf build/npcink-ai-client-adapter build/npcink-ai-client-adapter.zip && mkdir -p build && rsync -a --delete --exclude-from=.distignore ./ build/npcink-ai-client-adapter/ && cd build && zip -qr npcink-ai-client-adapter.zip npcink-ai-client-adapter",
-    "package:suite": "bash scripts/package-suite.sh",
-    "plugin-check:release": "bash scripts/plugin-check-release.sh",
-    "release:verify": [
-      "@test:all",
-      "@check:wporg",
-      "@check:i18n",
-      "@plugin-check:release"
-    ],
-    "test:all": [
-      "@lint:php",
-      "@test:execution-input-validator",
-      "@test:execution-action-runner",
-      "@test:security-hardening",
-      "@test"
-    ]
-  },
-  "require-dev": {
-    "phpstan/phpstan": "^2.2",
-    "php-stubs/wordpress-stubs": "^7.1",
-    "squizlabs/php_codesniffer": "^3.13",
-    "wp-coding-standards/wpcs": "^3.4",
-    "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
-    "phpcompatibility/phpcompatibility-wp": "^2.1"
-  },
-  "config": {
-    "allow-plugins": {
-      "dealerdirect/phpcodesniffer-composer-installer": true
-    }
+ "name": "npcink/npcink-ai-client-adapter",
+ "description": "Thin AI client adapter for Npcink Governance Core and WordPress Abilities API.",
+ "type": "wordpress-plugin",
+ "license": "GPL-2.0-or-later",
+ "require": {
+  "php": ">=8.0"
+ },
+ "autoload": {
+  "psr-4": {
+   "Npcink\\OpenClawAdapter\\": "includes/"
   }
+ },
+ "scripts": {
+  "lint:php": "find . -name '*.php' -not -path './.git/*' -not -path './build/*' -not -path './vendor/*' -not -path './node_modules/*' -print0 | xargs -0 -n1 php -l",
+  "analyse:php": "vendor/bin/phpstan analyse --memory-limit=1G",
+  "lint:standards": "vendor/bin/phpcs -d memory_limit=2G",
+  "test": "@php tests/run.php 2>&1 | tee /dev/stderr | grep -q 'Static contracts: ok'",
+  "test:execution-input-validator": "php tests/execution-input-validator-behavior.php",
+  "test:execution-action-runner": "php tests/execution-action-runner-behavior.php",
+  "test:security-hardening": "php tests/security-hardening-behavior.php",
+  "smoke:wp": "bash tests/smoke-wp.sh",
+  "smoke:package-install": "bash tests/package-install-smoke.sh",
+  "accept:local-ai-client": "bash tests/local-ai-client-acceptance.sh",
+  "accept:local-ai-client-fixture": "bash tests/local-ai-client-fixture-acceptance.sh",
+  "accept:openclaw-zhihu-atomics": "bash tests/openclaw-zhihu-atomics-acceptance.sh",
+  "accept:block-theme-openclaw": "bash tests/block-theme-openclaw-acceptance.sh",
+  "visual:wp": "bash tests/visual-acceptance.sh",
+  "dev:article-template-visual": "bash tests/dev-article-template-visual.sh",
+  "dev:block-theme-template-visual": "bash tests/dev-block-theme-template-visual.sh",
+  "eval:lab": "sh scripts/eval-lab.sh",
+  "eval:project:quality": "sh scripts/eval-lab.sh task=project_quality_gate \"project=$PWD\" mode=working_diff",
+  "check:wporg": "@php scripts/check-wordpress-org-review-rules.php",
+  "check:i18n": "@php scripts/check-translation-coverage.php",
+  "pr:publish": "bash scripts/publish-pr.sh",
+  "i18n:pot": "WP_CLI_BIN=\"${WP_CLI_BIN:-/tmp/wp-cli.phar}\"; php \"$WP_CLI_BIN\" i18n make-pot . languages/npcink-ai-client-adapter.pot --slug=npcink-ai-client-adapter --domain=npcink-ai-client-adapter --exclude=build,vendor,node_modules,packages,sj,tests,tools,docs --package-name=\"Npcink AI Client Adapter\"",
+  "package:release": "rm -rf build/npcink-ai-client-adapter build/npcink-ai-client-adapter.zip && mkdir -p build && rsync -a --delete --exclude-from=.distignore ./ build/npcink-ai-client-adapter/ && cd build && zip -qr npcink-ai-client-adapter.zip npcink-ai-client-adapter",
+  "package:suite": "bash scripts/package-suite.sh",
+  "plugin-check:release": "bash scripts/plugin-check-release.sh",
+  "release:verify": [
+   "@test:all",
+   "@check:wporg",
+   "@check:i18n",
+   "@plugin-check:release"
+  ],
+  "test:all": [
+   "@lint:php",
+   "@test:execution-input-validator",
+   "@test:execution-action-runner",
+   "@test:security-hardening",
+   "@test:ai-review-gate",
+   "@test"
+  ],
+  "test:ai-review-gate": "bash scripts/verify-ai-review.sh --self-test"
+ },
+ "require-dev": {
+  "phpstan/phpstan": "^2.2",
+  "php-stubs/wordpress-stubs": "^7.1",
+  "squizlabs/php_codesniffer": "^3.13",
+  "wp-coding-standards/wpcs": "^3.4",
+  "dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+  "phpcompatibility/phpcompatibility-wp": "^2.1"
+ },
+ "config": {
+  "allow-plugins": {
+   "dealerdirect/phpcodesniffer-composer-installer": true
+  }
+ }
 }

@@ -59,6 +59,7 @@ fail() {
 pr_number=''
 head_sha=''
 review_exception=''
+self_test=0
 
 while [ "$#" -gt 0 ]; do
 	case "$1" in
@@ -80,6 +81,10 @@ while [ "$#" -gt 0 ]; do
 			review_exception="$2"
 			shift 2
 			;;
+		--self-test)
+			self_test=1
+			shift
+			;;
 		--help|-h)
 			usage
 			exit 0
@@ -89,6 +94,191 @@ while [ "$#" -gt 0 ]; do
 			;;
 	esac
 done
+
+# --- Pure parsing helpers ---------------------------------------------------
+# Each helper is one producer-contract surface, shared verbatim by the main
+# flow and --self-test; the fixtures there pin the observed v1.12.10 shapes.
+
+# Unique finding count across the found-N and Review-complete shapes.
+gate_shape_counts() {
+	printf '%s\n' "$1" | grep -oE 'found \*\*[0-9]+\*\*|Review complete: [0-9]+ finding' | grep -oE '[0-9]+' | sort -u || true
+}
+
+gate_is_partial() { grep -qF 'Review partially complete' <<< "$1"; }
+gate_is_skipped() { grep -qF 'Review skipped' <<< "$1"; }
+
+gate_posted_counts() {
+	printf '%s\n' "$1" | grep -oE 'Successfully posted inline: [0-9]+ comments?' | grep -oE '[0-9]+' | sort -u || true
+}
+
+gate_failed_counts() {
+	printf '%s\n' "$1" | grep -oE 'Failed to post inline: [0-9]+ comments?' | grep -oE '[0-9]+' | sort -u || true
+}
+
+# Inline marker extraction: id, run, attempt, label, path:line per finding.
+gate_marker_tsv() {
+	jq -r -s '
+		[ .[][]
+			| select(.user.login == "github-actions[bot]")
+			| select(.body | startswith("<!-- ocr-"))
+			| .body as $body
+			| ($body | capture("^<!-- ocr-(?<run>[0-9]+)-(?<att>[0-9]+)-(?<id>[0-9a-f]+) -->")) as $marker
+			| [ $marker.id,
+			    $marker.run,
+			    $marker.att,
+			    ($body | (capture("!?\\[(?<label>[^]]*)\\]")? | .label) // "finding"),
+			    ((.path // "?") + ":" + ((.line // .original_line // 0) | tostring))
+			  ]
+		] | sort_by(.[0])[] | @tsv
+	'
+}
+
+# Embedded (failed-to-post) findings keyed emb:<path>:<line>[#N].
+# Embedded blocks render as: badge line, then the "### `path` (Lx-Ly)"
+# header, then the description. A buffered badge only belongs to a block
+# when the header follows it directly; blank lines and badge-like images
+# inside a description are discarded. Repeated path+line findings gain
+# #N suffixes in summary-body order, and the pending list printed by the
+# gate is the authoritative key spelling.
+gate_embedded_tsv() {
+	printf '%s\n' "$1" | awk '
+		function flush() {
+			if (path != "") {
+				seen[path ":" line]++
+				key = "emb:" path ":" line (seen[path ":" line] > 1 ? "#" seen[path ":" line] : "")
+				print key "\t" label "\t" path ":" line
+			}
+			path = ""
+		}
+		/^### .*\(L[0-9]+-L[0-9]+\)$/ {
+			flush()
+			path = $0
+			sub(/^### [^`]*`/, "", path)
+			sub(/`.*$/, "", path)
+			gsub(/\t/, " ", path)
+			if (match($0, /\(L[0-9]+-/)) { line = "L" substr($0, RSTART + 2, RLENGTH - 3) }
+			label = pending_badge != "" ? pending_badge : "finding"
+			pending_badge = ""
+			next
+		}
+		# A badge is a whole-line image whose header follows; a trailing
+		# description screenshot also lands here but is replaced by the
+		# next real badge or invalidated by the next content line.
+		/^!\[[^]]*\]\([^)]*\)[[:space:]]*$/ {
+			pending_badge = substr($0, 3, index($0, "]") - 3)
+			next
+		}
+		{ pending_badge = "" }
+		END { flush() }
+	'
+}
+
+# ERE-escape a finding id (backslash in its own unambiguous gsub pass).
+gate_escape_id() {
+	printf '%s' "$1" | awk '{ gsub(/\\/, "\\\\&"); gsub(/[][^$()*+?{}.|]/, "\\\\&"); print }'
+}
+
+# Anchored triage-line match for one escaped finding id.
+gate_triage_matches() {
+	grep -Eq "^[[:space:]]*[-*][[:space:]]*(\\[[ xX]\\][[:space:]]*)?$2[[:space:]]+(fix|accept):" <<< "$1"
+}
+
+# --- Self-test ---------------------------------------------------------------
+# Pins the producer contract against the five real summary shapes observed
+# from the pinned action, plus marker extraction, id escaping, triage
+# matching, and embedded dedup keys. Run before any action pin bump;
+# wired into composer test:all as test:ai-review-gate.
+gate_self_test() {
+	local failures=0
+
+	check() {
+		if [ "$2" = "$3" ]; then
+			echo "  ok: $1"
+		else
+			echo "  FAIL: $1 (expected [$3], got [$2])" >&2
+			failures=$((failures + 1))
+		fi
+	}
+
+	local found_posted='<!-- ocr-summary -->
+<!-- ocr-summary-run:37341345875-1 -->
+**OpenCodeReview** found **5** issue(s) in this PR.
+- Successfully posted inline: 5 comment(s)'
+	check 'found-N shape count' "$(gate_shape_counts "${found_posted}")" '5'
+	check 'found-N posted count' "$(gate_posted_counts "${found_posted}")" '5'
+	check 'found-N failed count' "$(gate_failed_counts "${found_posted}")" ''
+
+	local skipped='<!-- ocr-summary -->
+**OpenCodeReview**: Review skipped: no items were selected.'
+	check 'skipped shape count' "$(gate_shape_counts "${skipped}")" ''
+	check 'skipped detected' "$(gate_is_skipped "${skipped}" && echo yes)" 'yes'
+
+	local complete='<!-- ocr-summary -->
+**OpenCodeReview**: Review complete: 0 finding(s) across 4 selected item(s).'
+	check 'complete-0 shape count' "$(gate_shape_counts "${complete}")" '0'
+	check 'complete-0 not skipped' "$(gate_is_skipped "${complete}" || echo no)" 'no'
+
+	local partial='<!-- ocr-summary -->
+**OpenCodeReview**: Review partially complete: 0 finding(s); 1 of 3 selected item(s) failed.'
+	check 'partial detected' "$(gate_is_partial "${partial}" && echo yes)" 'yes'
+
+	local embedded_body='<!-- ocr-summary -->
+**OpenCodeReview** found **3** issue(s) in this PR.
+- Successfully posted inline: 1 comment(s)
+- Failed to post inline: 2 comment(s)
+
+---
+
+![bug · medium](https://img.shields.io/badge/bug-medium-orange)
+### `packages/adapter-cli/bin/tool.mjs` (L606-L609)
+
+Could not post inline. Description with an image ![screenshot](https://example.com/x.png) that must not become the badge.
+
+![bug · low](https://img.shields.io/badge/bug-low-green)
+### `packages/adapter-cli/bin/tool.mjs` (L606-L609)
+
+Second same-anchor block gains the #2 suffix.
+
+![bug · high](https://img.shields.io/badge/bug-high-red)
+### `src/other.php` (L10-L12)
+
+Third block, different file.'
+	check 'split shape count' "$(gate_shape_counts "${embedded_body}")" '3'
+	check 'split posted count' "$(gate_posted_counts "${embedded_body}")" '1'
+	check 'split failed count' "$(gate_failed_counts "${embedded_body}")" '2'
+	local embedded_got
+	embedded_got="$(gate_embedded_tsv "${embedded_body}" | cut -f1)"
+	check 'embedded key count' "$(printf '%s\n' "${embedded_got}" | grep -c . || true)" '3'
+	check 'embedded duplicate suffix' "$(printf '%s\n' "${embedded_got}" | sed -n '2p')" 'emb:packages/adapter-cli/bin/tool.mjs:L606#2'
+	check 'embedded third file key' "$(printf '%s\n' "${embedded_got}" | sed -n '3p')" 'emb:src/other.php:L10'
+	check 'embedded badge after description image' "$(gate_embedded_tsv "${embedded_body}" | sed -n '2p' | cut -f2)" 'bug · low'
+
+	local marker_json='[{"user":{"login":"github-actions[bot]"},"path":"composer.json","line":18,"body":"<!-- ocr-37341345875-1-2b8d2a4f5d1a325f -->\n![bug · low](https://img.shields.io/badge/bug-low-green)\nThe new test script relies on tee."},{"user":{"login":"someone"},"path":"x","line":1,"body":"noise"}]'
+	check 'marker extraction' "$(printf '%s' "${marker_json}" | gate_marker_tsv)" '2b8d2a4f5d1a325f	37341345875	1	bug · low	composer.json:18'
+
+	check 'id escaping' "$(gate_escape_id 'emb:a\b(c).L1')" 'emb:a\\b\(c\)\.L1'
+
+	local triage_slice='## AI Review Triage
+
+- 2b8d2a4f5d1a325f fix: switched to a portable form
+- [x] emb:a\b(c).L1 accept: dev-only
+- unrelated prose mentioning 2b8d2a4f5d1a325f loosely'
+	check 'triage line matches hex id' "$(gate_triage_matches "${triage_slice}" "$(gate_escape_id '2b8d2a4f5d1a325f')" && echo yes)" 'yes'
+	check 'triage line matches embedded id' "$(gate_triage_matches "${triage_slice}" "$(gate_escape_id 'emb:a\b(c).L1')" && echo yes)" 'yes'
+	check 'unanchored mention does not count' "$(gate_triage_matches "elsewhere: see 2b8d2a4f5d1a325f in prose" "$(gate_escape_id '2b8d2a4f5d1a325f')" || echo no)" 'no'
+
+	if [ "${failures}" -ne 0 ]; then
+		echo "[ai-review-gate] self-test failed (${failures} assertion(s))" >&2
+		return 1
+	fi
+	echo 'AI review gate self-test: ok'
+	return 0
+}
+
+if [ "${self_test}" = '1' ]; then
+	gate_self_test
+	exit $?
+fi
 
 [ -n "${pr_number}" ] || fail '--pr is required'
 [ -n "${head_sha}" ] || fail '--head-sha is required'
@@ -303,20 +493,7 @@ echo "[ai-review-gate] review delivered (run ${run_id}, attempt ${attempt}); col
 # diff through (pipefail surfaces the gh failure through the pipeline).
 if ! comments_tsv="$(
 	gh api --paginate "repos/${github_repo}/pulls/${pr_number}/comments?per_page=100" \
-	| jq -r -s '
-		[ .[][]
-			| select(.user.login == "github-actions[bot]")
-			| select(.body | startswith("<!-- ocr-"))
-			| .body as $body
-			| ($body | capture("^<!-- ocr-(?<run>[0-9]+)-(?<att>[0-9]+)-(?<id>[0-9a-f]+) -->")) as $marker
-			| [ $marker.id,
-			    $marker.run,
-			    $marker.att,
-			    ($body | (capture("!?\\[(?<label>[^]]*)\\]")? | .label) // "finding"),
-			    ((.path // "?") + ":" + ((.line // .original_line // 0) | tostring))
-			  ]
-		] | sort_by(.[0])[] | @tsv
-	'
+	| gate_marker_tsv
 )"; then
 	fail 'could not fetch inline review comments for the pull request'
 fi
@@ -350,20 +527,16 @@ fi
 if [[ "${summary_updated}" < "${run_created}" ]]; then
 	fail "the summary comment body predates run ${run_id}; no summary posted for this run - failing closed"
 fi
-if grep -qF 'Review partially complete' <<< "${summary_body}"; then
+if gate_is_partial "${summary_body}"; then
 	fail "round ${run_id} is partially complete (a selected item failed its review); re-run composer pr:publish for a full round or record an exception with --no-review-because"
 fi
-shape_counts="$(
-	printf '%s\n' "${summary_body}" \
-	| grep -oE 'found \*\*[0-9]+\*\*|Review complete: [0-9]+ finding' \
-	| grep -oE '[0-9]+' | sort -u || true
-)"
+shape_counts="$(gate_shape_counts "${summary_body}")"
 if [ "$(printf '%s\n' "${shape_counts}" | grep -c . || true)" -gt 1 ]; then
 	fail "ambiguous OpenCodeReview summary for run ${run_id} attempt ${attempt} (multiple differing counts); failing closed"
 fi
 if [ -n "${shape_counts}" ]; then
 	expected_findings="${shape_counts}"
-elif grep -qF 'Review skipped' <<< "${summary_body}"; then
+elif gate_is_skipped "${summary_body}"; then
 	expected_findings=0
 else
 	fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
@@ -381,8 +554,8 @@ esac
 # closed; above-count means the workflow's in-run retries left extra
 # real findings (triage them all - stricter, never fewer than the
 # summary promised).
-posted_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'Successfully posted inline: [0-9]+ comments?' | grep -oE '[0-9]+' | sort -u || true)"
-failed_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'Failed to post inline: [0-9]+ comments?' | grep -oE '[0-9]+' | sort -u || true)"
+posted_counts="$(gate_posted_counts "${summary_body}")"
+failed_counts="$(gate_failed_counts "${summary_body}")"
 if [ "$(printf '%s\n' "${posted_counts}" | grep -c . || true)" -gt 1 ] || [ "$(printf '%s\n' "${failed_counts}" | grep -c . || true)" -gt 1 ]; then
 	fail "ambiguous OpenCodeReview inline-posting counts for run ${run_id} attempt ${attempt}; failing closed"
 fi
@@ -412,42 +585,7 @@ else
 fi
 
 if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
-	embedded="$(printf '%s\n' "${summary_body}" | awk '
-		function flush() {
-			if (path != "") {
-				seen[path ":" line]++
-				key = "emb:" path ":" line (seen[path ":" line] > 1 ? "#" seen[path ":" line] : "")
-				print key "\t" label "\t" path ":" line
-			}
-			path = ""
-		}
-		# Embedded blocks render as: badge line, then the "### `path` (Lx-Ly)"
-		# header, then the description. A buffered badge only belongs to a
-		# block when the header follows it directly; blank lines and
-		# badge-like images inside a description are discarded. Repeated
-		# path+line findings gain #N suffixes in summary-body order, and the
-		# pending list printed by the gate is the authoritative key spelling.
-		/^### .*\(L[0-9]+-L[0-9]+\)$/ {
-			flush()
-			path = $0
-			sub(/^### [^`]*`/, "", path)
-			sub(/`.*$/, "", path)
-			gsub(/\t/, " ", path)
-			if (match($0, /\(L[0-9]+-/)) { line = "L" substr($0, RSTART + 2, RLENGTH - 3) }
-			label = pending_badge != "" ? pending_badge : "finding"
-			pending_badge = ""
-			next
-		}
-		# A badge is a whole-line image whose header follows; a trailing
-		# description screenshot also lands here but is replaced by the
-		# next real badge or invalidated by the next content line.
-		/^!\[[^]]*\]\([^)]*\)[[:space:]]*$/ {
-			pending_badge = substr($0, 3, index($0, "]") - 3)
-			next
-		}
-		{ pending_badge = "" }
-		END { flush() }
-	')"
+	embedded="$(gate_embedded_tsv "${summary_body}")"
 	embedded_count="$(printf '%s\n' "${embedded}" | grep -c . || true)"
 	# Below-count always fails closed; above-count (earlier retry-step
 	# rounds leaving extra embedded blocks) mirrors the inline tolerance:
@@ -493,8 +631,8 @@ while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	# triaged. The backslash gets its own gsub (regex /\\/ is unambiguous
 	# everywhere); the remaining ERE metacharacters follow in a class that
 	# contains no backslash, so the doubled backslashes survive untouched.
-	escaped_id="$(printf '%s' "${finding_id}" | awk '{ gsub(/\\/, "\\\\&"); gsub(/[][^$()*+?{}.|]/, "\\\\&"); print }')"
-	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${escaped_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
+	escaped_id="$(gate_escape_id "${finding_id}")"
+	if gate_triage_matches "${triage_slice}" "${escaped_id}"; then
 		continue
 	fi
 	pending_count=$((pending_count + 1))
