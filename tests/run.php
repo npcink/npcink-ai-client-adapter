@@ -2289,7 +2289,9 @@ foreach (
 		'redactOutput',
 		'isSensitiveOutputKey',
 		'safeErrorMessage',
-		'JSON.stringify(data).slice(0, 2000)',
+		'JSON.stringify(redactOutput(data)).slice(0, 2000)',
+		'expectedType === \'integer\'',
+		"ability_id: { type: 'string', pattern: MCP_SAFE_ID_SCHEMA_PATTERN }",
 		'read-request create requires --ability-id, --purpose, and --data-classes.',
 		'false values indicate Core keeps final execution authority separate from Adapter diagnostics.',
 	) as $required

@@ -45,7 +45,7 @@ function makeSigningProfileDir(baseUrl) {
     adapter_base_url: baseUrl,
     key_id: 'mk_cli_contract_test_key',
     private_key_jwk: jwk,
-  }));
+  }), { mode: 0o600 });
   return profilePath;
 }
 
@@ -101,9 +101,17 @@ function startMcpServer(profilePath) {
 function rpcCall(child, id, method, params) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`MCP call ${method} timed out`)), 15000);
+    // Buffer across chunks: a response line split across two stdout
+    // chunks would otherwise be dropped and the call would time out.
+    let buffer = '';
     const onData = (chunk) => {
-      for (const line of String(chunk).split('\n')) {
-        if (!line.trim()) {
+      buffer += String(chunk);
+      let newlineIndex = buffer.indexOf('\n');
+      while (newlineIndex >= 0) {
+        const line = buffer.slice(0, newlineIndex).trim();
+        buffer = buffer.slice(newlineIndex + 1);
+        newlineIndex = buffer.indexOf('\n');
+        if (!line) {
           continue;
         }
         let message;
