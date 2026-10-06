@@ -381,8 +381,13 @@ esac
 # closed; above-count means the workflow's in-run retries left extra
 # real findings (triage them all - stricter, never fewer than the
 # summary promised).
-posted_inline="$(printf '%s\n' "${summary_body}" | grep -oE 'Successfully posted inline: [0-9]+ comment' | grep -oE '[0-9]+' | sort -u | head -1 || true)"
-failed_inline="$(printf '%s\n' "${summary_body}" | grep -oE 'Failed to post inline: [0-9]+ comment' | grep -oE '[0-9]+' | sort -u | head -1 || true)"
+posted_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'Successfully posted inline: [0-9]+ comments?' | grep -oE '[0-9]+' | sort -u || true)"
+failed_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'Failed to post inline: [0-9]+ comments?' | grep -oE '[0-9]+' | sort -u || true)"
+if [ "$(printf '%s\n' "${posted_counts}" | grep -c . || true)" -gt 1 ] || [ "$(printf '%s\n' "${failed_counts}" | grep -c . || true)" -gt 1 ]; then
+	fail "ambiguous OpenCodeReview inline-posting counts for run ${run_id} attempt ${attempt}; failing closed"
+fi
+posted_inline="$(printf '%s\n' "${posted_counts}" | head -1 || true)"
+failed_inline="$(printf '%s\n' "${failed_counts}" | head -1 || true)"
 if [ -n "${posted_inline}" ]; then
 	failed_inline="${failed_inline:-0}"
 	if [ "${expected_findings}" -ne $(( posted_inline + failed_inline )) ]; then
@@ -406,7 +411,11 @@ fi
 if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 	embedded="$(printf '%s\n' "${summary_body}" | awk '
 		function flush() {
-			if (path != "") { print "emb:" path ":" line "\t" label "\t" path ":" line }
+			if (path != "") {
+				seen[path ":" line]++
+				key = "emb:" path ":" line (seen[path ":" line] > 1 ? "#" seen[path ":" line] : "")
+				print key "\t" label "\t" path ":" line
+			}
 			path = ""
 		}
 		# Embedded blocks render as: badge line, then the "### `path` (Lx-Ly)"
@@ -465,7 +474,8 @@ while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); finding
 	# ids are hex-only, so the id itself is regex-safe. An unanchored
 	# match could count an id mentioned anywhere in the body as triaged.
-	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${finding_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
+	escaped_id="$(printf '%s' "${finding_id}" | sed 's/[][\.\*^$()+?{}|]/\\&/g')"
+	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${escaped_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
 		continue
 	fi
 	pending_count=$((pending_count + 1))

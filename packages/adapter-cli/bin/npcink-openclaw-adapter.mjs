@@ -713,7 +713,9 @@ function proposalIntentTool(name, description, suffix, intent) {
       required: ['proposal_id', 'intent'],
       additionalProperties: false,
     },
-    idFields: ['ability_id', 'proposal_id'],
+    // No ability_id here: this tool's schema is proposal_id + intent only,
+    // so an ability_id idFields entry could never match.
+    idFields: ['proposal_id'],
     requiredIntent: intent,
     route: (input) => ({ method: 'POST', path: `/proposals/${encodeURIComponent(String(input.proposal_id))}/${suffix}`, intent }),
   };
