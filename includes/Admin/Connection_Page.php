@@ -609,7 +609,7 @@ final class Connection_Page {
 	/**
 	 * Returns a sanitized scalar request field without direct superglobal reads.
 	 *
-	 * @param int    $input_type One of the PHP INPUT_* constants (INPUT_GET, INPUT_POST, ...).
+	 * @param INPUT_GET|INPUT_POST|INPUT_COOKIE|INPUT_SERVER|INPUT_ENV $input_type One of the PHP INPUT_* constants.
 	 * @param string $key        Request field name.
 	 * @return string
 	 */
