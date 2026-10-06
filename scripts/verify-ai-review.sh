@@ -433,7 +433,9 @@ if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
 			pending_badge = ""
 			next
 		}
-		/!\[/ {
+		# A badge line is the whole line; badge-like images inside a
+		# description fall through and invalidate any pending badge.
+		/^!\[[^]]*\]\([^)]*\)[[:space:]]*$/ {
 			if (match($0, /!\[[^]]*\]/)) { pending_badge = substr($0, RSTART + 2, RLENGTH - 3) }
 			next
 		}
@@ -478,7 +480,10 @@ while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); finding
 	# ids are hex-only, so the id itself is regex-safe. An unanchored
 	# match could count an id mentioned anywhere in the body as triaged.
-	escaped_id="$(printf '%s' "${finding_id}" | sed 's/[][\.\*^$()+?{}|]/\\&/g')"
+	# awk gsub is portable across BSD and GNU userlands (sed bracket-class
+	# parsing is not); the class escapes every ERE metacharacter including
+	# the backslash in one pass.
+	escaped_id="$(printf '%s' "${finding_id}" | awk '{ gsub(/[][^$()*+?{}.|\\]/, "\\&"); print }')"
 	if grep -Eq "^[[:space:]]*[-*][[:space:]]*(\[[ xX]\][[:space:]]*)?${escaped_id}[[:space:]]+(fix|accept):" <<< "${triage_slice}"; then
 		continue
 	fi
