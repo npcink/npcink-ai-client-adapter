@@ -28,6 +28,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Upstream_Dispatch {
 
 	/**
+	 * Core capabilities discovery cache TTL, seconds.
+	 */
+	const DISCOVERY_CACHE_TTL = 60;
+	/**
+	 * Cap on upstream error detail retained for operator diagnostics, bytes.
+	 */
+	const MAX_UPSTREAM_ERROR_DETAIL_BYTES = 8192;
+
+	/**
 	 * Ed25519 signing auth service for bounded text fields.
 	 *
 	 * @var Signing_Auth
@@ -236,7 +245,7 @@ final class Upstream_Dispatch {
 		}
 
 		$encoded = wp_json_encode( $summary );
-		if ( is_string( $encoded ) && strlen( $encoded ) > Controller::MAX_UPSTREAM_ERROR_DETAIL_BYTES ) {
+		if ( is_string( $encoded ) && strlen( $encoded ) > self::MAX_UPSTREAM_ERROR_DETAIL_BYTES ) {
 			return array(
 				'truncated' => true,
 				'bytes'     => strlen( $encoded ),
@@ -345,7 +354,7 @@ final class Upstream_Dispatch {
 		}
 
 		$this->core_capabilities_cache = $data;
-		set_transient( 'npcink_openclaw_adapter_core_capabilities_v1', $data, Controller::DISCOVERY_CACHE_TTL );
+		set_transient( 'npcink_openclaw_adapter_core_capabilities_v1', $data, self::DISCOVERY_CACHE_TTL );
 
 		return $data;
 	}
@@ -357,7 +366,7 @@ final class Upstream_Dispatch {
 	 */
 	public function prime_capabilities( array $data ): void {
 		$this->core_capabilities_cache = $data;
-		set_transient( 'npcink_openclaw_adapter_core_capabilities_v1', $data, Controller::DISCOVERY_CACHE_TTL );
+		set_transient( 'npcink_openclaw_adapter_core_capabilities_v1', $data, self::DISCOVERY_CACHE_TTL );
 	}
 
 	/**

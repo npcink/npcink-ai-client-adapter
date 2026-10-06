@@ -111,6 +111,12 @@ final class Signing_Auth {
 	/**
 	 * Returns request signature credentials from X-Npcink headers or Authorization.
 	 *
+	 * Deliberate semantics: the presence of any Npcink signature header opts
+	 * the request out of session-auth fallback - a partial leftover header
+	 * set deterministically routes a logged-in administrator into signed
+	 * authentication (and a credentials_incomplete 401) instead of silently
+	 * falling back to cookie auth. Fail closed on ambiguous credentials.
+	 *
 	 * @param WP_REST_Request $request Request.
 	 * @return array<string,string>
 	 */
