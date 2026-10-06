@@ -152,29 +152,46 @@ wait_for_completion() {
 	return 1
 }
 
+# Build the body with one exception line inserted under the existing
+# AI Review Exceptions header (never at the body end, which could land
+# the bullet after later sections). The line goes in through ENVIRON:
+# awk -v would process backslash escapes in the free-text reason.
+exception_body_from() {
+	local body="$1"
+	if printf '%s\n' "${body}" | grep -Eq '^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$'; then
+		printf '%s\n' "${body}" | EXCEPTION_LINE="${exception_line}" awk '
+			BEGIN { line = ENVIRON["EXCEPTION_LINE"] }
+			!inserted && /^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$/ { print; print line; inserted = 1; next }
+			{ print }
+		'
+	else
+		printf '%s\n\n## AI Review Exceptions\n\n%s\n' "${body}" "${exception_line}"
+	fi
+}
+
 undelivered_exit() {
 	local cause="$1"
 	if [ -n "${review_exception}" ]; then
-		local stamp current new_body
+		local stamp current new_body verify_body
 		stamp="$(date -u +%Y-%m-%d)"
-		# Fetched immediately before the edit; the write window is one API
-		# round trip and the gate is the only writer in its own flow, so a
-		# full compare-and-swap retry is not warranted. Idempotent: a
-		# repeated --no-review-because run appends to the existing
-		# exceptions section instead of stacking headers.
-		current="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
 		exception_line="- ${stamp} — merged without a delivered OpenCodeReview round (${cause}): ${review_exception}"
-		if printf '%s\n' "${current}" | grep -Eq '^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$'; then
-			# Insert directly under the existing header: appending at the
-			# body end could land the bullet after any later sections.
-			new_body="$(printf '%s\n' "${current}" | awk -v line="${exception_line}" '
-				!inserted && /^[[:space:]]*##[[:space:]]+AI Review Exceptions[[:space:]]*$/ { print; print line; inserted = 1; next }
-				{ print }
-			')"
-		else
-			new_body="$(printf '%s\n\n## AI Review Exceptions\n\n%s\n' "${current}" "${exception_line}")"
-		fi
+		# Fetched immediately before the edit; the write is then verified
+		# and retried once on a fresh body, so a concurrent edit landing
+		# inside the one-round-trip window is recovered instead of lost.
+		# Idempotent: a repeated --no-review-because run appends under the
+		# existing exceptions section instead of stacking headers.
+		current="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
+		new_body="$(exception_body_from "${current}")"
 		printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null
+		verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
+		if ! printf '%s\n' "${verify_body}" | grep -Fq -- "${exception_line}"; then
+			echo '[ai-review-gate] the exception line did not land (concurrent body edit); retrying once' >&2
+			current="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
+			if ! printf '%s\n' "${current}" | grep -Fq -- "${exception_line}"; then
+				new_body="$(exception_body_from "${current}")"
+				printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null
+			fi
+		fi
 		echo "[ai-review-gate] ${cause}; exception recorded in the PR body, proceeding"
 		exit 0
 	fi
@@ -290,8 +307,9 @@ finding_count="$(printf '%s\n' "${findings}" | grep -c . || true)"
 # "Review skipped" and the marker extraction must be empty.
 if ! summary_body="$(
 	gh api --paginate "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
-	| jq -rs --arg tag "ocr-summary-run:${run_id}-${attempt}" \
-		'[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains($tag)) | .body ] | last // empty'
+	| jq -rs --arg run "${run_id}" --arg att "${attempt}" \
+		'[ .[][] | select(.user.login == "github-actions[bot]")
+		| select(.body | test("ocr-summary-run:" + $run + "-" + $att + "(-->|[^0-9])")) | .body ] | last // empty'
 )"; then
 	fail 'could not fetch pull request comments for the summary reconciliation'
 fi

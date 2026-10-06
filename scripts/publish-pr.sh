@@ -84,6 +84,9 @@ command -v gh >/dev/null 2>&1 || fail 'GitHub CLI (gh) is required'
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail 'run inside a Git worktree'
 cd "${repo_root}"
 
+[ -f scripts/verify-ai-review.sh ] \
+	|| fail 'AI review gate script scripts/verify-ai-review.sh not found'
+
 # Publishing reaches github.com over the network. When a local VPN exposes an
 # HTTP proxy on a moving port, detect the working port instead of failing on
 # the direct connection. Explicit git or environment proxy settings always win.
@@ -203,7 +206,7 @@ existing_pr="$(
 )"
 if [ -n "${existing_pr}" ]; then
 	echo "[pr-publish] reusing open pull request: ${existing_pr}"
-	echo '[pr-publish] note: --body-file is not re-applied to an existing pull request; edit the body with gh pr edit (e.g. triage lines)'
+	echo '[pr-publish] note: --body-file and --title are not re-applied to an existing pull request; edit the body/title with gh pr edit (e.g. triage lines)'
 	existing_head_base="$(
 		retry_network gh pr view "${existing_pr}" --json headRefOid,baseRefName \
 			--jq '.headRefOid + " " + .baseRefName'
