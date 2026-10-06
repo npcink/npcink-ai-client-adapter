@@ -603,7 +603,7 @@ function mcpToolDescriptors() {
         required: ['ability_id', 'input'],
         additionalProperties: false,
       },
-      idFields: ['read_request_id'],
+      idFields: ['ability_id', 'read_request_id'],
       route: (input) => ({
         method: 'POST',
         path: '/run-read-ability',
@@ -643,6 +643,7 @@ function mcpToolDescriptors() {
           ...(input.requested_input_summary ? { requested_input_summary: String(input.requested_input_summary) } : {}),
         },
       }),
+      idFields: ['ability_id'],
     },
     {
       name: 'read_request_status',
@@ -712,7 +713,7 @@ function proposalIntentTool(name, description, suffix, intent) {
       required: ['proposal_id', 'intent'],
       additionalProperties: false,
     },
-    idFields: ['proposal_id'],
+    idFields: ['ability_id', 'proposal_id'],
     requiredIntent: intent,
     route: (input) => ({ method: 'POST', path: `/proposals/${encodeURIComponent(String(input.proposal_id))}/${suffix}`, intent }),
   };

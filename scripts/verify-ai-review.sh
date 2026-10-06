@@ -373,17 +373,67 @@ case "${expected_findings}" in
 		fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
 		;;
 esac
-# The workflow's in-run step retries all post markers under the same
-# run-attempt prefix, and the rolling summary reflects only the last
-# step execution. A unique-marker count BELOW the summary count means
-# findings went missing (fail closed); ABOVE it means earlier step
-# executions left extra real findings (triage them all - stricter, and
-# never fewer than the delivered summary promised).
-if [ "${finding_count}" -lt "${expected_findings}" ]; then
-	fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), marker parser extracted ${finding_count}; failing closed"
+# The finding-round summary splits delivery into "Successfully posted
+# inline: M" and "Failed to post inline: K" - findings that could not be
+# posted inline (typically anchored outside the diff hunks) are embedded
+# in the summary body itself under "### `path` (Lx-Ly)" headers. Those
+# are keyed for triage as emb:<path>:<line>. Below-count always fails
+# closed; above-count means the workflow's in-run retries left extra
+# real findings (triage them all - stricter, never fewer than the
+# summary promised).
+posted_inline="$(printf '%s\n' "${summary_body}" | grep -oE 'Successfully posted inline: [0-9]+ comment' | grep -oE '[0-9]+' | sort -u | head -1 || true)"
+failed_inline="$(printf '%s\n' "${summary_body}" | grep -oE 'Failed to post inline: [0-9]+ comment' | grep -oE '[0-9]+' | sort -u | head -1 || true)"
+if [ -n "${posted_inline}" ]; then
+	failed_inline="${failed_inline:-0}"
+	if [ "${expected_findings}" -ne $(( posted_inline + failed_inline )) ]; then
+		fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), posted ${posted_inline} + failed ${failed_inline} inline; failing closed"
+	fi
+	if [ "${finding_count}" -lt "${posted_inline}" ]; then
+		fail "delivery contract mismatch: summary posted ${posted_inline} inline, marker parser extracted ${finding_count}; failing closed"
+	fi
+	if [ "${finding_count}" -gt "${posted_inline}" ]; then
+		echo "[ai-review-gate] note: ${finding_count} unique inline finding(s) exceed the summary's ${posted_inline} (earlier retry-step round); all will require triage"
+	fi
+else
+	if [ "${finding_count}" -lt "${expected_findings}" ]; then
+		fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), marker parser extracted ${finding_count}; failing closed"
+	fi
+	if [ "${finding_count}" -gt "${expected_findings}" ]; then
+		echo "[ai-review-gate] note: ${finding_count} unique finding(s) exceed the summary's ${expected_findings} (earlier retry-step round); all will require triage"
+	fi
 fi
-if [ "${finding_count}" -gt "${expected_findings}" ]; then
-	echo "[ai-review-gate] note: ${finding_count} unique finding(s) exceed the summary's ${expected_findings} (earlier retry-step round); all will require triage"
+
+if [ -n "${failed_inline}" ] && [ "${failed_inline}" -gt 0 ]; then
+	embedded="$(printf '%s\n' "${summary_body}" | awk '
+		function flush() {
+			if (path != "") { print "emb:" path ":" line "\t" label "\t" path ":" line }
+			path = ""
+		}
+		# Embedded blocks render as: badge line, then the "### `path` (Lx-Ly)"
+		# header, then the description.
+		/^### .*\(L[0-9]+-L[0-9]+\)$/ {
+			flush()
+			path = $0
+			sub(/^### [^`]*`/, "", path)
+			sub(/`.*$/, "", path)
+			line = "?"
+			if (match($0, /\(L[0-9]+-/)) { line = "L" substr($0, RSTART + 2, RLENGTH - 3) }
+			label = pending_badge != "" ? pending_badge : "finding"
+			pending_badge = ""
+			next
+		}
+		/!\[/ {
+			if (match($0, /!\[[^]]*\]/)) { pending_badge = substr($0, RSTART + 2, RLENGTH - 3) }
+			next
+		}
+		END { flush() }
+	')"
+	embedded_count="$(printf '%s\n' "${embedded}" | grep -c . || true)"
+	if [ "${embedded_count}" != "${failed_inline}" ]; then
+		fail "embedded-findings parse mismatch: summary reports ${failed_inline} failed inline, parser extracted ${embedded_count}; failing closed"
+	fi
+	findings="$(printf '%s\n%s\n' "${findings}" "${embedded}")"
+	finding_count=$(( finding_count + embedded_count ))
 fi
 
 if [ "${finding_count}" -eq 0 ]; then
@@ -405,9 +455,11 @@ pending=''
 pending_count=0
 while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	[ -n "${finding_id}" ] || continue
-	# Defense against producer drift: ids are hex by contract, and the
-	# id is interpolated into the triage-line regex below.
+	# Defense against producer drift: marker ids are hex by contract and
+	# embedded-summary keys are emb:<path>:<line>; the id is interpolated
+	# into the triage-line regex below.
 	case "${finding_id}" in
+		emb:*) ;;
 		*[!0-9a-f]*|'') fail "finding id '${finding_id}' is not hex; producer format may have drifted" ;;
 	esac
 	# Anchored line shape ("- <id> fix:" / "- [x] <id> accept:"); finding
