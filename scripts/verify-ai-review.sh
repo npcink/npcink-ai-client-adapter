@@ -15,13 +15,15 @@
 # Producer contract (observed from alibaba/open-code-review v1.12.10,
 # commit 579b931, the pin used by .github/workflows/ocr-review.yml): the
 # action posts inline findings prefixed with
-# "<!-- ocr-<run>-<attempt>-<id> -->", a summary comment carrying
-# "<!-- ocr-summary -->" plus, for finding rounds, an
-# "ocr-summary-run:<run>-<attempt>" tag stating "found **N** issue(s)",
-# or a "Review skipped" line for nothing-reviewable rounds. The gate
-# reconciles the summary against the parsed markers so a format drift
-# fails closed; re-validate this contract whenever the action pin is
-# bumped.
+# "<!-- ocr-<run>-<attempt>-<id> -->" and maintains ONE rolling summary
+# comment per PR (edited each round) carrying "<!-- ocr-summary -->"
+# plus, for finding rounds, an "ocr-summary-run:<run>-<attempt>" tag
+# stating "found **N** issue(s)"; nothing-reviewable rounds say
+# "Review skipped", and rounds where a selected item failed internally
+# say "Review partially complete" while the run still concludes
+# success. The gate reconciles the rolling summary against the parsed
+# markers so a format drift fails closed; re-validate this contract
+# whenever the action pin is bumped.
 #
 # Comment-triggered review rounds cannot be correlated to a head SHA
 # through the runs API (their head is the default branch), so this gate
@@ -297,50 +299,35 @@ fi
 findings="$(printf '%s\n' "${comments_tsv}" | awk -F'\t' -v run="${run_id}" -v att="${attempt}" '$2 == run && $3 == att && !seen[$1]++ { print $1 "\t" $4 "\t" $5 }')"
 finding_count="$(printf '%s\n' "${findings}" | grep -c . || true)"
 
-# Delivery-contract reconciliation: the action's own summary comment for
-# this exact run+attempt states how many findings it posted ("found N
-# issue(s)") or that nothing was reviewable ("Review skipped"). If the
-# inline-marker parser and the summary disagree - for example after an
-# upstream comment-format change - fail closed instead of reading a
-# parse miss as "no findings". Skipped rounds post an untagged summary,
-# so a run-tagged body wins; otherwise the newest summary must say
-# "Review skipped" and the marker extraction must be empty.
-if ! summary_body="$(
+# Delivery-contract reconciliation against the action's single rolling
+# summary comment (one per PR, edited each round - freshness is judged
+# by updated_at, not created_at):
+#   "found **N** issue(s)" plus a matching run tag -> expect N
+#   "Review skipped: no items"                      -> expect 0
+#   "Review partially complete"                     -> fail closed: a
+#     selected item failed its review and was never examined, which does
+#     not satisfy the standard's delivered-round rule
+#   anything else, or a body that predates the run  -> fail closed as
+#     unverifiable. A format drift must never read as "no findings".
+if ! summary_record="$(
 	gh api --paginate "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
-	| jq -rs --arg run "${run_id}" --arg att "${attempt}" \
-		'[ .[][] | select(.user.login == "github-actions[bot]")
-		| select(.body | test("ocr-summary-run:" + $run + "-" + $att + "(-->|[^0-9])")) | .body ] | last // empty'
+	| jq -rs '[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains("<!-- ocr-summary -->")) ]
+		| last | if . == null then empty else (.updated_at + "\t" + .body) end'
 )"; then
 	fail 'could not fetch pull request comments for the summary reconciliation'
 fi
+summary_updated="${summary_record%%$'\t'*}"
+summary_body="${summary_record#*$'\t'}"
 if [ -z "${summary_body}" ]; then
-	# Skipped rounds post an untagged summary, so identity can only be
-	# bounded in time: the newest untagged summary must postdate this
-	# run's creation. An older round's "Review skipped" must not stand in
-	# for a round that never posted its own summary. Residual ambiguity
-	# (a later same-head skipped round) is harmless: the merge is pinned
-	# to this head sha and that round reviewed the same diff.
-	if ! summary_record="$(
-		gh api --paginate "repos/${github_repo}/issues/${pr_number}/comments?per_page=100" \
-		| jq -rs --arg tag "<!-- ocr-summary -->" \
-			'[ .[][] | select(.user.login == "github-actions[bot]") | select(.body | contains($tag)) ]
-			| last | if . == null then empty else (.created_at + "\t" + .body) end'
-	)"; then
-		fail 'could not fetch pull request comments for the summary reconciliation'
-	fi
-	summary_created="${summary_record%%$'\t'*}"
-	summary_body="${summary_record#*$'\t'}"
-	if [ -z "${summary_body}" ]; then
-		fail "no OpenCodeReview summary comment for run ${run_id} attempt ${attempt}; delivery contract unverifiable"
-	fi
-	if [[ "${summary_created}" < "${run_created}" ]]; then
-		fail "the newest untagged summary predates run ${run_id}; no summary posted for this run - failing closed"
-	fi
-	if ! printf '%s\n' "${summary_body}" | grep -qF 'Review skipped'; then
-		fail "no OpenCodeReview summary comment for run ${run_id} attempt ${attempt}; delivery contract unverifiable"
-	fi
-	expected_findings=0
-else
+	fail "no OpenCodeReview summary comment for run ${run_id} attempt ${attempt}; delivery contract unverifiable"
+fi
+if [[ "${summary_updated}" < "${run_created}" ]]; then
+	fail "the summary comment body predates run ${run_id}; no summary posted for this run - failing closed"
+fi
+if printf '%s\n' "${summary_body}" | grep -qF 'Review partially complete'; then
+	fail "round ${run_id} is partially complete (a selected item failed its review); re-run composer pr:publish for a full round or record an exception with --no-review-because"
+fi
+if printf '%s\n' "${summary_body}" | grep -Eq "ocr-summary-run:${run_id}-${attempt}(-->|[^0-9])"; then
 	found_counts="$(printf '%s\n' "${summary_body}" | grep -oE 'found \*\*[0-9]+\*\*' | grep -oE '[0-9]+' | sort -u)"
 	if [ "$(printf '%s\n' "${found_counts}" | grep -c . || true)" -gt 1 ]; then
 		fail "ambiguous OpenCodeReview summary for run ${run_id} attempt ${attempt} (multiple differing counts); failing closed"
@@ -351,6 +338,10 @@ else
 			fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
 			;;
 	esac
+elif printf '%s\n' "${summary_body}" | grep -qF 'Review skipped'; then
+	expected_findings=0
+else
+	fail "could not parse the OpenCodeReview summary for run ${run_id} attempt ${attempt}; failing closed"
 fi
 if [ "${expected_findings}" != "${finding_count}" ]; then
 	fail "delivery contract mismatch: summary reports ${expected_findings} finding(s), marker parser extracted ${finding_count}; failing closed"
