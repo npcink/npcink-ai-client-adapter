@@ -471,8 +471,8 @@ pending_count=0
 while IFS=$'\t' read -r finding_id finding_label finding_location; do
 	[ -n "${finding_id}" ] || continue
 	# Defense against producer drift: marker ids are hex by contract and
-	# embedded-summary keys are emb:<path>:<line>; the id is interpolated
-	# into the triage-line regex below.
+	# embedded-summary keys are emb:<path>:<line>; the escape step below is
+	# what makes either shape regex-safe before interpolation.
 	case "${finding_id}" in
 		emb:*) ;;
 		*[!0-9a-f]*|'') fail "finding id '${finding_id}' is not hex; producer format may have drifted" ;;

@@ -672,6 +672,7 @@ function mcpToolDescriptors() {
         required: ['ability_id', 'input'],
         additionalProperties: false,
       },
+      idFields: ['ability_id'],
       route: (input) => ({
         method: 'POST',
         path: '/proposals',
