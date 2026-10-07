@@ -417,33 +417,6 @@ case "${pr_number}" in
 	''|*[!0-9]*) fail "could not parse pull request number from ${pr_url}" ;;
 esac
 
-# Disarm runs before the body re-verification: every fail below exits
-# immediately, and a run that aborts on a drifted body must not leave a
-# stale armed auto-merge live against the untriaged head.
-if [ -n "${existing_pr}" ]; then
-	disarm_auto_merge
-fi
-
-# On reuse, the live pull request body is the artifact that merges, and it
-# can drift from the validated local --body-file between runs (triage edits,
-# gh pr edit). Re-verify the body contract against the live body: the four
-# shared headings, plus the operator approval line for production PRs. The
-# checks read the body through a herestring rather than a printf pipe:
-# grep -q short-circuits a pipe producer, and under pipefail a body larger
-# than the pipe buffer would kill printf with SIGPIPE and fail the check.
-if [ -n "${existing_pr}" ]; then
-	live_body="$(retry_network gh pr view "${pr_number}" --json body --jq '.body // ""')" \
-		|| fail 'could not read the existing pull request body for contract re-verification'
-	for required_heading in Scope Boundary Verification Risk; do
-		grep -Eiq "^#{1,6}[[:space:]]+(.*[^A-Za-z])?${required_heading}([^A-Za-z]|$)" <<< "${live_body}" \
-			|| fail "the live pull request body is missing the ${required_heading} heading; edit the body with gh pr edit"
-	done
-	if [ "${base_branch}" = 'production' ]; then
-		grep -Fq 'Approved for production validation by operator.' <<< "${live_body}" \
-			|| fail 'the live production pull request body lost the operator approval line; restore it with gh pr edit'
-	fi
-fi
-
 # Disarm an auto-merge armed by an earlier publisher run BEFORE the review
 # gate waits: GitHub keeps auto-merge enabled across head pushes and
 # --match-head-commit is only checked when the merge is requested, so a
@@ -494,6 +467,34 @@ disarm_auto_merge() {
 	fi
 	fail "an armed auto-merge could not be disabled; it could merge this head once required checks pass - disable it on the pull request and re-run composer pr:publish"
 }
+
+# Disarm runs before the body re-verification: every fail below exits
+# immediately, and a run that aborts on a drifted body must not leave a
+# stale armed auto-merge live against the untriaged head.
+if [ -n "${existing_pr}" ]; then
+	disarm_auto_merge
+fi
+
+# On reuse, the live pull request body is the artifact that merges, and it
+# can drift from the validated local --body-file between runs (triage edits,
+# gh pr edit). Re-verify the body contract against the live body: the four
+# shared headings, plus the operator approval line for production PRs. The
+# checks read the body through a herestring rather than a printf pipe:
+# grep -q short-circuits a pipe producer, and under pipefail a body larger
+# than the pipe buffer would kill printf with SIGPIPE and fail the check.
+if [ -n "${existing_pr}" ]; then
+	live_body="$(retry_network gh pr view "${pr_number}" --json body --jq '.body // ""')" \
+		|| fail 'could not read the existing pull request body for contract re-verification'
+	for required_heading in Scope Boundary Verification Risk; do
+		grep -Eiq "^#{1,6}[[:space:]]+(.*[^A-Za-z])?${required_heading}([^A-Za-z]|$)" <<< "${live_body}" \
+			|| fail "the live pull request body is missing the ${required_heading} heading; edit the body with gh pr edit"
+	done
+	if [ "${base_branch}" = 'production' ]; then
+		grep -Fq 'Approved for production validation by operator.' <<< "${live_body}" \
+			|| fail 'the live production pull request body lost the operator approval line; restore it with gh pr edit'
+	fi
+fi
+
 
 # Advisory AI review gate (AI Code Review Standard v1): no auto-merge is
 # requested until OpenCodeReview has delivered a review for this exact
