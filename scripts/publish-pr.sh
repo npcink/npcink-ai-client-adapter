@@ -391,6 +391,7 @@ if [ -z "${existing_pr}" ]; then
 				retry_network gh pr list \
 					--state open \
 					--head "${branch}" \
+					--base "${base_branch}" \
 					--json url \
 					--jq '.[0].url // empty'
 			)"
@@ -441,16 +442,28 @@ fi
 # stale armed auto-merge could otherwise merge the newer, untriaged head
 # while the gate polls (the AI review workflow is advisory and never a
 # required check, so it cannot block that merge). The final auto-merge
-# request below re-arms it only after the gate passes. Not armed and
-# unreadable states are distinguished: a genuinely armed merge that cannot
-# be disabled after one retry is reported loudly, never silently kept.
+# request below re-arms it only after the gate passes. The state read is
+# retried like every other gh call; an armed merge that cannot be disabled
+# FAILS the run (the warning would scroll away during the gate's wait);
+# an unreadable state after retries warns on ordinary bases and fails on
+# production, where an unnoticed armed merge is unacceptable.
 disarm_auto_merge() {
-	local armed
-	armed="$(gh pr view "${pr_number}" --json autoMergeRequest --jq 'if .autoMergeRequest == null then "" else "armed" end' 2>/dev/null || echo unknown)"
-	if [ "${armed}" != 'armed' ]; then
-		if [ "${armed}" = 'unknown' ]; then
-			echo '[pr-publish] note: could not read the auto-merge state; proceeding without disabling' >&2
+	local armed attempt
+	armed=unknown
+	for attempt in 1 2; do
+		if armed="$(gh pr view "${pr_number}" --json autoMergeRequest --jq 'if .autoMergeRequest == null then "" else "armed" end' 2>/dev/null)"; then
+			break
 		fi
+		[ "${attempt}" -eq 2 ] || sleep 10
+	done
+	if [ "${armed}" != 'armed' ]; then
+		if [ -z "${armed}" ]; then
+			return 0
+		fi
+		if [ "${base_branch}" = 'production' ]; then
+			fail 'could not read the auto-merge state on a production pull request; an armed merge cannot be ruled out - resolve connectivity and re-run composer pr:publish'
+		fi
+		echo '[pr-publish] note: could not read the auto-merge state; proceeding without disabling' >&2
 		return 0
 	fi
 	if gh pr merge "${pr_number}" --disable-auto >/dev/null 2>&1; then
@@ -462,7 +475,7 @@ disarm_auto_merge() {
 		echo '[pr-publish] disarmed a previously armed auto-merge on the pull request (second attempt)'
 		return 0
 	fi
-	echo "[pr-publish] warning: an armed auto-merge could not be disabled; it may merge this head once required checks pass - verify the pull request state manually" >&2
+	fail "an armed auto-merge could not be disabled; it could merge this head once required checks pass - disable it on the pull request and re-run composer pr:publish"
 }
 
 disarm_auto_merge

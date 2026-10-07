@@ -123,7 +123,7 @@ gate_failed_counts() {
 # interleaved round (e.g. a comment-triggered one) edited the single
 # rolling summary after the verified run was pinned.
 gate_summary_run_tag() {
-	printf '%s\n' "$1" | grep -oE 'ocr-summary-run:[0-9]+-[0-9]+' | head -1 || true
+	printf '%s\n' "$1" | grep -oE 'ocr-summary-run:[0-9]+-[0-9]+' | sort -u || true
 }
 
 # Inline marker extraction: id, run, attempt, label, path:line per finding.
@@ -250,6 +250,11 @@ gate_self_test() {
 	check 'found-N posted count' "$(gate_posted_counts "${found_posted}")" '5'
 	check 'found-N failed count' "$(gate_failed_counts "${found_posted}")" ''
 	check 'summary run tag extracted' "$(gate_summary_run_tag "${found_posted}")" 'ocr-summary-run:37341345875-1'
+	local two_tags='<!-- ocr-summary -->
+<!-- ocr-summary-run:37341345875-1 -->
+<!-- ocr-summary-run:99999999999-1 -->'
+	check 'summary run tags all surface' "$(printf '%s' "${two_tags}" | grep -c 'ocr-summary-run:')" '2'
+	check 'summary run tag set keeps both' "$(gate_summary_run_tag "${two_tags}" | grep -c . || true)" '2'
 
 	local skipped='<!-- ocr-summary -->
 **OpenCodeReview**: Review skipped: no items were selected.'
@@ -493,7 +498,9 @@ undelivered_exit() {
 				if ! printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null 2>&1; then
 					fail "could not write the retried exception line to PR #${pr_number}; the exception is NOT recorded and publishing must stop"
 				fi
-				verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""')"
+				if ! verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""' 2>/dev/null)"; then
+					fail "could not read PR #${pr_number} back after the retried write; the exception state is UNVERIFIED and publishing must stop"
+				fi
 				grep -Fq -- "${exception_line}" <<< "${verify_body}" \
 					|| fail 'the exception line did not land after retry; the exception is NOT recorded and publishing must stop'
 			fi
@@ -537,15 +544,14 @@ if [ "${conclusion}" != 'success' ]; then
 	esac
 	# --failed re-runs only failed jobs; a cancelled run (its own timeout
 	# kill, or the per-PR concurrency group cancelling it for an interleaved
-	# round) has no failed jobs to select and needs a full re-run.
-	rerun_mode='--failed'
+	# round) has no failed jobs to select and needs a full re-run. The
+	# guarded array expansion stays portable to macOS bash 3.2 under set -u.
+	rerun_flags=( --failed )
 	if [ "${conclusion}" = 'cancelled' ]; then
-		rerun_mode=''
+		rerun_flags=()
 	fi
-	echo "[ai-review-gate] review run ${run_id} failed (${conclusion}); re-running it once (${rerun_mode:-all jobs})"
-	# rerun_mode is one of two fixed literals; the unquoted expansion is
-	# the word-split that turns '' into no flag.
-	if ! rerun_output="$(gh run rerun "${run_id}" ${rerun_mode} 2>&1)"; then
+	echo "[ai-review-gate] review run ${run_id} failed (${conclusion}); re-running it once (${rerun_flags[*]:-all jobs})"
+	if ! rerun_output="$(gh run rerun "${run_id}" ${rerun_flags[@]+"${rerun_flags[@]}"} 2>&1)"; then
 		echo "[ai-review-gate] the re-run request itself failed: ${rerun_output}" >&2
 		undelivered_exit 'the re-run request failed'
 	fi
@@ -635,9 +641,15 @@ fi
 # cannot be correlated by head_sha) edited the summary after this run was
 # pinned. An absent tag stays allowed because the observed skipped shape
 # ships without one.
-summary_run_tag="$(gate_summary_run_tag "${summary_body}")"
-if [ -n "${summary_run_tag}" ] && [ "${summary_run_tag}" != "ocr-summary-run:${run_id}-${attempt}" ]; then
-	fail "the rolling summary carries ${summary_run_tag} but run ${run_id} attempt ${attempt} was verified; an interleaved review round edited the summary - failing closed"
+summary_run_tags="$(gate_summary_run_tag "${summary_body}")"
+if [ -n "${summary_run_tags}" ]; then
+	# Every tag present must name the pinned run and attempt: a single
+	# head -1 match could false-pass when an interleaved round's edit
+	# left the verified tag and appended its own.
+	while IFS= read -r summary_run_tag; do
+		[ "${summary_run_tag}" = "ocr-summary-run:${run_id}-${attempt}" ] \
+			|| fail "the rolling summary carries ${summary_run_tag} but run ${run_id} attempt ${attempt} was verified; an interleaved review round edited the summary - failing closed"
+	done <<< "${summary_run_tags}"
 fi
 if gate_is_partial "${summary_body}"; then
 	fail "round ${run_id} is partially complete (a selected item failed its review); re-run composer pr:publish for a full round or record an exception with --no-review-because"
