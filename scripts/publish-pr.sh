@@ -58,6 +58,10 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--no-review-because)
 			[ "$#" -ge 2 ] || fail '--no-review-because requires a value'
+			[ -n "$(printf '%s' "$2" | tr -d '[:space:]')" ] || fail '--no-review-because requires a non-whitespace value'
+			case "$2" in
+				*$'\n'*) fail '--no-review-because must be a single line' ;;
+			esac
 			review_exception="$2"
 			shift 2
 			;;
@@ -155,7 +159,7 @@ esac
 [ -f "${body_path}" ] || fail "body file not found: ${body_path}"
 
 for required_heading in Scope Boundary Verification Risk; do
-	grep -Eiq "^#{1,6}[[:space:]]+.*${required_heading}" "${body_path}" \
+	grep -Eiq "^#{1,6}[[:space:]]+(.*[^A-Za-z])?${required_heading}([^A-Za-z]|$)" "${body_path}" \
 		|| fail "body file is missing the ${required_heading} heading"
 done
 
@@ -201,6 +205,7 @@ existing_pr="$(
 	retry_network gh pr list \
 		--state open \
 		--head "${branch}" \
+		--base "${base_branch}" \
 		--json url \
 		--jq '.[0].url // empty'
 )"
@@ -386,12 +391,14 @@ if [ -z "${existing_pr}" ]; then
 				retry_network gh pr list \
 					--state open \
 					--head "${branch}" \
+					--base "${base_branch}" \
 					--json url \
 					--jq '.[0].url // empty'
 			)"
 			[ -n "${pr_url}" ] \
 				|| fail 'gh pr create reported an existing pull request that could not be found'
 			echo '[pr-publish] pull request was created despite the failed response; reusing it'
+			existing_pr="${pr_url}"
 			break
 		fi
 		if [ "${create_attempt}" -ge 4 ]; then
@@ -410,13 +417,92 @@ case "${pr_number}" in
 	''|*[!0-9]*) fail "could not parse pull request number from ${pr_url}" ;;
 esac
 
+# Disarm an auto-merge armed by an earlier publisher run BEFORE the review
+# gate waits: GitHub keeps auto-merge enabled across head pushes and
+# --match-head-commit is only checked when the merge is requested, so a
+# stale armed auto-merge could otherwise merge the newer, untriaged head
+# while the gate polls (the AI review workflow is advisory and never a
+# required check, so it cannot block that merge). The final auto-merge
+# request below re-arms it only after the gate passes. The state read is
+# retried like every other gh call; an armed merge that cannot be disabled
+# FAILS the run (the warning would scroll away during the gate's wait);
+# an unreadable state after retries warns on ordinary bases and fails on
+# production, where an unnoticed armed merge is unacceptable.
+disarm_auto_merge() {
+	local armed out attempt delay
+	armed=unknown
+	delay=10
+	for attempt in 1 2 3 4; do
+		# Capture stdout separately: an assignment substitution overwrites
+		# the sentinel with the (empty) stdout of a failed read, which
+		# would silently take the not-armed branch. Four attempts with a
+		# growing delay deliberately run shorter than retry_network (faster local
+		# retries; retry_network cannot preserve the sentinel-vs-empty-stdout
+		# distinction).
+		if out="$(gh pr view "${pr_number}" --json autoMergeRequest --jq 'if .autoMergeRequest == null then "" else "armed" end' 2>/dev/null)"; then
+			armed="$out"
+			break
+		fi
+		[ "${attempt}" -eq 4 ] || sleep "${delay}"
+		delay=$(( delay * 2 ))
+	done
+	if [ "${armed}" = 'unknown' ]; then
+		if [ "${base_branch}" = 'production' ]; then
+			fail 'could not read the auto-merge state on a production pull request; an armed merge cannot be ruled out - resolve connectivity and re-run composer pr:publish'
+		fi
+		echo '[pr-publish] note: could not read the auto-merge state; proceeding without disabling' >&2
+		return 0
+	fi
+	if [ "${armed}" != 'armed' ]; then
+		return 0
+	fi
+	if gh pr merge "${pr_number}" --disable-auto >/dev/null 2>&1; then
+		echo '[pr-publish] disarmed a previously armed auto-merge on the pull request'
+		return 0
+	fi
+	sleep 10
+	if gh pr merge "${pr_number}" --disable-auto >/dev/null 2>&1; then
+		echo '[pr-publish] disarmed a previously armed auto-merge on the pull request (second attempt)'
+		return 0
+	fi
+	fail "an armed auto-merge could not be disabled; it could merge this head once required checks pass - disable it on the pull request and re-run composer pr:publish"
+}
+
+# Disarm runs before the body re-verification: every fail below exits
+# immediately, and a run that aborts on a drifted body must not leave a
+# stale armed auto-merge live against the untriaged head.
+if [ -n "${existing_pr}" ]; then
+	disarm_auto_merge
+fi
+
+# On reuse, the live pull request body is the artifact that merges, and it
+# can drift from the validated local --body-file between runs (triage edits,
+# gh pr edit). Re-verify the body contract against the live body: the four
+# shared headings, plus the operator approval line for production PRs. The
+# checks read the body through a herestring rather than a printf pipe:
+# grep -q short-circuits a pipe producer, and under pipefail a body larger
+# than the pipe buffer would kill printf with SIGPIPE and fail the check.
+if [ -n "${existing_pr}" ]; then
+	live_body="$(retry_network gh pr view "${pr_number}" --json body --jq '.body // ""')" \
+		|| fail 'could not read the existing pull request body for contract re-verification'
+	for required_heading in Scope Boundary Verification Risk; do
+		grep -Eiq "^#{1,6}[[:space:]]+(.*[^A-Za-z])?${required_heading}([^A-Za-z]|$)" <<< "${live_body}" \
+			|| fail "the live pull request body is missing the ${required_heading} heading; edit the body with gh pr edit"
+	done
+	if [ "${base_branch}" = 'production' ]; then
+		grep -Fq 'Approved for production validation by operator.' <<< "${live_body}" \
+			|| fail 'the live production pull request body lost the operator approval line; restore it with gh pr edit'
+	fi
+fi
+
+
 # Advisory AI review gate (AI Code Review Standard v1): no auto-merge is
 # requested until OpenCodeReview has delivered a review for this exact
 # head SHA and every delivered finding carries a fix:/accept: triage line
 # in the PR body. The gate re-runs a failed review run once itself; the
 # only way past an undelivered review is --no-review-because, which the
 # gate records in the PR body.
-# Not wrapped in retry_network: the gate already polls for up to twenty
+# Not wrapped in retry_network: the gate already polls for up to fifty
 # minutes per completion wait and re-runs a failed review once itself, so
 # an outer retry would multiply the bounded waits.
 review_gate_args=( --pr "${pr_number}" --head-sha "${head_sha}" )
