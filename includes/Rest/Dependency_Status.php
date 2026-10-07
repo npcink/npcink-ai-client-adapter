@@ -353,6 +353,18 @@ final class Dependency_Status {
 		$response = rest_do_request( $request );
 		$status   = method_exists( $response, 'get_status' ) ? absint( $response->get_status() ) : 500;
 		$data     = method_exists( $response, 'get_data' ) ? $response->get_data() : null;
+
+		// Core 0.2.x+ also accepts the contract:read app scope. When the
+		// current caller is not an administrator, retry through the app-token
+		// dispatcher so external consumers get dependency contracts too.
+		if ( ( $status < 200 || $status >= 300 ) && ! current_user_can( 'manage_options' ) && 0 === strpos( $route, '/npcink-governance-core/v1/' ) && 'none' !== $this->upstream_dispatch->core_app_token_source() ) {
+			$token_response = $this->upstream_dispatch->send( 'GET', $route );
+			if ( ! is_wp_error( $token_response ) ) {
+				$status = absint( $token_response->get_status() );
+				$data   = $token_response->get_data();
+			}
+		}
+
 		if ( $status < 200 || $status >= 300 || ! is_array( $data ) ) {
 			return array(
 				'available'   => false,

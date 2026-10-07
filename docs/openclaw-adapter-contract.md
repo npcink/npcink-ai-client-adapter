@@ -1322,3 +1322,40 @@ Future standalone approval or rejection proxying is out of this default
 contract. It may only be added as a separate explicit trusted-host policy and
 ADR-backed feature, disabled by default, with independent Core scopes for
 approval and rejection.
+
+## Core 0.2.x REST contract notes
+
+Core PR #91 (2026-10-07) tightened the REST surface this adapter consumes.
+Adapter behavior notes:
+
+- All Core row timestamps are now ISO8601 UTC with a `+00:00` designator
+  (`Y-m-d\TH:i:s+00:00`) instead of raw `Y-m-d H:i:s`. Adapter expiry checks
+  (`approval_context.expires_at`, `execution_handoff.expires_at`, read-grant
+  `expires_at`) parse both forms via UTC-aware parsing, and admin display
+  already detects timezone designators; no relay shape changes.
+- Core list endpoints now return `meta.total` and `X-WP-Total`, and
+  `GET /read-requests` accepts `offset`. The adapter proposal and read-request
+  status proxies forward `offset` alongside `limit`; `meta.total` passes
+  through the relayed body.
+- `POST /proposals/from-plan` returns `201` only when at least one proposal
+  was created; a fully blocked intake returns `200` with the same body, so
+  `blocked_items` / `needs_input` remain a body-level outcome. Adapter status
+  handling is range-based and treats both as success; feedback generation
+  already keys on the body fields.
+- Core's `409 npcink_governance_core_commit_preflight_already_issued` error
+  data now echoes the original `correlation_id` and `expires_at`. Adapter
+  surfaces them in preflight operator feedback as `recoverable_handoff` so a
+  client that lost the first execution response can finish the flow instead
+  of creating a duplicate proposal.
+- Expired Core app tokens return
+  `npcink_governance_core_app_auth_expired` (401). Adapter appends a
+  rotate-key hint to the relayed error message.
+- Core `429 npcink_governance_core_app_rate_limited` carries
+  `retry_after_seconds`, `remaining`, and ISO8601 `reset_at`. Adapter maps
+  `retry_after_seconds` onto its relayed error `retry_after` data and emits a
+  standard `Retry-After` header on the adapter response.
+- `GET /contract` additionally accepts the opt-in `contract:read` app scope.
+  When the current caller is not an administrator and a Core app token is
+  configured, the adapter dependency-contract check retries through the
+  app-token dispatcher, so external consumers get dependency contracts when
+  their token carries the scope.

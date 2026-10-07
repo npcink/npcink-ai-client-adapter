@@ -551,9 +551,25 @@ final class Proposal_Review {
 			$reasons[] = null !== $error ? $error->get_error_message() : __( 'Core commit preflight did not authorize execution.', 'npcink-ai-client-adapter' );
 		}
 
-		$core_error_code = null !== $error ? $error->get_error_code() : '';
+		$core_error_code     = null !== $error ? $error->get_error_code() : '';
+		$recoverable_handoff = array();
 		if ( 'npcink_governance_core_commit_preflight_already_issued' === $core_error_code ) {
-			$reasons[] = __( 'Core has already issued the one-time execution handoff. If commit-preflight was called directly against Core, Adapter cannot recover that handoff.', 'npcink-ai-client-adapter' );
+			// Core 0.2.x+ echoes the original handoff identifiers in the 409
+			// error data so a lost first response can still be recovered.
+			$error_data  = null !== $error && is_array( $error->get_error_data() ) ? $error->get_error_data() : array();
+			$upstream    = is_array( $error_data['upstream_data'] ?? null ) ? $error_data['upstream_data'] : array();
+			$upstream    = is_array( $upstream['data'] ?? null ) ? $upstream['data'] : array();
+			$correlation = sanitize_text_field( (string) ( $upstream['correlation_id'] ?? '' ) );
+			$expires_at  = sanitize_text_field( (string) ( $upstream['expires_at'] ?? '' ) );
+			if ( '' !== $correlation ) {
+				$recoverable_handoff = array(
+					'correlation_id' => $correlation,
+					'expires_at'     => $expires_at,
+				);
+				$reasons[]           = __( 'Core already issued the one-time execution handoff, and the 409 response echoes its correlation id and expiry for recovery.', 'npcink-ai-client-adapter' );
+			} else {
+				$reasons[] = __( 'Core has already issued the one-time execution handoff. This Core version does not echo the handoff identifiers, so Adapter cannot recover it.', 'npcink-ai-client-adapter' );
+			}
 		}
 
 		$next_steps = array(
@@ -567,6 +583,12 @@ final class Proposal_Review {
 				__( 'After approval, call Adapter execute or approve-and-execute; do not call Core commit-preflight directly.', 'npcink-ai-client-adapter' ),
 				__( 'Use Adapter commit-preflight only as an advanced diagnostic step and follow it immediately with Adapter execute.', 'npcink-ai-client-adapter' ),
 			);
+			if ( ! empty( $recoverable_handoff ) ) {
+				array_unshift(
+					$next_steps,
+					__( 'If the original execution response was lost, finish the flow with the echoed correlation id instead of creating a new proposal.', 'npcink-ai-client-adapter' )
+				);
+			}
 		}
 
 		return array(
@@ -577,6 +599,7 @@ final class Proposal_Review {
 			'revision_fields'          => array_values( array_unique( $needs_input ) ),
 			'next_steps'               => $next_steps,
 			'can_retry_after_revision' => true,
+			'recoverable_handoff'      => $recoverable_handoff,
 			'core_evidence'            => array(
 				'proposal_id'             => sanitize_text_field( (string) ( $proposal['proposal_id'] ?? '' ) ),
 				'ability_id'              => sanitize_text_field( (string) ( $proposal['ability_id'] ?? '' ) ),

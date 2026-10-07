@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Npcink AI Client Adapter 0.3.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-"
 "adapter\n"
-"POT-Creation-Date: 2026-10-01T17:41:35+00:00\n"
+"POT-Creation-Date: 2026-10-07T15:45:29+00:00\n"
 "PO-Revision-Date: 2026-09-04 19:05+0800\n"
 "Last-Translator: Npcink <dev@npcink.local>\n"
 "Language-Team: Chinese (China) <zh_CN@li.org>\n"
@@ -64,7 +64,7 @@ msgid "Connect this WordPress site to OpenClaw or other local AI clients."
 msgstr "将此 WordPress 站点连接到 OpenClaw 或其他本地 AI 客户端。"
 
 #: includes/Admin/Connection_Page.php:162
-#: includes/Admin/Connection_Page.php:1033
+#: includes/Admin/Connection_Page.php:1045
 msgid "Status"
 msgstr "状态"
 
@@ -88,12 +88,19 @@ msgstr "边界卫生。"
 #. translators: %d: number of active application passwords.
 #: includes/Admin/Connection_Page.php:195
 #, php-format
-msgid "You have %d active WordPress Application Password while paired device keys are available."
-msgid_plural "You have %d active WordPress Application Passwords while paired device keys are available."
-msgstr[0] "在已配对设备密钥可用的情况下，您仍有 %d 个处于激活状态的 WordPress 应用密码。"
+msgid ""
+"You have %d active WordPress Application Password while paired device keys "
+"are available."
+msgid_plural ""
+"You have %d active WordPress Application Passwords while paired device keys "
+"are available."
+msgstr[0] ""
+"在已配对设备密钥可用的情况下，您仍有 %d 个处于激活状态的 WordPress 应用密码。"
 
 #: includes/Admin/Connection_Page.php:200
-msgid "Application Password connections are conventional boundaries; review and revoke unused ones."
+msgid ""
+"Application Password connections are conventional boundaries; review and "
+"revoke unused ones."
 msgstr "应用密码连接只是约定边界；请检查并撤销不再使用的应用密码。"
 
 #: includes/Admin/Connection_Page.php:201
@@ -140,8 +147,13 @@ msgid "Fallback: WordPress Application Password connection"
 msgstr "备用：WordPress 应用密码连接"
 
 #: includes/Admin/Connection_Page.php:239
-msgid "Use only when the client has a dedicated secret field. This is a conventional boundary: the password can reach WordPress REST directly, so the approval gate is voluntary for that client."
-msgstr "仅在客户端拥有专用密钥字段时使用。这是一种约定边界：该密码可以直接访问 WordPress REST，因此审批门禁对该客户端属于自愿性质。"
+msgid ""
+"Use only when the client has a dedicated secret field. This is a "
+"conventional boundary: the password can reach WordPress REST directly, so "
+"the approval gate is voluntary for that client."
+msgstr ""
+"仅在客户端拥有专用密钥字段时使用。这是一种约定边界：该密码可以直接访问 "
+"WordPress REST，因此审批门禁对该客户端属于自愿性质。"
 
 #: includes/Admin/Connection_Page.php:247
 msgid "Application name"
@@ -156,8 +168,13 @@ msgid "LocalWP TLS option. Use only for localhost or .local testing."
 msgstr "LocalWP TLS 选项。仅用于 localhost 或 .local 测试。"
 
 #: includes/Admin/Connection_Page.php:260
-msgid "I understand this fallback creates a WordPress Application Password and the signed key-pair connection is preferred because only a paired key is an enforced boundary."
-msgstr "我理解此备用方式会创建一个 WordPress 应用密码；推荐使用签名密钥对连接，因为只有已配对的密钥才处于受强制的边界内。"
+msgid ""
+"I understand this fallback creates a WordPress Application Password and the "
+"signed key-pair connection is preferred because only a paired key is an "
+"enforced boundary."
+msgstr ""
+"我理解此备用方式会创建一个 WordPress 应用密码；推荐使用签名密钥对连接，因为只"
+"有已配对的密钥才处于受强制的边界内。"
 
 #: includes/Admin/Connection_Page.php:265
 msgid "Create Application Password connection"
@@ -348,8 +365,13 @@ msgid "Check Adapter, Core proposal, and execution status."
 msgstr "检查 Adapter、Core 提案和执行状态。"
 
 #: includes/Admin/Connection_Page.php:411
-msgid "Execute already-approved Adapter write routes after human approval in the Core admin and commit preflight. This scope never includes proposal approval: the client cannot approve its own proposals."
-msgstr "在治理核心后台人工批准并完成提交预检后，执行已获批准的适配器写入路由。此作用域绝不包含提案审批：客户端不能批准自己的提案。"
+msgid ""
+"Execute already-approved Adapter write routes after human approval in the "
+"Core admin and commit preflight. This scope never includes proposal "
+"approval: the client cannot approve its own proposals."
+msgstr ""
+"在治理核心后台人工批准并完成提交预检后，执行已获批准的适配器写入路由。此作用"
+"域绝不包含提案审批：客户端不能批准自己的提案。"
 
 #: includes/Admin/Connection_Page.php:423
 msgid "No recognized Adapter scopes were requested."
@@ -379,9 +401,9 @@ msgid "Unavailable"
 msgstr "不可用"
 
 #: includes/Admin/Connection_Page.php:570
-#: includes/Admin/Connection_Page.php:885
-#: includes/Admin/Connection_Page.php:893
-#: includes/Admin/Connection_Page.php:901
+#: includes/Admin/Connection_Page.php:897
+#: includes/Admin/Connection_Page.php:905
+#: includes/Admin/Connection_Page.php:913
 msgid "Ready"
 msgstr "就绪"
 
@@ -453,75 +475,90 @@ msgstr "返回 Npcink AI 客户端适配器"
 msgid "Application Passwords are not available for this user or site."
 msgstr "此用户或站点不可用应用密码。"
 
-#: includes/Admin/Connection_Page.php:885
-#: includes/Admin/Connection_Page.php:893
-#: includes/Admin/Connection_Page.php:901
+#: includes/Admin/Connection_Page.php:897
+#: includes/Admin/Connection_Page.php:905
+#: includes/Admin/Connection_Page.php:913
 msgid "Needs attention"
 msgstr "需要处理"
 
-#: includes/Admin/Connection_Page.php:886
+#: includes/Admin/Connection_Page.php:898
 msgid "Suite dependencies"
 msgstr "套件依赖"
 
-#: includes/Admin/Connection_Page.php:888
+#: includes/Admin/Connection_Page.php:900
 msgid "Npcink Governance Core and the Abilities Toolkit are active."
 msgstr "Npcink 治理核心与能力工具包均已激活。"
 
-#: includes/Admin/Connection_Page.php:889
-msgid "Install or activate the missing suite plugins listed above; Adapter routes fail closed without them."
-msgstr "请安装或启用上方列出的缺失套件插件；缺少它们时，适配器路由将一律拒绝执行。"
+#: includes/Admin/Connection_Page.php:901
+msgid ""
+"Install or activate the missing suite plugins listed above; Adapter routes "
+"fail closed without them."
+msgstr ""
+"请安装或启用上方列出的缺失套件插件；缺少它们时，适配器路由将一律拒绝执行。"
 
-#: includes/Admin/Connection_Page.php:894
+#: includes/Admin/Connection_Page.php:906
 msgid "Pair a client key"
 msgstr "配对一个客户端密钥"
 
-#: includes/Admin/Connection_Page.php:896
-msgid "At least one approved device key is active; this is the enforced-boundary connection path."
+#: includes/Admin/Connection_Page.php:908
+msgid ""
+"At least one approved device key is active; this is the enforced-boundary "
+"connection path."
 msgstr "至少有一个已批准的设备密钥处于激活状态；这是受强制边界保护的连接路径。"
 
-#: includes/Admin/Connection_Page.php:897
-msgid "Copy the connect command below, run it on the machine where the AI client runs, then approve the pairing request."
+#: includes/Admin/Connection_Page.php:909
+msgid ""
+"Copy the connect command below, run it on the machine where the AI client "
+"runs, then approve the pairing request."
 msgstr "复制下方的连接命令，在运行 AI 客户端的机器上执行，然后批准该配对请求。"
 
-#: includes/Admin/Connection_Page.php:902
+#: includes/Admin/Connection_Page.php:914
 msgid "Verify a signed request"
 msgstr "验证一个签名请求"
 
-#: includes/Admin/Connection_Page.php:904
+#: includes/Admin/Connection_Page.php:916
 msgid "A paired key has completed a signed Adapter request successfully."
 msgstr "已配对的密钥成功完成了一次签名适配器请求。"
 
-#: includes/Admin/Connection_Page.php:905
-msgid "The connect command tests a signed health request after approval; this step completes automatically once pairing finishes."
-msgstr "连接命令会在批准后测试一次签名健康检查请求；配对完成后此步骤会自动完成。"
+#: includes/Admin/Connection_Page.php:917
+msgid ""
+"The connect command tests a signed health request after approval; this step "
+"completes automatically once pairing finishes."
+msgstr ""
+"连接命令会在批准后测试一次签名健康检查请求；配对完成后此步骤会自动完成。"
 
-#: includes/Admin/Connection_Page.php:910
+#: includes/Admin/Connection_Page.php:922
 msgid "Connection readiness"
 msgstr "连接就绪状态"
 
-#: includes/Admin/Connection_Page.php:920
-msgid "Readiness covers the connection only. Writes still require a Core proposal, human approval, and commit-preflight; approval state lives in Npcink Governance Core."
-msgstr "就绪状态仅覆盖连接本身。写入操作仍需要治理核心提案、人工批准和提交预检；审批状态保存在 Npcink 治理核心中。"
+#: includes/Admin/Connection_Page.php:932
+msgid ""
+"Readiness covers the connection only. Writes still require a Core proposal, "
+"human approval, and commit-preflight; approval state lives in Npcink "
+"Governance Core."
+msgstr ""
+"就绪状态仅覆盖连接本身。写入操作仍需要治理核心提案、人工批准和提交预检；审批"
+"状态保存在 Npcink 治理核心中。"
 
-#: includes/Admin/Connection_Page.php:948
+#: includes/Admin/Connection_Page.php:960
 msgid "No active key-pair clients"
 msgstr "没有有效的密钥配对客户端"
 
 #. translators: 1: number of active clients, 2: formatted last-used timestamp.
-#: includes/Admin/Connection_Page.php:954
+#: includes/Admin/Connection_Page.php:966
 #, php-format
 msgid "%1$d active, last used %2$s"
 msgid_plural "%1$d active, last used %2$s"
 msgstr[0] "%1$d 个有效，最近使用于 %2$s"
 
 #. translators: %d: number of active clients.
-#: includes/Admin/Connection_Page.php:962
+#: includes/Admin/Connection_Page.php:974
 #, php-format
 msgid "%d active, not used yet"
 msgid_plural "%d active, not used yet"
 msgstr[0] "%d 个有效，尚未使用"
 
-#: includes/Admin/Connection_Page.php:988
+#: includes/Admin/Connection_Page.php:1000
 msgid ""
 "No active key-pair clients are registered for this administrator. Run the "
 "connect command, approve the browser prompt, then refresh this page."
@@ -529,46 +566,46 @@ msgstr ""
 "此管理员尚无有效密钥配对客户端。请运行连接命令，批准浏览器提示，然后刷新此页"
 "面。"
 
-#: includes/Admin/Connection_Page.php:999
+#: includes/Admin/Connection_Page.php:1011
 msgid "Revoked devices"
 msgstr "已撤销设备"
 
 #. translators: %d: number of revoked key-pair clients.
-#: includes/Admin/Connection_Page.php:1004
+#: includes/Admin/Connection_Page.php:1016
 #, php-format
 msgid "%d revoked device record"
 msgid_plural "%d revoked device records"
 msgstr[0] "%d 条已撤销设备记录"
 
-#: includes/Admin/Connection_Page.php:1030
+#: includes/Admin/Connection_Page.php:1042
 msgid "Device"
 msgstr "设备"
 
-#: includes/Admin/Connection_Page.php:1031
+#: includes/Admin/Connection_Page.php:1043
 msgid "Device ID"
 msgstr "设备标识"
 
-#: includes/Admin/Connection_Page.php:1032
+#: includes/Admin/Connection_Page.php:1044
 msgid "Last used"
 msgstr "上次使用"
 
-#: includes/Admin/Connection_Page.php:1035
+#: includes/Admin/Connection_Page.php:1047
 msgid "Action"
 msgstr "操作"
 
-#: includes/Admin/Connection_Page.php:1062
+#: includes/Admin/Connection_Page.php:1074
 msgid "Active"
 msgstr "有效"
 
-#: includes/Admin/Connection_Page.php:1062
+#: includes/Admin/Connection_Page.php:1074
 msgid "Revoked"
 msgstr "已撤销"
 
-#: includes/Admin/Connection_Page.php:1067
+#: includes/Admin/Connection_Page.php:1079
 msgid "Revoke this device? It must pair again before it can connect."
 msgstr "撤销此设备？撤销后它必须重新配对才能连接。"
 
-#: includes/Admin/Connection_Page.php:1071
+#: includes/Admin/Connection_Page.php:1083
 msgid "Revoke authorization"
 msgstr "撤销授权"
 
@@ -576,87 +613,89 @@ msgstr "撤销授权"
 msgid "Settings"
 msgstr "设置"
 
-#: includes/Rest/Controller.php:1097 includes/Rest/Controller.php:4079
-msgid "The unified approve-and-execute action requires a WordPress administrator session. Signed AI clients must wait for human approval in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute."
-msgstr "统一的批准并执行操作需要 WordPress 管理员会话。签名 AI 客户端必须等待在 Npcink 治理核心后台完成人工批准，然后调用 POST /proposals/{proposal_id}/execute。"
+#: includes/Rest/Controller.php:777
+msgid ""
+"This WordPress account cannot use the Adapter channel. Adapter routes "
+"require an administrator session or a paired signed client."
+msgstr "此 WordPress 账户无法使用 Adapter 通道。Adapter 路由需要管理员会话或已配对的签名客户端。"
 
-#: includes/Rest/Controller.php:1144
+#: includes/Rest/Controller.php:781
+msgid ""
+"Use an administrator account, or pair a signed client key through POST /"
+"connect/device/start."
+msgstr "请使用管理员账户，或通过 POST /connect/device/start 配对签名客户端密钥。"
+
+#: includes/Rest/Controller.php:833 includes/Rest/Controller.php:3079
+msgid ""
+"The unified approve-and-execute action requires a WordPress administrator "
+"session. Signed AI clients must wait for human approval in the Npcink "
+"Governance Core admin, then call POST /proposals/{proposal_id}/execute."
+msgstr ""
+"统一的批准并执行操作需要 WordPress 管理员会话。签名 AI 客户端必须等待在 "
+"Npcink 治理核心后台完成人工批准，然后调用 POST /proposals/{proposal_id}/"
+"execute。"
+
+#: includes/Rest/Controller.php:880
 msgid "Ed25519 device pairing requires the PHP sodium extension."
 msgstr "Ed25519 设备配对需要 PHP sodium 扩展。"
 
-#: includes/Rest/Controller.php:1160
+#: includes/Rest/Controller.php:896
 msgid ""
 "Device pairing requires client metadata and a base64url Ed25519 public key."
 msgstr "设备配对需要客户端元数据和 base64url Ed25519 公钥。"
 
-#: includes/Rest/Controller.php:1236
+#: includes/Rest/Controller.php:980
 msgid "Device pairing is expired or invalid."
 msgstr "设备配对已过期或无效。"
 
-#: includes/Rest/Controller.php:1246
+#: includes/Rest/Controller.php:990
 msgid "Device pairing was rejected."
 msgstr "设备配对已被拒绝。"
 
-#: includes/Rest/Controller.php:1259
+#: includes/Rest/Controller.php:1003
 msgid "Device pairing is still pending approval."
 msgstr "设备配对仍在等待批准。"
 
-#: includes/Rest/Controller.php:1329
-msgid "Client key was not found for the current user."
-msgstr "未找到当前用户的客户端密钥。"
-
-#: includes/Rest/Controller.php:1372 includes/Rest/Controller.php:1434
-msgid "Device pairing was not found or expired."
-msgstr "设备配对不存在或已过期。"
-
-#: includes/Rest/Controller.php:1486
+#: includes/Rest/Controller.php:1375
 msgid "A JSON request body is required."
 msgstr "需要 JSON 请求体。"
 
-#: includes/Rest/Controller.php:1507
+#: includes/Rest/Controller.php:1396
 msgid "Adapter request body is too large."
 msgstr "Adapter 请求体过大。"
 
-#: includes/Rest/Controller.php:1528
-msgid "Too many device pairing attempts. Try again shortly."
-msgstr "设备配对尝试次数过多。请稍后重试。"
-
-#: includes/Rest/Controller.php:1555
-msgid "Too many device pairing polls. Try again shortly."
-msgstr "设备配对轮询次数过多。请稍后重试。"
-
-#: includes/Rest/Controller.php:2972
+#: includes/Rest/Controller.php:2159
 msgid "Core proposal detail response is invalid."
 msgstr "核心提案响应无效。"
 
 #. translators: 1: attachment id, 2: media format.
-#: includes/Rest/Controller.php:3405
+#: includes/Rest/Controller.php:2592
 #, php-format
 msgid "Replace attachment %1$d with the reviewed %2$s derivative."
 msgstr "用已审核的 %2$s 衍生文件替换附件 %1$d。"
 
-#: includes/Rest/Controller.php:3407
+#: includes/Rest/Controller.php:2594
 msgid "optimized"
 msgstr "优化后"
 
 #. translators: 1: before size, 2: after size.
-#: includes/Rest/Controller.php:3416
+#: includes/Rest/Controller.php:2603
 #, php-format
 msgid "Dimensions: %1$s -> %2$s."
 msgstr "尺寸：%1$s -> %2$s。"
 
-#: includes/Rest/Controller.php:3417 includes/Rest/Controller.php:3418
+#: includes/Rest/Controller.php:2604 includes/Rest/Controller.php:2605
 msgid "unknown"
 msgstr "未知"
 
 #. translators: %s: file name.
-#: includes/Rest/Controller.php:3426
+#: includes/Rest/Controller.php:2613
 #, php-format
 msgid "Local file name: %s."
 msgstr "本地文件名：%s。"
 
 #. translators: 1: post count, 2: actual replacement count, 3: rule count.
-#: includes/Rest/Controller.php:3436
+#: includes/Rest/Controller.php:2623
 #, php-format
 msgid ""
 "Repair post-content media references in %1$d post(s): %2$d actual "
@@ -664,405 +703,168 @@ msgid ""
 msgstr ""
 "修复 %1$d 篇文章中的媒体引用：根据 %3$d 条已审核规则执行 %2$d 处实际替换。"
 
-#: includes/Rest/Controller.php:3444
+#: includes/Rest/Controller.php:2631
 msgid ""
 "Update reviewed media title, alt text, caption, description, or attribution "
 "metadata in the same approval."
 msgstr ""
 "在同一次批准中更新已审核的媒体标题、替代文本、说明文字、描述或署名元数据。"
 
-#: includes/Rest/Controller.php:3446
+#: includes/Rest/Controller.php:2633
 msgid ""
 "Keep a local backup so the media file and post references can be rolled back "
 "after approval."
 msgstr "保留本地备份，以便批准后仍可回滚媒体文件和文章引用。"
 
-#: includes/Rest/Controller.php:3743
+#: includes/Rest/Controller.php:2890
 msgid ""
 "This planning ability is not implemented by the adapter plan-to-proposal "
 "bridge."
 msgstr "适配器计划转提案桥接不接受此规划能力。"
 
-#: includes/Rest/Controller.php:3849 includes/Rest/Controller.php:4389
-msgid "Each write_actions item must be an object."
-msgstr "每个 write_actions 项都必须是对象。"
-
-#: includes/Rest/Controller.php:3859
-msgid "Each write_actions item must declare target_ability_id."
-msgstr "每个 write_actions 项都必须声明 target_ability_id。"
-
-#: includes/Rest/Controller.php:3874 includes/Rest/Controller.php:4433
-msgid "Each write_actions item must have a unique action_id."
-msgstr "每个 write_actions 项都必须有唯一 action_id。"
-
-#: includes/Rest/Controller.php:3887
-msgid "This action requires additional input before proposal creation."
-msgstr "创建提案前，此操作还需要补充输入。"
-
-#: includes/Rest/Controller.php:3926
-msgid "Plan write action input failed Adapter proposal validation."
-msgstr "计划写入操作输入未通过适配器提案验证。"
-
-#: includes/Rest/Controller.php:3997 includes/Rest/Controller.php:4069
+#: includes/Rest/Controller.php:2997 includes/Rest/Controller.php:3069
 msgid "proposal_id is required."
 msgstr "需要 proposal_id。"
 
-#: includes/Rest/Controller.php:4120
+#: includes/Rest/Controller.php:3120
 msgid "Approved by Npcink AI Client Adapter approve-and-execute."
 msgstr "由 Npcink AI 客户端适配器 approve-and-execute 批准。"
 
-#: includes/Rest/Controller.php:4140
+#: includes/Rest/Controller.php:3140
 msgid "Core did not return an approved proposal state."
 msgstr "核心未返回已批准的提案状态。"
 
-#: includes/Rest/Controller.php:4156
+#: includes/Rest/Controller.php:3156
 msgid "This proposal cannot be approved and executed from its current status."
 msgstr "此提案在当前状态下不能批准并执行。"
 
-#: includes/Rest/Controller.php:4321
+#: includes/Rest/Controller.php:3321
 msgid "Core proposal response is invalid."
 msgstr "核心提案响应无效。"
 
-#: includes/Rest/Controller.php:4362
+#: includes/Rest/Controller.php:3362
 msgid "Proposal input must use either post_id or write_actions, not both."
 msgstr "提案输入必须使用 post_id 或 write_actions，不能同时使用。"
 
-#: includes/Rest/Controller.php:4374
+#: includes/Rest/Controller.php:3374
 msgid "Proposal write_actions exceeds the adapter execution limit."
 msgstr "提案 write_actions 超出适配器执行限制。"
 
-#: includes/Rest/Controller.php:4402
+#: includes/Rest/Controller.php:3389 includes/Rest/Proposal_Review.php:122
+msgid "Each write_actions item must be an object."
+msgstr "每个 write_actions 项都必须是对象。"
+
+#: includes/Rest/Controller.php:3402
 msgid "Each write_actions item must include target_ability_id."
 msgstr "每个 write_actions 项都必须包含 target_ability_id。"
 
-#: includes/Rest/Controller.php:4458
+#: includes/Rest/Controller.php:3433 includes/Rest/Proposal_Review.php:147
+msgid "Each write_actions item must have a unique action_id."
+msgstr "每个 write_actions 项都必须有唯一 action_id。"
+
+#: includes/Rest/Controller.php:3458
 msgid "Each executable write action must require Core approval."
 msgstr "每个可执行写入操作都必须要求核心批准。"
 
-#: includes/Rest/Controller.php:4470
+#: includes/Rest/Controller.php:3470
 msgid ""
 "Write actions must keep core_proxy_execute=false before Adapter execution."
 msgstr "写入操作在适配器执行前必须保持 core_proxy_execute=false。"
 
-#: includes/Rest/Controller.php:4482
+#: includes/Rest/Controller.php:3482
 msgid ""
 "Write actions must keep commit_execution=false before Adapter execution."
 msgstr "写入操作在适配器执行前必须保持 commit_execution=false。"
 
-#: includes/Rest/Controller.php:4495
+#: includes/Rest/Controller.php:3495
 msgid "Write action still requires reviewed input before execution."
 msgstr "写入操作在执行前仍需要已审核输入。"
 
-#: includes/Rest/Controller.php:4509
+#: includes/Rest/Controller.php:3509
 msgid "Write action is not marked ready for execution."
 msgstr "写入操作尚未标记为可执行。"
 
-#: includes/Rest/Controller.php:4635
+#: includes/Rest/Controller.php:3635
 msgid "The Core media ALT guard does not match the approved ALT-only input."
 msgstr "Core 媒体 ALT 防护信息与已批准的仅 ALT 输入不匹配。"
 
-#: includes/Rest/Controller.php:4823
+#: includes/Rest/Controller.php:3824
 msgid "Core commit preflight response is invalid."
 msgstr "核心提交预检响应无效。"
 
-#: includes/Rest/Controller.php:4834
+#: includes/Rest/Controller.php:3835
 msgid "Core commit preflight did not authorize approval commit."
 msgstr "核心提交预检未授权批准提交。"
 
-#: includes/Rest/Controller.php:4847
+#: includes/Rest/Controller.php:3848
 msgid "Core commit preflight must not execute final writes."
 msgstr "核心提交预检不得执行最终写入。"
 
-#: includes/Rest/Controller.php:4859
+#: includes/Rest/Controller.php:3860
 msgid "Core commit preflight did not mark the proposal item executable."
 msgstr "核心提交预检未将提案项标记为可执行。"
 
-#: includes/Rest/Controller.php:4873
+#: includes/Rest/Controller.php:3874
 msgid "Core commit preflight did not return a correlation id."
 msgstr "核心提交预检未返回 correlation id。"
 
-#: includes/Rest/Controller.php:5313
-msgid "The plan was not accepted for Core proposal intake."
-msgstr "该计划未被核心提案接收流程接受。"
-
-#: includes/Rest/Controller.php:5317
-msgid "Show these reasons to the operator."
-msgstr "向操作员显示这些原因。"
-
-#: includes/Rest/Controller.php:5318
-msgid ""
-"Revise the Toolbox plan or reviewed draft, then submit a new from-plan "
-"request."
-msgstr "修改 Toolbox 计划或已审核草稿，然后提交新的 from-plan 请求。"
-
-#: includes/Rest/Controller.php:5319
-msgid "Do not call approve-and-execute until Core creates a proposal."
-msgstr "在核心创建提案之前，不要调用 approve-and-execute。"
-
-#. translators: %s: proposal status.
-#: includes/Rest/Controller.php:5345
-#, php-format
-msgid "Core proposal status is %s."
-msgstr "核心提案状态为 %s。"
-
-#: includes/Rest/Controller.php:5354
-msgid "Core rejected this proposal. Adapter will not execute it."
-msgstr "核心已拒绝此提案。适配器不会执行它。"
-
-#: includes/Rest/Controller.php:5355
-msgid "This proposal is not in an executable Core status."
-msgstr "此提案不处于可执行的核心状态。"
-
-#: includes/Rest/Controller.php:5359
-msgid "Show the Core decision to the operator."
-msgstr "向操作员显示核心决策。"
-
-#: includes/Rest/Controller.php:5360
-msgid "Revise the source plan or draft, then create a new Core proposal."
-msgstr "修改源计划或草稿，然后创建新的核心提案。"
-
-#: includes/Rest/Controller.php:5361
-msgid "Do not retry approve-and-execute against this proposal id."
-msgstr "不要对这个提案 ID 重试 approve-and-execute。"
-
-#. translators: %s: missing field name.
-#: includes/Rest/Controller.php:5395
-#, php-format
-msgid "Missing required input: %s."
-msgstr "缺少必需输入：%s。"
-
-#: includes/Rest/Controller.php:5401
-msgid "Core marks the proposal item as not ready for execution."
-msgstr "核心将该提案项标记为尚不可执行。"
-
-#: includes/Rest/Controller.php:5404
-msgid "Core commit preflight did not authorize execution."
-msgstr "核心提交预检未授权执行。"
-
-#: includes/Rest/Controller.php:5409
-msgid ""
-"Core has already issued the one-time execution handoff. If commit-preflight "
-"was called directly against Core, Adapter cannot recover that handoff."
-msgstr ""
-"核心已经发出一次性执行交接。如果直接对核心调用了 commit-preflight，适配器无法"
-"恢复该交接。"
-
-#: includes/Rest/Controller.php:5413
-msgid "Show Core preflight blockers to the operator."
-msgstr "向操作员显示核心预检阻塞项。"
-
-#: includes/Rest/Controller.php:5414
-msgid "Revise the proposal input or source plan, then create a new proposal."
-msgstr "修改提案输入或源计划，然后创建新提案。"
-
-#: includes/Rest/Controller.php:5415
-msgid "Do not retry approve-and-execute until Core preflight can pass."
-msgstr "在核心预检通过前，不要重试 approve-and-execute。"
-
-#: includes/Rest/Controller.php:5419
-msgid "Create a new proposal for the same intended write."
-msgstr "为同一预期写入创建新提案。"
-
-#: includes/Rest/Controller.php:5420
-msgid ""
-"After approval, call Adapter execute or approve-and-execute; do not call "
-"Core commit-preflight directly."
-msgstr ""
-"批准后，调用适配器 execute 或 approve-and-execute；不要直接调用核心 commit-"
-"preflight。"
-
-#: includes/Rest/Controller.php:5421
-msgid ""
-"Use Adapter commit-preflight only as an advanced diagnostic step and follow "
-"it immediately with Adapter execute."
-msgstr ""
-"只将适配器 commit-preflight 作为高级诊断步骤使用，并且随后立即调用适配器 "
-"execute。"
-
-#: includes/Rest/Controller.php:5428
-msgid ""
-"Core commit preflight blocked execution. Adapter did not run the write "
-"ability."
-msgstr "核心提交预检阻止了执行。适配器没有运行写入能力。"
-
-#: includes/Rest/Controller.php:5728
-msgid ""
-"Core commit preflight approved input hash does not match the current "
-"proposal input."
-msgstr "核心提交预检批准的输入哈希与当前提案输入不匹配。"
-
-#: includes/Rest/Controller.php:5745
-msgid ""
-"Core commit preflight policy version is not accepted by Adapter execution."
-msgstr "适配器执行不接受此核心提交预检策略版本。"
-
-#: includes/Rest/Controller.php:5929
+#: includes/Rest/Controller.php:4327
 msgid ""
 "Provider implementation posture is not accepted for Adapter final execution."
 msgstr "Adapter 最终执行不接受 Provider 实现姿态。"
 
-#: includes/Rest/Controller.php:5955
+#: includes/Rest/Controller.php:4353
 msgid ""
 "Provider implementation posture write defaults are not accepted for Adapter "
 "final execution."
 msgstr "Adapter 最终执行不接受 Provider 实现姿态中的写入默认值。"
 
-#: includes/Rest/Controller.php:5972
+#: includes/Rest/Controller.php:4370
 msgid ""
 "Provider implementation posture declares ownership that Adapter must not "
 "execute through."
 msgstr "Provider 实现姿态声明了 Adapter 不得代为执行的所有权。"
 
-#: includes/Rest/Controller.php:6023
+#: includes/Rest/Controller.php:4421
 msgid ""
 "Core implementation posture evidence does not match capability discovery."
 msgstr "Core 实现姿态证据与能力发现结果不匹配。"
 
-#: includes/Rest/Controller.php:6048
-msgid "Core commit preflight did not return an Adapter execution handoff."
-msgstr "核心提交预检未返回适配器执行交接。"
-
-#: includes/Rest/Controller.php:6061
-msgid "Core execution handoff was not issued for Adapter after Core preflight."
-msgstr "核心执行交接不是为核心预检后的适配器执行签发的。"
-
-#: includes/Rest/Controller.php:6076
-msgid ""
-"Core execution handoff was not issued for the WordPress Abilities REST "
-"surface."
-msgstr "核心执行交接不是为 WordPress Abilities REST 执行面签发的。"
-
-#: includes/Rest/Controller.php:6090
-msgid ""
-"Core execution handoff must keep core_proxy_execute=false for Adapter "
-"execution."
-msgstr "核心执行交接必须保持 core_proxy_execute=false 才能由适配器执行。"
-
-#: includes/Rest/Controller.php:6103
-msgid ""
-"Core execution handoff must keep commit_execution=false before Adapter "
-"execution."
-msgstr "核心执行交接在适配器执行前必须保持 commit_execution=false。"
-
-#: includes/Rest/Controller.php:6116
-msgid ""
-"Core execution handoff proposal id does not match the Adapter execution "
-"request."
-msgstr "核心执行交接的提案 ID 与适配器执行请求不匹配。"
-
-#: includes/Rest/Controller.php:6131
-msgid ""
-"Core execution handoff ability id does not match the approved proposal or "
-"write actions."
-msgstr "核心执行交接的能力 ID 与已批准提案或写入动作不匹配。"
-
-#: includes/Rest/Controller.php:6147
-msgid ""
-"Core execution handoff correlation id does not match the commit preflight "
-"correlation id."
-msgstr "核心执行交接的 correlation id 与提交预检 correlation id 不匹配。"
-
-#: includes/Rest/Controller.php:6198
-msgid "Core authorization context was issued for a different site URL."
-msgstr "Core 授权上下文是为另一个站点 URL 签发的。"
-
-#: includes/Rest/Controller.php:6211
-msgid "Core authorization context was issued for a different home URL."
-msgstr "Core 授权上下文是为另一个首页 URL 签发的。"
-
-#: includes/Rest/Controller.php:6224
-msgid "Core authorization context was issued for a different blog id."
-msgstr "Core 授权上下文是为另一个 blog id 签发的。"
-
-#: includes/Rest/Controller.php:6251
-msgid "Core authorization context is expired or missing a valid expiry."
-msgstr "Core 授权上下文已过期或缺少有效过期时间。"
-
-#: includes/Rest/Controller.php:6280
-msgid ""
-"Core authorization context includes an invalid signed client fingerprint."
-msgstr "Core 授权上下文包含无效的已签名客户端指纹。"
-
-#: includes/Rest/Controller.php:6288
-msgid ""
-"Core authorization context signed client fingerprint aliases do not match."
-msgstr "Core 授权上下文中的已签名客户端指纹别名不匹配。"
-
-#: includes/Rest/Controller.php:6302
-msgid ""
-"Core authorization context was issued for a different signed local client."
-msgstr "Core 授权上下文是为另一个已签名本地客户端签发的。"
-
-#: includes/Rest/Controller.php:6380
-msgid "Adapter has already completed execution for this proposal."
-msgstr "适配器已完成此提案的执行。"
-
-#: includes/Rest/Controller.php:6417 includes/Rest/Controller.php:6441
-msgid "This proposal is already being executed. Try again shortly."
-msgstr "此提案正在执行中。请稍后重试。"
-
-#: includes/Rest/Controller.php:6927
+#: includes/Rest/Controller.php:4807
 msgid "This ability is not direct-read. Create a Core proposal instead."
 msgstr "此能力不是直接读取能力。请改为创建核心提案。"
 
-#: includes/Rest/Controller.php:6940
+#: includes/Rest/Controller.php:4820
 msgid "Core guidance unexpectedly allows proxy or commit execution."
 msgstr "核心指导意外允许代理或提交执行。"
 
-#: includes/Rest/Controller.php:7102
+#: includes/Rest/Controller.php:4963
 msgid "Core read preflight did not return a read authorization context."
 msgstr "Core 读取预检未返回读取授权上下文。"
 
-#: includes/Rest/Controller.php:7118
+#: includes/Rest/Controller.php:4979
 msgid ""
 "Core read authorization context does not match the supplied approved input "
 "hash."
 msgstr "Core 读取授权上下文与提供的已批准输入哈希不匹配。"
 
-#: includes/Rest/Controller.php:7139
-msgid "Core read authorization was not granted."
-msgstr "Core 未授予读取授权。"
-
-#: includes/Rest/Controller.php:7146
-msgid "Core read authorization truth marker is invalid."
-msgstr "Core 读取授权事实标记无效。"
-
-#: includes/Rest/Controller.php:7153
-msgid ""
-"Core read authorization context does not match the requested ability or read "
-"request."
-msgstr "Core 读取授权上下文与请求的能力或读取请求不匹配。"
-
-#: includes/Rest/Controller.php:7160
-msgid "Core read authorization context is missing the approved input hash."
-msgstr "Core 读取授权上下文缺少已批准输入哈希。"
-
-#: includes/Rest/Controller.php:7167
-msgid ""
-"Core read authorization context must not enable write or commit execution."
-msgstr "Core 读取授权上下文不得启用写入或提交执行。"
-
-#: includes/Rest/Controller.php:7185
-msgid "Core read authorization context is expired."
-msgstr "Core 读取授权上下文已过期。"
-
-#: includes/Rest/Controller.php:7245
+#: includes/Rest/Controller.php:5004
 msgid ""
 "Core requires explicit read authorization before Adapter may return this "
 "sensitive read result."
 msgstr "Adapter 返回此敏感读取结果前，Core 要求显式读取授权。"
 
-#: includes/Rest/Controller.php:7256
+#: includes/Rest/Controller.php:5015
 msgid "Create or approve the sensitive read request in Npcink Governance Core."
 msgstr "请在 Npcink Governance Core 中创建或批准敏感读取请求。"
 
-#: includes/Rest/Controller.php:7257
+#: includes/Rest/Controller.php:5016
 msgid ""
 "Retry only after Core exposes a bounded read authorization context for this "
 "ability and input."
 msgstr "仅在 Core 为此能力和输入提供有界读取授权上下文后重试。"
 
-#: includes/Rest/Controller.php:7258
+#: includes/Rest/Controller.php:5017
 msgid ""
 "Do not bypass Adapter through the database, filesystem, logs, custom "
 "scripts, or direct WordPress internals."
@@ -1070,26 +872,14 @@ msgstr ""
 "不要通过数据库、文件系统、日志、自定义脚本或直接 WordPress 内部调用绕过 "
 "Adapter。"
 
-#: includes/Rest/Controller.php:7586
-msgid "The requested ability is not discoverable through Core."
-msgstr "无法通过核心发现请求的能力。"
-
-#: includes/Rest/Controller.php:7616
-msgid "Core capabilities response is invalid."
-msgstr "Core 能力响应无效。"
-
-#: includes/Rest/Controller.php:7690 includes/Rest/Controller.php:7746
-msgid "The upstream WordPress REST request failed."
-msgstr "上游 WordPress REST 请求失败。"
-
-#: includes/Rest/Controller.php:7867
+#: includes/Rest/Dependency_Status.php:93
 msgid ""
 "Npcink Governance Core is required before Adapter can read capabilities, "
 "create proposals, or run commit preflight."
 msgstr ""
 "Adapter 读取能力、创建提案或运行提交预检前，需要 Npcink Governance Core。"
 
-#: includes/Rest/Controller.php:7880
+#: includes/Rest/Dependency_Status.php:106
 msgid ""
 "WordPress Abilities API is required before Adapter can execute read "
 "abilities or approved write abilities."
@@ -1452,6 +1242,382 @@ msgstr "trash-comment 执行输入必须包含 comment_id。"
 #: includes/Rest/Execution_Profile_Registry.php:477
 msgid "approve-comment execution input must include comment_id."
 msgstr "approve-comment 执行输入必须包含 comment_id。"
+
+#: includes/Rest/Execution_Records.php:113
+msgid "Adapter has already completed execution for this proposal."
+msgstr "适配器已完成此提案的执行。"
+
+#: includes/Rest/Execution_Records.php:379
+#: includes/Rest/Execution_Records.php:404
+msgid "This proposal is already being executed. Try again shortly."
+msgstr "此提案正在执行中。请稍后重试。"
+
+#: includes/Rest/Preflight_Handoffs.php:146
+msgid "Core authorization context was issued for a different site URL."
+msgstr "Core 授权上下文是为另一个站点 URL 签发的。"
+
+#: includes/Rest/Preflight_Handoffs.php:159
+msgid "Core authorization context was issued for a different home URL."
+msgstr "Core 授权上下文是为另一个首页 URL 签发的。"
+
+#: includes/Rest/Preflight_Handoffs.php:172
+msgid "Core authorization context was issued for a different blog id."
+msgstr "Core 授权上下文是为另一个 blog id 签发的。"
+
+#: includes/Rest/Preflight_Handoffs.php:198
+msgid "Core authorization context is expired or missing a valid expiry."
+msgstr "Core 授权上下文已过期或缺少有效过期时间。"
+
+#: includes/Rest/Preflight_Handoffs.php:226
+msgid ""
+"Core authorization context includes an invalid signed client fingerprint."
+msgstr "Core 授权上下文包含无效的已签名客户端指纹。"
+
+#: includes/Rest/Preflight_Handoffs.php:234
+msgid ""
+"Core authorization context signed client fingerprint aliases do not match."
+msgstr "Core 授权上下文中的已签名客户端指纹别名不匹配。"
+
+#: includes/Rest/Preflight_Handoffs.php:248
+msgid ""
+"Core authorization context is missing the signed client fingerprint binding."
+msgstr "Core 授权上下文缺少签名客户端指纹绑定。"
+
+#: includes/Rest/Preflight_Handoffs.php:259
+msgid ""
+"Core authorization context was issued for a different signed local client."
+msgstr "Core 授权上下文是为另一个已签名本地客户端签发的。"
+
+#: includes/Rest/Preflight_Handoffs.php:284
+msgid "Core commit preflight did not return an Adapter execution handoff."
+msgstr "核心提交预检未返回适配器执行交接。"
+
+#: includes/Rest/Preflight_Handoffs.php:297
+msgid "Core execution handoff was not issued for Adapter after Core preflight."
+msgstr "核心执行交接不是为核心预检后的适配器执行签发的。"
+
+#: includes/Rest/Preflight_Handoffs.php:312
+msgid ""
+"Core execution handoff was not issued for the WordPress Abilities REST "
+"surface."
+msgstr "核心执行交接不是为 WordPress Abilities REST 执行面签发的。"
+
+#: includes/Rest/Preflight_Handoffs.php:326
+msgid ""
+"Core execution handoff must keep core_proxy_execute=false for Adapter "
+"execution."
+msgstr "核心执行交接必须保持 core_proxy_execute=false 才能由适配器执行。"
+
+#: includes/Rest/Preflight_Handoffs.php:339
+msgid ""
+"Core execution handoff must keep commit_execution=false before Adapter "
+"execution."
+msgstr "核心执行交接在适配器执行前必须保持 commit_execution=false。"
+
+#: includes/Rest/Preflight_Handoffs.php:352
+msgid ""
+"Core execution handoff proposal id does not match the Adapter execution "
+"request."
+msgstr "核心执行交接的提案 ID 与适配器执行请求不匹配。"
+
+#: includes/Rest/Preflight_Handoffs.php:367
+msgid ""
+"Core execution handoff ability id does not match the approved proposal or "
+"write actions."
+msgstr "核心执行交接的能力 ID 与已批准提案或写入动作不匹配。"
+
+#: includes/Rest/Preflight_Handoffs.php:383
+msgid ""
+"Core execution handoff correlation id does not match the commit preflight "
+"correlation id."
+msgstr "核心执行交接的 correlation id 与提交预检 correlation id 不匹配。"
+
+#: includes/Rest/Preflight_Handoffs.php:417
+msgid "Core execution handoff is missing its approved input hash binding."
+msgstr "Core 执行交接缺少已批准输入哈希绑定。"
+
+#: includes/Rest/Preflight_Handoffs.php:430
+msgid ""
+"Core commit preflight approved input hash does not match the current "
+"proposal input."
+msgstr "核心提交预检批准的输入哈希与当前提案输入不匹配。"
+
+#: includes/Rest/Preflight_Handoffs.php:447
+msgid ""
+"Core commit preflight policy version is not accepted by Adapter execution."
+msgstr "适配器执行不接受此核心提交预检策略版本。"
+
+#: includes/Rest/Proposal_Review.php:132
+msgid "Each write_actions item must declare target_ability_id."
+msgstr "每个 write_actions 项都必须声明 target_ability_id。"
+
+#: includes/Rest/Proposal_Review.php:160
+msgid "This action requires additional input before proposal creation."
+msgstr "创建提案前，此操作还需要补充输入。"
+
+#: includes/Rest/Proposal_Review.php:199
+msgid "Plan write action input failed Adapter proposal validation."
+msgstr "计划写入操作输入未通过适配器提案验证。"
+
+#: includes/Rest/Proposal_Review.php:462
+msgid "The plan was not accepted for Core proposal intake."
+msgstr "该计划未被核心提案接收流程接受。"
+
+#: includes/Rest/Proposal_Review.php:466
+msgid "Show these reasons to the operator."
+msgstr "向操作员显示这些原因。"
+
+#: includes/Rest/Proposal_Review.php:467
+msgid ""
+"Revise the Toolbox plan or reviewed draft, then submit a new from-plan "
+"request."
+msgstr "修改 Toolbox 计划或已审核草稿，然后提交新的 from-plan 请求。"
+
+#: includes/Rest/Proposal_Review.php:468
+msgid "Do not call approve-and-execute until Core creates a proposal."
+msgstr "在核心创建提案之前，不要调用 approve-and-execute。"
+
+#. translators: %s: proposal status.
+#: includes/Rest/Proposal_Review.php:493
+#, php-format
+msgid "Core proposal status is %s."
+msgstr "核心提案状态为 %s。"
+
+#: includes/Rest/Proposal_Review.php:502
+msgid "Core rejected this proposal. Adapter will not execute it."
+msgstr "核心已拒绝此提案。适配器不会执行它。"
+
+#: includes/Rest/Proposal_Review.php:503
+msgid "This proposal is not in an executable Core status."
+msgstr "此提案不处于可执行的核心状态。"
+
+#: includes/Rest/Proposal_Review.php:507
+msgid "Show the Core decision to the operator."
+msgstr "向操作员显示核心决策。"
+
+#: includes/Rest/Proposal_Review.php:508
+msgid "Revise the source plan or draft, then create a new Core proposal."
+msgstr "修改源计划或草稿，然后创建新的核心提案。"
+
+#: includes/Rest/Proposal_Review.php:509
+msgid "Do not retry approve-and-execute against this proposal id."
+msgstr "不要对这个提案 ID 重试 approve-and-execute。"
+
+#. translators: %s: missing field name.
+#: includes/Rest/Proposal_Review.php:542
+#, php-format
+msgid "Missing required input: %s."
+msgstr "缺少必需输入：%s。"
+
+#: includes/Rest/Proposal_Review.php:548
+msgid "Core marks the proposal item as not ready for execution."
+msgstr "核心将该提案项标记为尚不可执行。"
+
+#: includes/Rest/Proposal_Review.php:551
+msgid "Core commit preflight did not authorize execution."
+msgstr "核心提交预检未授权执行。"
+
+#: includes/Rest/Proposal_Review.php:569
+msgid ""
+"Core already issued the one-time execution handoff, and the 409 response "
+"echoes its correlation id and expiry for recovery."
+msgstr "Core 已签发一次性执行交接，且 409 响应回传了其关联 ID 与有效期，可用于恢复。"
+
+#: includes/Rest/Proposal_Review.php:571
+msgid ""
+"Core has already issued the one-time execution handoff. This Core version "
+"does not echo the handoff identifiers, so Adapter cannot recover it."
+msgstr "Core 已签发一次性执行交接。该 Core 版本不回传交接标识，Adapter 无法恢复。"
+
+#: includes/Rest/Proposal_Review.php:576
+msgid "Show Core preflight blockers to the operator."
+msgstr "向操作员显示核心预检阻塞项。"
+
+#: includes/Rest/Proposal_Review.php:577
+msgid "Revise the proposal input or source plan, then create a new proposal."
+msgstr "修改提案输入或源计划，然后创建新提案。"
+
+#: includes/Rest/Proposal_Review.php:578
+msgid "Do not retry approve-and-execute until Core preflight can pass."
+msgstr "在核心预检通过前，不要重试 approve-and-execute。"
+
+#: includes/Rest/Proposal_Review.php:582
+msgid "Create a new proposal for the same intended write."
+msgstr "为同一预期写入创建新提案。"
+
+#: includes/Rest/Proposal_Review.php:583
+msgid ""
+"After approval, call Adapter execute or approve-and-execute; do not call "
+"Core commit-preflight directly."
+msgstr ""
+"批准后，调用适配器 execute 或 approve-and-execute；不要直接调用核心 commit-"
+"preflight。"
+
+#: includes/Rest/Proposal_Review.php:584
+msgid ""
+"Use Adapter commit-preflight only as an advanced diagnostic step and follow "
+"it immediately with Adapter execute."
+msgstr ""
+"只将适配器 commit-preflight 作为高级诊断步骤使用，并且随后立即调用适配器 "
+"execute。"
+
+#: includes/Rest/Proposal_Review.php:589
+msgid ""
+"If the original execution response was lost, finish the flow with the echoed "
+"correlation id instead of creating a new proposal."
+msgstr "如果原始执行响应丢失，请使用回传的关联 ID 完成流程，而不是创建新提案。"
+
+#: includes/Rest/Proposal_Review.php:597
+msgid ""
+"Core commit preflight blocked execution. Adapter did not run the write "
+"ability."
+msgstr "核心提交预检阻止了执行。适配器没有运行写入能力。"
+
+#: includes/Rest/Read_Governance.php:312
+msgid "Core read authorization was not granted."
+msgstr "Core 未授予读取授权。"
+
+#: includes/Rest/Read_Governance.php:319
+msgid "Core read authorization truth marker is invalid."
+msgstr "Core 读取授权事实标记无效。"
+
+#: includes/Rest/Read_Governance.php:326
+msgid ""
+"Core read authorization context does not match the requested ability or read "
+"request."
+msgstr "Core 读取授权上下文与请求的能力或读取请求不匹配。"
+
+#: includes/Rest/Read_Governance.php:333
+msgid "Core read authorization context is missing the approved input hash."
+msgstr "Core 读取授权上下文缺少已批准输入哈希。"
+
+#: includes/Rest/Read_Governance.php:340
+msgid ""
+"Core read authorization context must not enable write or commit execution."
+msgstr "Core 读取授权上下文不得启用写入或提交执行。"
+
+#: includes/Rest/Read_Governance.php:358
+msgid "Core read authorization context is expired."
+msgstr "Core 读取授权上下文已过期。"
+
+#: includes/Rest/Signing_Auth.php:87
+msgid ""
+"Adapter requires a paired signed client or a WordPress administrator "
+"session. Start key-pair device pairing, then send the signed request headers."
+msgstr "Adapter 需要已配对的签名客户端或 WordPress 管理员会话。请先完成密钥对设备配对，再发送签名请求头。"
+
+#: includes/Rest/Signing_Auth.php:265
+msgid "Ed25519 signed requests require the PHP sodium extension."
+msgstr "Ed25519 签名请求需要 PHP sodium 扩展。"
+
+#: includes/Rest/Signing_Auth.php:282
+msgid ""
+"The signed request is missing required Npcink signature credential fields."
+msgstr "签名请求缺少必需的 Npcink 签名凭据字段。"
+
+#: includes/Rest/Signing_Auth.php:284
+msgid ""
+"Send key_id, timestamp, nonce, content_sha256, alg=Ed25519, and signature on "
+"every request. See docs/keypair-device-pairing-contract.md."
+msgstr "每个请求都必须发送 key_id、timestamp、nonce、content_sha256、alg=Ed25519 和 signature。参见 docs/keypair-device-pairing-contract.md。"
+
+#: includes/Rest/Signing_Auth.php:293
+msgid ""
+"The signed request timestamp is unparseable or outside the allowed freshness "
+"window."
+msgstr "签名请求时间戳无法解析或超出允许的时效窗口。"
+
+#: includes/Rest/Signing_Auth.php:295
+msgid ""
+"Regenerate the timestamp from a synced clock and re-sign the request before "
+"retrying."
+msgstr "重试前请使用已同步的时钟重新生成时间戳并重新签名请求。"
+
+#: includes/Rest/Signing_Auth.php:304
+msgid ""
+"The signed content hash does not match the request body received by the "
+"adapter."
+msgstr "签名内容哈希与 Adapter 收到的请求体不匹配。"
+
+#: includes/Rest/Signing_Auth.php:306
+msgid ""
+"Hash and sign the exact request body bytes; do not modify the body after "
+"signing."
+msgstr "请对确切的请求体字节做哈希与签名；签名后不要修改请求体。"
+
+#: includes/Rest/Signing_Auth.php:328
+msgid "The client key or request signature was rejected."
+msgstr "客户端密钥或请求签名被拒绝。"
+
+#: includes/Rest/Signing_Auth.php:330
+msgid ""
+"Pair the client again through POST /connect/device/start, or rebuild the "
+"canonical string exactly as documented in docs/keypair-device-pairing-"
+"contract.md and re-sign the request."
+msgstr "请通过 POST /connect/device/start 重新配对客户端，或严格按照 docs/keypair-device-pairing-contract.md 的说明重建规范化字符串并重新签名请求。"
+
+#: includes/Rest/Signing_Auth.php:338
+msgid "The paired client key does not carry the scope required by this route."
+msgstr "配对的客户端密钥不包含此路由所需的权限范围。"
+
+#: includes/Rest/Signing_Auth.php:340
+msgid ""
+"Re-pair the client requesting the needed scope, or ask a WordPress "
+"administrator to approve a key with it."
+msgstr "请以所需权限范围重新配对客户端，或请 WordPress 管理员批准包含该范围的密钥。"
+
+#: includes/Rest/Signing_Auth.php:348
+msgid "The signed request nonce was already claimed."
+msgstr "签名请求的 nonce 已被使用。"
+
+#: includes/Rest/Signing_Auth.php:350
+msgid ""
+"Use a fresh nonce for every request; a retried request must be re-signed "
+"with a new nonce and timestamp."
+msgstr "每个请求都使用新的 nonce；重试请求必须用新的 nonce 和时间戳重新签名。"
+
+#: includes/Rest/Signing_Auth.php:622 includes/Rest/Signing_Auth.php:683
+msgid "Device pairing was not found or expired."
+msgstr "设备配对不存在或已过期。"
+
+#: includes/Rest/Signing_Auth.php:797
+msgid "Client key was not found for the current user."
+msgstr "未找到当前用户的客户端密钥。"
+
+#: includes/Rest/Signing_Auth.php:836
+msgid "Too many device pairing attempts. Try again shortly."
+msgstr "设备配对尝试次数过多。请稍后重试。"
+
+#: includes/Rest/Signing_Auth.php:862
+msgid "Too many device pairing polls. Try again shortly."
+msgstr "设备配对轮询次数过多。请稍后重试。"
+
+#: includes/Rest/Upstream_Dispatch.php:161
+#: includes/Rest/Upstream_Dispatch.php:264
+msgid "The upstream WordPress REST request failed."
+msgstr "上游 WordPress REST 请求失败。"
+
+#: includes/Rest/Upstream_Dispatch.php:164
+msgid ""
+"This Core app token has expired: ask the WordPress administrator to rotate "
+"it, then update NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN."
+msgstr "此 Core 应用令牌已过期：请让 WordPress 管理员轮换令牌，然后更新 NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN。"
+
+#: includes/Rest/Upstream_Dispatch.php:362
+msgid "Core capabilities response is invalid."
+msgstr "Core 能力响应无效。"
+
+#: includes/Rest/Upstream_Dispatch.php:403
+msgid "The requested ability is not discoverable through Core."
+msgstr "无法通过核心发现请求的能力。"
+
+#~ msgid ""
+#~ "Core has already issued the one-time execution handoff. If commit-"
+#~ "preflight was called directly against Core, Adapter cannot recover that "
+#~ "handoff."
+#~ msgstr ""
+#~ "核心已经发出一次性执行交接。如果直接对核心调用了 commit-preflight，适配器"
+#~ "无法恢复该交接。"
 
 #~ msgid "Use only when the client has a dedicated secret field."
 #~ msgstr "仅当客户端有专用密钥字段时使用。"
