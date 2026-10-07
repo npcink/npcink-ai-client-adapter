@@ -58,7 +58,7 @@ while [ "$#" -gt 0 ]; do
 			;;
 		--no-review-because)
 			[ "$#" -ge 2 ] || fail '--no-review-because requires a value'
-			[ -n "$2" ] || fail '--no-review-because requires a non-empty value'
+			[ -n "$(printf '%s' "$2" | tr -d '[:space:]')" ] || fail '--no-review-because requires a non-whitespace value'
 			case "$2" in
 				*$'\n'*) fail '--no-review-because must be a single line' ;;
 			esac
@@ -398,6 +398,7 @@ if [ -z "${existing_pr}" ]; then
 			[ -n "${pr_url}" ] \
 				|| fail 'gh pr create reported an existing pull request that could not be found'
 			echo '[pr-publish] pull request was created despite the failed response; reusing it'
+			existing_pr="${pr_url}"
 			break
 		fi
 		if [ "${create_attempt}" -ge 4 ]; then
