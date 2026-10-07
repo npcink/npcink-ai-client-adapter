@@ -102,6 +102,11 @@ done
 # Each helper is one producer-contract surface, shared verbatim by the main
 # flow and --self-test; the fixtures there pin the observed v1.12.10 shapes.
 
+# The ocr-summary-run:<run>-<attempt> tag was observed from the same
+# pinned producer (v1.12.10, commit 579b931): re-verify the tag format
+# whenever the action pin is bumped, the same way as the summary shapes
+# below. An action change that drops the tag silently disables the
+# interleaved-round detection (absent tags stay allowed).
 # Unique finding count across the found-N and Review-complete shapes.
 gate_shape_counts() {
 	printf '%s\n' "$1" | grep -oE 'found \*\*[0-9]+\*\*|Review complete: [0-9]+ finding' | grep -oE '[0-9]+' | sort -u || true
