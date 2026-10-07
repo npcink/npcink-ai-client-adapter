@@ -182,7 +182,10 @@ final class Upstream_Dispatch {
 				if ( $retry_after < 1 && method_exists( $response, 'get_headers' ) ) {
 					$headers = $response->get_headers();
 					if ( is_array( $headers ) ) {
-						$retry_after = absint( $headers['Retry-After'] ?? $headers['retry-after'] ?? 0 );
+						// Only delay-seconds is supported; an HTTP-date
+						// Retry-After header is ignored rather than coerced.
+						$raw_header  = trim( (string) ( $headers['Retry-After'] ?? $headers['retry-after'] ?? '' ) );
+						$retry_after = ctype_digit( $raw_header ) ? absint( $raw_header ) : 0;
 					}
 				}
 				if ( $retry_after > 0 ) {
