@@ -4224,4 +4224,24 @@ foreach (
 	maa_adapter_assert( false !== strpos( $batch_policy, $required ), 'Batch execution policy contains required text: ' . $required );
 }
 
+
+// Core 0.2.x REST contract adoption (2026-10-07).
+$upstream_dispatch = maa_adapter_read( $root . "/includes/Rest/Upstream_Dispatch.php" );
+maa_adapter_assert( false !== strpos( $upstream_dispatch, "npcink_governance_core_app_auth_expired" ), "Expired Core app tokens surface a rotate-key hint." );
+maa_adapter_assert( false !== strpos( $upstream_dispatch, "retry_after_seconds" ) && false !== strpos( $upstream_dispatch, "['retry_after']" ), "Core 429 retry_after_seconds is relayed under the adapter retry_after key." );
+
+$proposal_review = maa_adapter_read( $root . "/includes/Rest/Proposal_Review.php" );
+maa_adapter_assert( false !== strpos( $proposal_review, "recoverable_handoff" ) && false !== strpos( $proposal_review, "upstream_data" ), "Preflight 409 feedback exposes Core echoed handoff identifiers for recovery." );
+
+$dependency_status = maa_adapter_read( $root . "/includes/Rest/Dependency_Status.php" );
+maa_adapter_assert( false !== strpos( $dependency_status, "core_app_token_source" ) && false !== strpos( $dependency_status, "array( 401, 403 ), true" ), "Dependency contract check retries through the app token only for auth failures." );
+
+$adapter_controller = maa_adapter_read( $root . "/includes/Rest/Controller.php" );
+maa_adapter_assert( substr_count( $adapter_controller, "'offset'" ) >= 4, "List proxies register and forward Core offset paging." );
+maa_adapter_assert( false !== strpos( $adapter_controller, 'relay_list_proxy_result' ), "Relayed Core rate limits emit a Retry-After header through the terminal list-proxy relay." );
+$dispatch_anchor = strpos( $adapter_controller, 'private function dispatch_upstream( string $method' );
+$dispatch_end    = false === $dispatch_anchor ? 0 : strpos( $adapter_controller, "\tprivate function", $dispatch_anchor + 10 );
+$dispatch_helper_body = false === $dispatch_anchor ? '' : substr( $adapter_controller, $dispatch_anchor, ( false === $dispatch_end ? strlen( $adapter_controller ) : $dispatch_end ) - $dispatch_anchor );
+maa_adapter_assert( false !== $dispatch_anchor && false === strpos( $dispatch_helper_body, 'rest_response_with_retry_after' ), "The shared dispatch helper stays WP_Error-based; only terminal handlers convert errors to responses." );
+
 echo "Static contracts: ok\n";

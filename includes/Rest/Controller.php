@@ -459,6 +459,11 @@ final class Controller {
 							'default'           => 50,
 							'sanitize_callback' => 'absint',
 						),
+						'offset' => array(
+							'type'              => 'integer',
+							'default'           => 0,
+							'sanitize_callback' => 'absint',
+						),
 						'status' => array(
 							'type'              => 'string',
 							'default'           => '',
@@ -545,9 +550,14 @@ final class Controller {
 					'callback'            => array( $this, 'list_proposals' ),
 					'permission_callback' => array( $this, 'can_use_adapter' ),
 					'args'                => array(
-						'limit' => array(
+						'limit'  => array(
 							'type'              => 'integer',
 							'default'           => 50,
+							'sanitize_callback' => 'absint',
+						),
+						'offset' => array(
+							'type'              => 'integer',
+							'default'           => 0,
 							'sanitize_callback' => 'absint',
 						),
 					),
@@ -2066,14 +2076,17 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function list_read_requests( WP_REST_Request $request ) {
-		return $this->dispatch_upstream(
-			'GET',
-			'/npcink-governance-core/v1/read-requests',
-			array(
-				'limit'  => min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint( $request->get_param( 'limit' ) ) ) ),
-				'status' => sanitize_key( (string) $request->get_param( 'status' ) ),
-			),
-			true
+		return $this->relay_list_proxy_result(
+			$this->dispatch_upstream(
+				'GET',
+				'/npcink-governance-core/v1/read-requests',
+				array(
+					'limit'  => min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint( $request->get_param( 'limit' ) ) ) ),
+					'offset' => max( 0, absint( $request->get_param( 'offset' ) ) ),
+					'status' => sanitize_key( (string) $request->get_param( 'status' ) ),
+				),
+				true
+			)
 		);
 	}
 
@@ -2097,13 +2110,16 @@ final class Controller {
 	public function list_proposals( WP_REST_Request $request ) {
 		$limit = min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint( $request->get_param( 'limit' ) ) ) );
 
-		return $this->dispatch_upstream(
-			'GET',
-			'/npcink-governance-core/v1/proposals',
-			array(
-				'limit' => $limit,
-			),
-			true
+		return $this->relay_list_proxy_result(
+			$this->dispatch_upstream(
+				'GET',
+				'/npcink-governance-core/v1/proposals',
+				array(
+					'limit'  => $limit,
+					'offset' => max( 0, absint( $request->get_param( 'offset' ) ) ),
+				),
+				true
+			)
 		);
 	}
 
@@ -5053,6 +5069,27 @@ final class Controller {
 	 */
 	private function dispatch_upstream( string $method, string $route, array $params = array(), bool $query_params = false, bool $json_body = false, bool $use_core_app_token = true ) {
 		return $this->upstream_dispatch->send( $method, $route, $params, $query_params, $json_body, $use_core_app_token, $this->current_signed_client_fingerprint() );
+	}
+
+	/**
+	 * Returns a REST response for a terminal list-proxy result, relaying a
+	 * Core 429 backoff hint as a standard Retry-After header.
+	 *
+	 * Only call this from handlers that return directly to the REST server;
+	 * internal flows must keep branching on is_wp_error().
+	 *
+	 * @param WP_REST_Response|WP_Error $result Upstream result.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	private function relay_list_proxy_result( $result ) {
+		if ( is_wp_error( $result ) ) {
+			$error_data = $result->get_error_data();
+			if ( is_array( $error_data ) && absint( $error_data['retry_after'] ?? 0 ) > 0 ) {
+				return $this->rest_response_with_retry_after( $result );
+			}
+		}
+
+		return $result;
 	}
 
 	/**

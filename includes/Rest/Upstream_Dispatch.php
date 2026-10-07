@@ -160,6 +160,39 @@ final class Upstream_Dispatch {
 			$code    = is_array( $data ) ? (string) ( $data['code'] ?? 'npcink_openclaw_adapter_upstream_failed' ) : 'npcink_openclaw_adapter_upstream_failed';
 			$message = is_array( $data ) ? (string) ( $data['message'] ?? __( 'The upstream WordPress REST request failed.', 'npcink-ai-client-adapter' ) ) : __( 'The upstream WordPress REST request failed.', 'npcink-ai-client-adapter' );
 
+			if ( 'npcink_governance_core_app_auth_expired' === $code ) {
+				$message .= ' ' . __( 'This Core app token has expired: ask the WordPress administrator to rotate it, then update NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN.', 'npcink-ai-client-adapter' );
+			}
+
+			$error_data = array(
+				'status'         => $status,
+				'upstream_route' => $route,
+				'upstream_data'  => $this->public_upstream_error_data( $data ),
+			);
+
+			// Relay Core 429 retry guidance under the adapter's retry_after key
+			// so existing Retry-After helpers apply to relayed Core errors too.
+			// Core signals backoff in the error body (data.retry_after_seconds)
+			// and as a standard Retry-After response header; honor both.
+			if ( 429 === $status ) {
+				$retry_after = 0;
+				if ( is_array( $data ) && is_array( $data['data'] ?? null ) ) {
+					$retry_after = absint( $data['data']['retry_after_seconds'] ?? 0 );
+				}
+				if ( $retry_after < 1 && method_exists( $response, 'get_headers' ) ) {
+					$headers = $response->get_headers();
+					if ( is_array( $headers ) ) {
+						// Only delay-seconds is supported; an HTTP-date
+						// Retry-After header is ignored rather than coerced.
+						$raw_header  = trim( (string) ( $headers['Retry-After'] ?? $headers['retry-after'] ?? '' ) );
+						$retry_after = ctype_digit( $raw_header ) ? absint( $raw_header ) : 0;
+					}
+				}
+				if ( $retry_after > 0 ) {
+					$error_data['retry_after'] = $retry_after;
+				}
+			}
+
 			call_user_func(
 				$this->emit_event,
 				'adapter.core.request',
@@ -172,15 +205,7 @@ final class Upstream_Dispatch {
 				)
 			);
 
-			return new WP_Error(
-				$code,
-				$message,
-				array(
-					'status'         => $status,
-					'upstream_route' => $route,
-					'upstream_data'  => $this->public_upstream_error_data( $data ),
-				)
-			);
+			return new WP_Error( $code, $message, $error_data );
 		}
 
 		call_user_func(
