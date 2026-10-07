@@ -172,8 +172,19 @@ final class Upstream_Dispatch {
 
 			// Relay Core 429 retry guidance under the adapter's retry_after key
 			// so existing Retry-After helpers apply to relayed Core errors too.
-			if ( 429 === $status && is_array( $data ) ) {
-				$retry_after = absint( ( $data['data']['retry_after_seconds'] ?? 0 ) );
+			// Core signals backoff in the error body (data.retry_after_seconds)
+			// and as a standard Retry-After response header; honor both.
+			if ( 429 === $status ) {
+				$retry_after = 0;
+				if ( is_array( $data ) && is_array( $data['data'] ?? null ) ) {
+					$retry_after = absint( $data['data']['retry_after_seconds'] ?? 0 );
+				}
+				if ( $retry_after < 1 && method_exists( $response, 'get_headers' ) ) {
+					$headers = $response->get_headers();
+					if ( is_array( $headers ) ) {
+						$retry_after = absint( $headers['Retry-After'] ?? $headers['retry-after'] ?? 0 );
+					}
+				}
 				if ( $retry_after > 0 ) {
 					$error_data['retry_after'] = $retry_after;
 				}

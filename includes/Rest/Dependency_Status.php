@@ -40,6 +40,13 @@ final class Dependency_Status {
 	private $contracts_cache = null;
 
 	/**
+	 * Whether the app-token contract fallback already failed in this request.
+	 *
+	 * @var bool
+	 */
+	private $app_token_contract_retry_failed = false;
+
+	/**
 	 * Creates the dependency introspection service.
 	 *
 	 * @param Upstream_Dispatch $upstream_dispatch Upstream dispatch service.
@@ -359,10 +366,14 @@ final class Dependency_Status {
 		// dispatcher so external consumers get dependency contracts too.
 		// Only auth failures qualify: the scope cannot help a 429 or 5xx, and
 		// an immediate extra upstream call would ignore Core backoff guidance.
+		// A failed fallback is remembered so a broken or scope-less token
+		// costs at most one extra upstream request per PHP request.
 		$auth_failure = in_array( $status, array( 401, 403 ), true );
-		if ( $auth_failure && ! current_user_can( 'manage_options' ) && 0 === strpos( $route, '/npcink-governance-core/v1/' ) && 'none' !== $this->upstream_dispatch->core_app_token_source() ) {
+		if ( $auth_failure && ! $this->app_token_contract_retry_failed && ! current_user_can( 'manage_options' ) && 0 === strpos( $route, '/npcink-governance-core/v1/' ) && 'none' !== $this->upstream_dispatch->core_app_token_source() ) {
 			$token_response = $this->upstream_dispatch->send( 'GET', $route );
-			if ( ! is_wp_error( $token_response ) ) {
+			if ( is_wp_error( $token_response ) ) {
+				$this->app_token_contract_retry_failed = true;
+			} else {
 				$status = absint( $token_response->get_status() );
 				$data   = $token_response->get_data();
 			}

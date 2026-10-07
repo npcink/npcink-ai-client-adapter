@@ -4239,7 +4239,9 @@ maa_adapter_assert( false !== strpos( $dependency_status, "core_app_token_source
 $adapter_controller = maa_adapter_read( $root . "/includes/Rest/Controller.php" );
 maa_adapter_assert( substr_count( $adapter_controller, "'offset'" ) >= 4, "List proxies register and forward Core offset paging." );
 maa_adapter_assert( false !== strpos( $adapter_controller, 'relay_list_proxy_result' ), "Relayed Core rate limits emit a Retry-After header through the terminal list-proxy relay." );
-$dispatch_helper_body = substr( $adapter_controller, strpos( $adapter_controller, 'private function dispatch_upstream' ), 700 );
-maa_adapter_assert( false === strpos( $dispatch_helper_body, 'rest_response_with_retry_after' ), "The shared dispatch helper stays WP_Error-based; only terminal handlers convert errors to responses." );
+$dispatch_anchor = strpos( $adapter_controller, 'private function dispatch_upstream( string $method' );
+$dispatch_end    = false === $dispatch_anchor ? 0 : strpos( $adapter_controller, "\tprivate function", $dispatch_anchor + 10 );
+$dispatch_helper_body = false === $dispatch_anchor ? '' : substr( $adapter_controller, $dispatch_anchor, ( false === $dispatch_end ? strlen( $adapter_controller ) : $dispatch_end ) - $dispatch_anchor );
+maa_adapter_assert( false !== $dispatch_anchor && false === strpos( $dispatch_helper_body, 'rest_response_with_retry_after' ), "The shared dispatch helper stays WP_Error-based; only terminal handlers convert errors to responses." );
 
 echo "Static contracts: ok\n";

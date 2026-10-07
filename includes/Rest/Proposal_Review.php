@@ -561,6 +561,11 @@ final class Proposal_Review {
 			$upstream    = is_array( $upstream['data'] ?? null ) ? $upstream['data'] : array();
 			$correlation = sanitize_text_field( (string) ( $upstream['correlation_id'] ?? '' ) );
 			$expires_at  = sanitize_text_field( (string) ( $upstream['expires_at'] ?? '' ) );
+			// Only relay a parseable expiry; garbage values must not steer the
+			// recovery guidance.
+			if ( '' !== $expires_at && false === strtotime( $expires_at ) ) {
+				$expires_at = '';
+			}
 			if ( '' !== $correlation ) {
 				$recoverable_handoff = array(
 					'correlation_id' => $correlation,
