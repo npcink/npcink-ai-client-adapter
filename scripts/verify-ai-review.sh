@@ -128,7 +128,7 @@ gate_failed_counts() {
 # interleaved round (e.g. a comment-triggered one) edited the single
 # rolling summary after the verified run was pinned.
 gate_summary_run_tag() {
-	printf '%s\n' "$1" | grep -oE 'ocr-summary-run:[0-9]+-[0-9]+' | sort -u || true
+	printf '%s\n' "$1" | grep -oE '<!-- ocr-summary-run:[0-9]+-[0-9]+ *-->' | sort -u || true
 }
 
 # Inline marker extraction: id, run, attempt, label, path:line per finding.
@@ -204,7 +204,7 @@ gate_triage_matches() {
 # heading; only lines inside this slice can satisfy triage - a matching
 # line quoted in another section must not count.
 gate_triage_section() {
-	awk '/^## AI Review Triage[[:space:]]*$/ { in_section = 1; next } /^[[:space:]]*## / { in_section = 0 } in_section { print }' <<< "$1"
+	awk '/^[[:space:]]{0,3}## AI Review Triage[[:space:]]*$/ { in_section = 1; next } /^[[:space:]]{0,3}## / { in_section = 0 } in_section { print }' <<< "$1"
 }
 
 # Build the body with one exception line inserted under the existing
@@ -254,7 +254,7 @@ gate_self_test() {
 	check 'found-N shape count' "$(gate_shape_counts "${found_posted}")" '5'
 	check 'found-N posted count' "$(gate_posted_counts "${found_posted}")" '5'
 	check 'found-N failed count' "$(gate_failed_counts "${found_posted}")" ''
-	check 'summary run tag extracted' "$(gate_summary_run_tag "${found_posted}")" 'ocr-summary-run:37341345875-1'
+	check 'summary run tag extracted' "$(gate_summary_run_tag "${found_posted}")" '<!-- ocr-summary-run:37341345875-1 -->'
 	local two_tags='<!-- ocr-summary -->
 <!-- ocr-summary-run:37341345875-1 -->
 <!-- ocr-summary-run:99999999999-1 -->'
@@ -551,8 +551,18 @@ if [ "${conclusion}" != 'success' ]; then
 	# kill, or the per-PR concurrency group cancelling it for an interleaved
 	# round) has no failed jobs to select and needs a full re-run. The
 	# guarded array expansion stays portable to macOS bash 3.2 under set -u.
+	# A cancelled run is only re-run when it is still the newest run for
+	# this head: re-running a run that a NEWER run displaced would rejoin
+	# the per-PR concurrency group (cancel-in-progress) and cancel the
+	# newer run that is about to deliver - the exact inversion the group
+	# exists to prevent. A displaced run hands off to undelivered_exit,
+	# whose retry guidance points at the newer run.
 	rerun_flags=( --failed )
 	if [ "${conclusion}" = 'cancelled' ]; then
+		newest_id="$(latest_review_run | jq -r '.id // empty')"
+		if [ -n "${newest_id}" ] && [ "${newest_id}" != "${run_id}" ]; then
+			undelivered_exit "run ${run_id} was cancelled and superseded by run ${newest_id}"
+		fi
 		rerun_flags=()
 	fi
 	echo "[ai-review-gate] review run ${run_id} failed (${conclusion}); re-running it once (${rerun_flags[*]:-all jobs})"
@@ -652,7 +662,7 @@ if [ -n "${summary_run_tags}" ]; then
 	# head -1 match could false-pass when an interleaved round's edit
 	# left the verified tag and appended its own.
 	while IFS= read -r summary_run_tag; do
-		[ "${summary_run_tag}" = "ocr-summary-run:${run_id}-${attempt}" ] \
+		[ "${summary_run_tag}" = "<!-- ocr-summary-run:${run_id}-${attempt} -->" ] \
 			|| fail "the rolling summary carries ${summary_run_tag} but run ${run_id} attempt ${attempt} was verified; an interleaved review round edited the summary - failing closed"
 	done <<< "${summary_run_tags}"
 fi

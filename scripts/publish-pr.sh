@@ -159,7 +159,7 @@ esac
 [ -f "${body_path}" ] || fail "body file not found: ${body_path}"
 
 for required_heading in Scope Boundary Verification Risk; do
-	grep -Eiq "^#{1,6}[[:space:]]+.*\b${required_heading}\b" "${body_path}" \
+	grep -Eiq "^#{1,6}[[:space:]]+.*(^|[^A-Za-z])${required_heading}([^A-Za-z]|$)" "${body_path}" \
 		|| fail "body file is missing the ${required_heading} heading"
 done
 
@@ -427,7 +427,7 @@ if [ -n "${existing_pr}" ]; then
 	live_body="$(retry_network gh pr view "${pr_number}" --json body --jq '.body // ""')" \
 		|| fail 'could not read the existing pull request body for contract re-verification'
 	for required_heading in Scope Boundary Verification Risk; do
-		grep -Eiq "^#{1,6}[[:space:]]+.*\b${required_heading}\b" <<< "${live_body}" \
+		grep -Eiq "^#{1,6}[[:space:]]+.*(^|[^A-Za-z])${required_heading}([^A-Za-z]|$)" <<< "${live_body}" \
 			|| fail "the live pull request body is missing the ${required_heading} heading; edit the body with gh pr edit"
 	done
 	if [ "${base_branch}" = 'production' ]; then
