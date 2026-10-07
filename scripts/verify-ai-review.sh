@@ -204,7 +204,7 @@ gate_triage_matches() {
 # heading; only lines inside this slice can satisfy triage - a matching
 # line quoted in another section must not count.
 gate_triage_section() {
-	awk '/^## AI Review Triage[[:space:]]*$/ { in_section = 1; next } /^## / { in_section = 0 } in_section { print }' <<< "$1"
+	awk '/^## AI Review Triage[[:space:]]*$/ { in_section = 1; next } /^[[:space:]]*## / { in_section = 0 } in_section { print }' <<< "$1"
 }
 
 # Build the body with one exception line inserted under the existing
@@ -383,6 +383,11 @@ Third block, different file.'
 	return 0
 }
 
+# jq is required by the self-test fixtures too (gate_marker_tsv pipes
+# through jq), so the guard must sit above the self-test dispatch; gh is
+# only needed by the live gate flow.
+command -v jq >/dev/null 2>&1 || fail 'jq is required'
+
 if [ "${self_test}" = '1' ]; then
 	if [ -n "${pr_number}" ] || [ -n "${head_sha}" ] || [ -n "${review_exception}" ]; then
 		fail '--self-test cannot be combined with --pr/--head-sha/--no-review-because'
@@ -390,11 +395,6 @@ if [ "${self_test}" = '1' ]; then
 	gate_self_test
 	exit $?
 fi
-
-# jq is required by the self-test fixtures too (gate_marker_tsv pipes
-# through jq), so the guard must sit above the self-test dispatch; gh is
-# only needed by the live gate flow.
-command -v jq >/dev/null 2>&1 || fail 'jq is required'
 
 [ -n "${pr_number}" ] || fail '--pr is required'
 [ -n "${head_sha}" ] || fail '--head-sha is required'

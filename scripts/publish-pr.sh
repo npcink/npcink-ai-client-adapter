@@ -448,17 +448,20 @@ fi
 # an unreadable state after retries warns on ordinary bases and fails on
 # production, where an unnoticed armed merge is unacceptable.
 disarm_auto_merge() {
-	local armed out attempt
+	local armed out attempt delay
 	armed=unknown
-	for attempt in 1 2; do
+	delay=10
+	for attempt in 1 2 3 4; do
 		# Capture stdout separately: an assignment substitution overwrites
 		# the sentinel with the (empty) stdout of a failed read, which
-		# would silently take the not-armed branch.
+		# would silently take the not-armed branch. Four attempts with a
+		# growing delay match the script-wide retry_network convention.
 		if out="$(gh pr view "${pr_number}" --json autoMergeRequest --jq 'if .autoMergeRequest == null then "" else "armed" end' 2>/dev/null)"; then
 			armed="$out"
 			break
 		fi
-		[ "${attempt}" -eq 2 ] || sleep 10
+		[ "${attempt}" -eq 4 ] || sleep "${delay}"
+		delay=$(( delay * 2 ))
 	done
 	if [ "${armed}" = 'unknown' ]; then
 		if [ "${base_branch}" = 'production' ]; then
