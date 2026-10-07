@@ -357,7 +357,10 @@ final class Dependency_Status {
 		// Core 0.2.x+ also accepts the contract:read app scope. When the
 		// current caller is not an administrator, retry through the app-token
 		// dispatcher so external consumers get dependency contracts too.
-		if ( ( $status < 200 || $status >= 300 ) && ! current_user_can( 'manage_options' ) && 0 === strpos( $route, '/npcink-governance-core/v1/' ) && 'none' !== $this->upstream_dispatch->core_app_token_source() ) {
+		// Only auth failures qualify: the scope cannot help a 429 or 5xx, and
+		// an immediate extra upstream call would ignore Core backoff guidance.
+		$auth_failure = in_array( $status, array( 401, 403 ), true );
+		if ( $auth_failure && ! current_user_can( 'manage_options' ) && 0 === strpos( $route, '/npcink-governance-core/v1/' ) && 'none' !== $this->upstream_dispatch->core_app_token_source() ) {
 			$token_response = $this->upstream_dispatch->send( 'GET', $route );
 			if ( ! is_wp_error( $token_response ) ) {
 				$status = absint( $token_response->get_status() );

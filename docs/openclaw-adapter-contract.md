@@ -1353,7 +1353,8 @@ Adapter behavior notes:
 - Core `429 npcink_governance_core_app_rate_limited` carries
   `retry_after_seconds`, `remaining`, and ISO8601 `reset_at`. Adapter maps
   `retry_after_seconds` onto its relayed error `retry_after` data and emits a
-  standard `Retry-After` header on the adapter response.
+  standard `Retry-After` header on the adapter list-proxy responses (terminal
+  handlers only; internal flows keep branching on the error).
 - `GET /contract` additionally accepts the opt-in `contract:read` app scope.
   When the current caller is not an administrator and a Core app token is
   configured, the adapter dependency-contract check retries through the

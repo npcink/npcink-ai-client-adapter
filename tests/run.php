@@ -4234,10 +4234,12 @@ $proposal_review = maa_adapter_read( $root . "/includes/Rest/Proposal_Review.php
 maa_adapter_assert( false !== strpos( $proposal_review, "recoverable_handoff" ) && false !== strpos( $proposal_review, "upstream_data" ), "Preflight 409 feedback exposes Core echoed handoff identifiers for recovery." );
 
 $dependency_status = maa_adapter_read( $root . "/includes/Rest/Dependency_Status.php" );
-maa_adapter_assert( false !== strpos( $dependency_status, "core_app_token_source" ), "Dependency contract check retries through the app token for non-admin callers." );
+maa_adapter_assert( false !== strpos( $dependency_status, "core_app_token_source" ) && false !== strpos( $dependency_status, "array( 401, 403 ), true" ), "Dependency contract check retries through the app token only for auth failures." );
 
 $adapter_controller = maa_adapter_read( $root . "/includes/Rest/Controller.php" );
 maa_adapter_assert( substr_count( $adapter_controller, "'offset'" ) >= 4, "List proxies register and forward Core offset paging." );
-maa_adapter_assert( false !== strpos( $adapter_controller, "rest_response_with_retry_after( \$result )" ), "Relayed Core rate limits emit a Retry-After response header." );
+maa_adapter_assert( false !== strpos( $adapter_controller, 'relay_list_proxy_result' ), "Relayed Core rate limits emit a Retry-After header through the terminal list-proxy relay." );
+$dispatch_helper_body = substr( $adapter_controller, strpos( $adapter_controller, 'private function dispatch_upstream' ), 700 );
+maa_adapter_assert( false === strpos( $dispatch_helper_body, 'rest_response_with_retry_after' ), "The shared dispatch helper stays WP_Error-based; only terminal handlers convert errors to responses." );
 
 echo "Static contracts: ok\n";

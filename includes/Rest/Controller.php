@@ -2076,15 +2076,17 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function list_read_requests( WP_REST_Request $request ) {
-		return $this->dispatch_upstream(
-			'GET',
-			'/npcink-governance-core/v1/read-requests',
-			array(
-				'limit'  => min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint( $request->get_param( 'limit' ) ) ) ),
-				'offset' => max( 0, absint( $request->get_param( 'offset' ) ) ),
-				'status' => sanitize_key( (string) $request->get_param( 'status' ) ),
-			),
-			true
+		return $this->relay_list_proxy_result(
+			$this->dispatch_upstream(
+				'GET',
+				'/npcink-governance-core/v1/read-requests',
+				array(
+					'limit'  => min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint( $request->get_param( 'limit' ) ) ) ),
+					'offset' => max( 0, absint( $request->get_param( 'offset' ) ) ),
+					'status' => sanitize_key( (string) $request->get_param( 'status' ) ),
+				),
+				true
+			)
 		);
 	}
 
@@ -2108,14 +2110,16 @@ final class Controller {
 	public function list_proposals( WP_REST_Request $request ) {
 		$limit = min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint( $request->get_param( 'limit' ) ) ) );
 
-		return $this->dispatch_upstream(
-			'GET',
-			'/npcink-governance-core/v1/proposals',
-			array(
-				'limit'  => $limit,
-				'offset' => max( 0, absint( $request->get_param( 'offset' ) ) ),
-			),
-			true
+		return $this->relay_list_proxy_result(
+			$this->dispatch_upstream(
+				'GET',
+				'/npcink-governance-core/v1/proposals',
+				array(
+					'limit'  => $limit,
+					'offset' => max( 0, absint( $request->get_param( 'offset' ) ) ),
+				),
+				true
+			)
 		);
 	}
 
@@ -5064,10 +5068,20 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	private function dispatch_upstream( string $method, string $route, array $params = array(), bool $query_params = false, bool $json_body = false, bool $use_core_app_token = true ) {
-		$result = $this->upstream_dispatch->send( $method, $route, $params, $query_params, $json_body, $use_core_app_token, $this->current_signed_client_fingerprint() );
+		return $this->upstream_dispatch->send( $method, $route, $params, $query_params, $json_body, $use_core_app_token, $this->current_signed_client_fingerprint() );
+	}
 
-		// Relay Core 429 backoff as a standard Retry-After header on the
-		// adapter response, not only inside the error body.
+	/**
+	 * Returns a REST response for a terminal list-proxy result, relaying a
+	 * Core 429 backoff hint as a standard Retry-After header.
+	 *
+	 * Only call this from handlers that return directly to the REST server;
+	 * internal flows must keep branching on is_wp_error().
+	 *
+	 * @param WP_REST_Response|WP_Error $result Upstream result.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	private function relay_list_proxy_result( $result ) {
 		if ( is_wp_error( $result ) ) {
 			$error_data = $result->get_error_data();
 			if ( is_array( $error_data ) && absint( $error_data['retry_after'] ?? 0 ) > 0 ) {
