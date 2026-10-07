@@ -204,7 +204,7 @@ gate_triage_matches() {
 # heading; only lines inside this slice can satisfy triage - a matching
 # line quoted in another section must not count.
 gate_triage_section() {
-	awk '/^[[:space:]]{0,3}## AI Review Triage[[:space:]]*$/ { in_section = 1; next } /^[[:space:]]{0,3}## / { in_section = 0 } in_section { print }' <<< "$1"
+	awk '/^[[:space:]]?[[:space:]]?[[:space:]]?## AI Review Triage[[:space:]]*$/ { in_section = 1; next } /^[[:space:]]?[[:space:]]?[[:space:]]?## / { in_section = 0 } in_section { print }' <<< "$1"
 }
 
 # Build the body with one exception line inserted under the existing
