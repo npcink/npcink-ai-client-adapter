@@ -417,6 +417,13 @@ case "${pr_number}" in
 	''|*[!0-9]*) fail "could not parse pull request number from ${pr_url}" ;;
 esac
 
+# Disarm runs before the body re-verification: every fail below exits
+# immediately, and a run that aborts on a drifted body must not leave a
+# stale armed auto-merge live against the untriaged head.
+if [ -n "${existing_pr}" ]; then
+	disarm_auto_merge
+fi
+
 # On reuse, the live pull request body is the artifact that merges, and it
 # can drift from the validated local --body-file between runs (triage edits,
 # gh pr edit). Re-verify the body contract against the live body: the four
@@ -456,7 +463,9 @@ disarm_auto_merge() {
 		# Capture stdout separately: an assignment substitution overwrites
 		# the sentinel with the (empty) stdout of a failed read, which
 		# would silently take the not-armed branch. Four attempts with a
-		# growing delay match the script-wide retry_network convention.
+		# growing delay deliberately run shorter than retry_network (faster local
+		# retries; retry_network cannot preserve the sentinel-vs-empty-stdout
+		# distinction).
 		if out="$(gh pr view "${pr_number}" --json autoMergeRequest --jq 'if .autoMergeRequest == null then "" else "armed" end' 2>/dev/null)"; then
 			armed="$out"
 			break
@@ -485,10 +494,6 @@ disarm_auto_merge() {
 	fi
 	fail "an armed auto-merge could not be disabled; it could merge this head once required checks pass - disable it on the pull request and re-run composer pr:publish"
 }
-
-if [ -n "${existing_pr}" ]; then
-	disarm_auto_merge
-fi
 
 # Advisory AI review gate (AI Code Review Standard v1): no auto-merge is
 # requested until OpenCodeReview has delivered a review for this exact
