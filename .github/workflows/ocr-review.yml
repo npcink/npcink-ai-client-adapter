@@ -68,7 +68,7 @@ jobs:
     # 45 minutes covers the retry design's worst case: up to three review
     # attempts (the standard records 8.5-10 minute rounds and 600s provider
     # timeouts) plus the 45s/90s pauses and checkout. A timeout-killed job
-    # ends cancelled, which skips the if: failure() marker step below, so
+    # may end cancelled, which skips the if: failure() marker step below, so
     # the ceiling must exceed the legitimate worst case.
     timeout-minutes: 45
     # PR events, or human-authored comments starting with the trigger keyword.

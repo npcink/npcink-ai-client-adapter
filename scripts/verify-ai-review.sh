@@ -515,7 +515,7 @@ undelivered_exit() {
 	fi
 	echo "[ai-review-gate] ${cause} for PR #${pr_number} head ${head_sha}." >&2
 	echo "[ai-review-gate] auto-merge is NOT requested without a delivered review. Options:" >&2
-	echo "  - re-run composer pr:publish after provider recovery (this gate re-runs the failed run once itself)," >&2
+	echo "  - re-run composer pr:publish after provider recovery (this gate re-runs a failed, non-superseded run once itself)," >&2
 	echo "  - trigger a fresh round with a '/open-code-review' comment on the pull request, or" >&2
 	echo "  - record the exception: composer pr:publish -- --no-review-because \"<reason>\"" >&2
 	exit 1
