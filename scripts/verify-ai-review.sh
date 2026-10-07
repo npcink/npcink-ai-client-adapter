@@ -128,7 +128,7 @@ gate_failed_counts() {
 # interleaved round (e.g. a comment-triggered one) edited the single
 # rolling summary after the verified run was pinned.
 gate_summary_run_tag() {
-	printf '%s\n' "$1" | grep -oE '<!-- ocr-summary-run:[0-9]+-[0-9]+ *-->' | sort -u || true
+	printf '%s\n' "$1" | grep -oE '<!-- ocr-summary-run:[0-9]+-[0-9]+ -->' | sort -u || true
 }
 
 # Inline marker extraction: id, run, attempt, label, path:line per finding.
@@ -557,13 +557,25 @@ if [ "${conclusion}" != 'success' ]; then
 	# newer run that is about to deliver - the exact inversion the group
 	# exists to prevent. A displaced run hands off to undelivered_exit,
 	# whose retry guidance points at the newer run.
+	# Documented residual: this newest-run check filters by head_sha and
+	# pull_request_target events, so a comment-triggered displacer (whose
+	# runs-API head is the default branch) is invisible here; if the pinned
+	# run was cancelled by a comment round, the rerun below may cancel that
+	# comment round. Solo-operator usage makes comment rounds rare, and the
+	# gate's own delivery re-verification still holds the merge either way.
 	rerun_flags=( --failed )
 	if [ "${conclusion}" = 'cancelled' ]; then
 		newest_id="$(latest_review_run | jq -r '.id // empty')"
-		if [ -n "${newest_id}" ] && [ "${newest_id}" != "${run_id}" ]; then
+		if [ "${newest_id}" = "${run_id}" ]; then
+			rerun_flags=()
+		elif [ -n "${newest_id}" ]; then
 			undelivered_exit "run ${run_id} was cancelled and superseded by run ${newest_id}"
+		else
+			# The newest-run read failed (latest_review_run swallows API
+			# errors); an unreadable supersession state must not fall
+			# through to a rerun that could cancel a displacing run.
+			undelivered_exit "could not determine whether run ${run_id} is still the newest for this head"
 		fi
-		rerun_flags=()
 	fi
 	echo "[ai-review-gate] review run ${run_id} failed (${conclusion}); re-running it once (${rerun_flags[*]:-all jobs})"
 	if ! rerun_output="$(gh run rerun "${run_id}" ${rerun_flags[@]+"${rerun_flags[@]}"} 2>&1)"; then
