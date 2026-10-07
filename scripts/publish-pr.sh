@@ -159,7 +159,7 @@ esac
 [ -f "${body_path}" ] || fail "body file not found: ${body_path}"
 
 for required_heading in Scope Boundary Verification Risk; do
-	grep -Eiq "^#{1,6}[[:space:]]+.*${required_heading}" "${body_path}" \
+	grep -Eiq "^#{1,6}[[:space:]]+.*\b${required_heading}\b" "${body_path}" \
 		|| fail "body file is missing the ${required_heading} heading"
 done
 
@@ -427,7 +427,7 @@ if [ -n "${existing_pr}" ]; then
 	live_body="$(retry_network gh pr view "${pr_number}" --json body --jq '.body // ""')" \
 		|| fail 'could not read the existing pull request body for contract re-verification'
 	for required_heading in Scope Boundary Verification Risk; do
-		grep -Eiq "^#{1,6}[[:space:]]+.*${required_heading}" <<< "${live_body}" \
+		grep -Eiq "^#{1,6}[[:space:]]+.*\b${required_heading}\b" <<< "${live_body}" \
 			|| fail "the live pull request body is missing the ${required_heading} heading; edit the body with gh pr edit"
 	done
 	if [ "${base_branch}" = 'production' ]; then
@@ -448,22 +448,26 @@ fi
 # an unreadable state after retries warns on ordinary bases and fails on
 # production, where an unnoticed armed merge is unacceptable.
 disarm_auto_merge() {
-	local armed attempt
+	local armed out attempt
 	armed=unknown
 	for attempt in 1 2; do
-		if armed="$(gh pr view "${pr_number}" --json autoMergeRequest --jq 'if .autoMergeRequest == null then "" else "armed" end' 2>/dev/null)"; then
+		# Capture stdout separately: an assignment substitution overwrites
+		# the sentinel with the (empty) stdout of a failed read, which
+		# would silently take the not-armed branch.
+		if out="$(gh pr view "${pr_number}" --json autoMergeRequest --jq 'if .autoMergeRequest == null then "" else "armed" end' 2>/dev/null)"; then
+			armed="$out"
 			break
 		fi
 		[ "${attempt}" -eq 2 ] || sleep 10
 	done
-	if [ "${armed}" != 'armed' ]; then
-		if [ -z "${armed}" ]; then
-			return 0
-		fi
+	if [ "${armed}" = 'unknown' ]; then
 		if [ "${base_branch}" = 'production' ]; then
 			fail 'could not read the auto-merge state on a production pull request; an armed merge cannot be ruled out - resolve connectivity and re-run composer pr:publish'
 		fi
 		echo '[pr-publish] note: could not read the auto-merge state; proceeding without disabling' >&2
+		return 0
+	fi
+	if [ "${armed}" != 'armed' ]; then
 		return 0
 	fi
 	if gh pr merge "${pr_number}" --disable-auto >/dev/null 2>&1; then
