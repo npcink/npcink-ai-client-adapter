@@ -3739,7 +3739,11 @@ final class Controller {
 		$read_context['verification_source'] = 'post_execution_block_readback';
 		$read_context['write_ability_id']    = $ability_id;
 		$read_context['ability_id']          = $read_ability_id;
-		$response                            = $this->run_read_ability( $read_ability_id, $read_input, $read_context );
+		$verification_read_authorization     = array();
+		if ( ! empty( $base_request_context['verification_read_requests'][ $read_ability_id ] ) ) {
+			$verification_read_authorization['request_id'] = sanitize_text_field( (string) $base_request_context['verification_read_requests'][ $read_ability_id ] );
+		}
+		$response                            = $this->run_read_ability( $read_ability_id, $read_input, $read_context, $verification_read_authorization );
 		if ( is_wp_error( $response ) ) {
 			$error_data = $response->get_error_data();
 			$error_data = is_array( $error_data ) ? $error_data : array();
@@ -3816,7 +3820,13 @@ final class Controller {
 		$preflight        = $this->consume_cached_preflight_handoff( $proposal_id, $proposal );
 		$preflight_source = is_array( $preflight ) ? 'adapter_cached_handoff' : 'core_commit_preflight';
 		if ( ! is_array( $preflight ) ) {
-			$preflight_response = $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight' );
+			$preflight_response = $this->dispatch_upstream(
+				'POST',
+				'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight',
+				array( 'verification_reads' => $this->verification_reads_for_actions( $actions ) ),
+				false,
+				true
+			);
 			if ( is_wp_error( $preflight_response ) ) {
 				return $this->error_with_operator_feedback( $preflight_response, $this->preflight_operator_feedback( $preflight_response, $proposal ) );
 			}
@@ -3901,6 +3911,16 @@ final class Controller {
 		$npcink_governance_core['proposal_id']          = $proposal_id;
 		$npcink_governance_core['correlation_id']       = $correlation_id;
 		$base_request_context['npcink_governance_core'] = $npcink_governance_core;
+		$verification_read_requests                     = array();
+		$preflight_verification_reads                   = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
+		foreach ( $preflight_verification_reads as $preflight_verification_read ) {
+			if ( is_array( $preflight_verification_read ) && ! empty( $preflight_verification_read['request_id'] ) && ! empty( $preflight_verification_read['ability_id'] ) ) {
+				$verification_read_requests[ (string) $preflight_verification_read['ability_id'] ] = sanitize_text_field( (string) $preflight_verification_read['request_id'] );
+			}
+		}
+		if ( ! empty( $verification_read_requests ) ) {
+			$base_request_context['verification_read_requests'] = $verification_read_requests;
+		}
 
 		$results = array();
 		$outputs = array();
@@ -4774,6 +4794,56 @@ final class Controller {
 		);
 	}
 
+
+	/**
+	 * Returns the verification reads the post-execution readback will need.
+	 *
+	 * Mirrors block_write_readback_verification()'s write-to-read pairing,
+	 * derived from each normalized action's write input so Core can mint single-use
+	 * verification read requests at commit preflight (Core ADR-011).
+	 *
+	 * @param array<string,mixed> $proposal Core proposal.
+	 * @return array<int,array<string,mixed>> Verification read requests.
+	 */
+	private function verification_reads_for_actions( array $actions ): array {
+		$reads = array();
+
+		foreach ( (array) $actions as $action ) {
+			$action    = is_array( $action ) ? $action : array();
+			$ability_id = sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) );
+			$input      = is_array( $action['input'] ?? null ) ? $action['input'] : array();
+			$post_id    = isset( $input['post_id'] ) && is_numeric( $input['post_id'] ) ? absint( $input['post_id'] ) : 0;
+			$slug       = isset( $input['slug'] ) && is_string( $input['slug'] ) ? sanitize_key( $input['slug'] ) : '';
+
+			if ( 'npcink-abilities-toolkit/update-post-blocks' === $ability_id && $post_id > 0 ) {
+				$reads[] = array(
+					'ability_id' => 'npcink-abilities-toolkit/get-post-blocks',
+					'input'      => array(
+						'post_id'              => $post_id,
+						'include_inner_blocks' => true,
+					),
+				);
+				continue;
+			}
+
+			if ( ( 'npcink-abilities-toolkit/update-template-blocks' === $ability_id || 'npcink-abilities-toolkit/upsert-template-blocks' === $ability_id ) && ( $post_id > 0 || '' !== $slug ) ) {
+				$reads[] = array(
+					'ability_id' => 'npcink-abilities-toolkit/get-template-blocks',
+					'input'      => $post_id > 0 ? array( 'post_id' => $post_id ) : array( 'slug' => $slug ),
+				);
+				continue;
+			}
+
+			if ( 'npcink-abilities-toolkit/update-template-part-blocks' === $ability_id && ( $post_id > 0 || '' !== $slug ) ) {
+				$reads[] = array(
+					'ability_id' => 'npcink-abilities-toolkit/get-template-part-blocks',
+					'input'      => $post_id > 0 ? array( 'post_id' => $post_id ) : array( 'slug' => $slug ),
+				);
+			}
+		}
+
+		return $reads;
+	}
 
 	/**
 	 * Runs a read-only ability through WordPress Abilities API.
