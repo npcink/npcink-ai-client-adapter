@@ -93,7 +93,7 @@ jobs:
       - name: Get PR context
         id: pr-context
         if: github.event_name == 'issue_comment'
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             // Resolve PR base/head for issue_comment events, which carry no
@@ -178,7 +178,7 @@ jobs:
         # single existing marker comment (found by its tag) instead of
         # adding one comment per failed attempt.
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber =
@@ -235,7 +235,7 @@ jobs:
         # stale "no review delivered" notice). Remove it so the pull request
         # state stays truthful; matched only on the bot's own tagged comment.
         if: success()
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const prNumber =
