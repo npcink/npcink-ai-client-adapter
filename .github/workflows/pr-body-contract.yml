@@ -21,6 +21,11 @@ jobs:
   pr-body-contract:
     name: PR body contract
     runs-on: ubuntu-latest
+    # Dependabot PR bodies are machine-generated and can never carry the
+    # change-envelope sections; the exemption must key on the PR author
+    # (not github.actor) so human edits or branch updates on a Dependabot
+    # PR still skip the check instead of failing it.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     steps:
       - name: Require AI change envelope sections
         env:
