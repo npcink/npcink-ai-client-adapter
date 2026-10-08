@@ -1860,6 +1860,64 @@ maa_adapter_smoke_assert( 'npcink-abilities-toolkit/recipes/article-optimization
 maa_adapter_smoke_assert( false === (bool) ( $article_optimization_detail['preview']['article_optimization']['direct_wordpress_write'] ?? true ), 'adapter article optimization detail keeps direct writes disabled' );
 maa_adapter_smoke_assert( 'Original adapter smoke excerpt.' === (string) get_post_field( 'post_excerpt', $article_optimization_post_id ), 'adapter article optimization handoff does not mutate the post excerpt' );
 
+/*
+ * Article publish preflight host proof: discover the recipe through the
+ * adapter surface, run the read-only entrypoint context, and verify the
+ * flow stops at context with no WordPress mutation. Publish and schedule
+ * writes stay host-governed by the recipe contract.
+ */
+$publish_preflight_recipe_response = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/run-read-ability',
+	array(
+		'ability_id' => 'npcink-abilities-toolkit/get-workflow-recipe',
+		'input'      => array(
+			'recipe_id' => 'npcink-abilities-toolkit/recipes/article-publish-preflight',
+		),
+	)
+);
+$publish_preflight_recipe = is_array( $publish_preflight_recipe_response['result'] ?? null ) ? $publish_preflight_recipe_response['result'] : array();
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/recipes/article-publish-preflight' === (string) ( $publish_preflight_recipe['recipe_id'] ?? '' ), 'adapter publish preflight proof discovers the recipe through the read surface' );
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/get-article-publish-preflight-context' === (string) ( $publish_preflight_recipe['entrypoint_ability_id'] ?? '' ), 'adapter publish preflight recipe names the read-only entrypoint ability' );
+maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/publish-post', (array) ( $publish_preflight_recipe['disallowed_default_ability_ids'] ?? array() ), true ), 'adapter publish preflight recipe keeps publish-post out of default entrypoints' );
+maa_adapter_smoke_assert( in_array( 'npcink-abilities-toolkit/schedule-post', (array) ( $publish_preflight_recipe['disallowed_default_ability_ids'] ?? array() ), true ), 'adapter publish preflight recipe keeps schedule-post out of default entrypoints' );
+
+$publish_preflight_post_id = wp_insert_post(
+	array(
+		'post_title'   => 'Adapter Publish Preflight Candidate ' . maa_adapter_smoke_run_id(),
+		'post_content' => 'Adapter publish preflight smoke content. The draft must stay unchanged while the context is reviewed.',
+		'post_excerpt' => 'Original publish preflight excerpt.',
+		'post_status'  => 'draft',
+		'post_type'    => 'post',
+	),
+	true
+);
+maa_adapter_smoke_assert( ! is_wp_error( $publish_preflight_post_id ) && (int) $publish_preflight_post_id > 0, 'adapter publish preflight fixture post is created' );
+$publish_preflight_post_id = (int) $publish_preflight_post_id;
+$maa_adapter_smoke_cleanup_post_ids[] = $publish_preflight_post_id;
+$publish_preflight_response = maa_adapter_smoke_rest(
+	'POST',
+	'/npcink-openclaw-adapter/v1/run-read-ability',
+	array(
+		'ability_id' => 'npcink-abilities-toolkit/get-article-publish-preflight-context',
+		'input'      => array(
+			'post_id' => $publish_preflight_post_id,
+		),
+	)
+);
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/get-article-publish-preflight-context' === (string) ( $publish_preflight_response['ability_id'] ?? '' ), 'adapter runs the publish preflight entrypoint through Core read authorization' );
+$publish_preflight_context = is_array( $publish_preflight_response['result']['data'] ?? null ) ? $publish_preflight_response['result']['data'] : array();
+maa_adapter_smoke_assert( 'npcink-abilities-toolkit/recipes/article-publish-preflight' === (string) ( $publish_preflight_context['recipe'] ?? '' ), 'adapter publish preflight context preserves the source recipe ref' );
+$publish_preflight_expected_sections = array( 'post_context', 'publishing_checklist', 'publish_risk', 'workflow_context', 'publishing_calendar' );
+foreach ( $publish_preflight_expected_sections as $publish_preflight_section ) {
+	maa_adapter_smoke_assert( in_array( $publish_preflight_section, (array) ( $publish_preflight_context['sections'] ?? array() ), true ), 'adapter publish preflight context exposes section ' . $publish_preflight_section );
+}
+maa_adapter_smoke_assert( array_key_exists( 'ready_for_host_approval', (array) ( $publish_preflight_context['summary'] ?? array() ) ), 'adapter publish preflight summary answers host approval readiness' );
+maa_adapter_smoke_assert( in_array( (string) ( $publish_preflight_context['summary']['next_action'] ?? '' ), array( 'resolve_preflight_findings', 'request_host_publish_or_schedule_approval' ), true ), 'adapter publish preflight summary stops at review or host approval handoff' );
+maa_adapter_smoke_assert( false === (bool) ( $publish_preflight_response['commit_execution'] ?? true ), 'adapter publish preflight read does not report execution' );
+maa_adapter_smoke_assert( 'draft' === (string) get_post_field( 'post_status', $publish_preflight_post_id ), 'adapter publish preflight flow does not publish the draft' );
+maa_adapter_smoke_assert( 'Original publish preflight excerpt.' === (string) get_post_field( 'post_excerpt', $publish_preflight_post_id ), 'adapter publish preflight flow does not mutate the post excerpt' );
+
 $article_media_handoff_attachment_id = maa_adapter_smoke_create_media_plan_attachment();
 $maa_adapter_smoke_cleanup_attachment_ids[] = $article_media_handoff_attachment_id;
 $article_media_handoff_input = array(
