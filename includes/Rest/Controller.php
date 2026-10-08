@@ -2948,14 +2948,29 @@ final class Controller {
 		$proposal_id = (string) $request->get_param( 'proposal_id' );
 		$relay_proposal = $this->get_core_proposal_data( $proposal_id );
 		$relay_params   = array();
+		$relay_reads_derived = false;
 		if ( ! is_wp_error( $relay_proposal ) ) {
 			$relay_actions = $this->normalize_execution_actions( $proposal_id, $relay_proposal );
 			if ( ! is_wp_error( $relay_actions ) ) {
 				$relay_verification_reads = $this->verification_reads_for_actions( $relay_actions );
+				$relay_reads_derived      = true;
 				if ( ! empty( $relay_verification_reads ) ) {
 					$relay_params['verification_reads'] = $relay_verification_reads;
 				}
 			}
+		}
+		if ( ! $relay_reads_derived ) {
+			// Fail-open by design, but never silent: the post-execution readback of a
+			// grant-requiring deployment degrades without a minted verification read.
+			$this->emit_operation_event(
+				'adapter.commit.preflight_verification_reads_unavailable',
+				microtime( true ),
+				new WP_Error(
+					'npcink_openclaw_adapter_verification_reads_undeived',
+					__( 'Commit preflight relay could not derive verification reads; the post-execution readback may degrade under read-authorization-requiring deployments.', 'npcink-ai-client-adapter' )
+				),
+				array( 'proposal_id' => $proposal_id )
+			);
 		}
 		$response    = $this->dispatch_upstream(
 			'POST',
@@ -3768,10 +3783,13 @@ final class Controller {
 			$verification_candidates[] = 'slug:' . $resolved_slug;
 		}
 		foreach ( $verification_candidates as $verification_candidate ) {
-			if ( ! isset( $verification_grants[ $read_ability_id . '|' . $verification_candidate ] ) ) {
+			$verification_queue_key = $read_ability_id . '|' . $verification_candidate;
+			if ( empty( $verification_grants[ $verification_queue_key ] ) || ! is_array( $verification_grants[ $verification_queue_key ] ) ) {
 				continue;
 			}
-			$verification_grant = $verification_grants[ $read_ability_id . '|' . $verification_candidate ];
+			// Shift the next single-use grant: repeated write actions on the same object each consume their own grant.
+			$verification_grant = array_shift( $verification_grants[ $verification_queue_key ] );
+			$base_request_context['verification_read_requests'][ $verification_queue_key ] = $verification_grants[ $verification_queue_key ];
 			$request_id         = sanitize_text_field( (string) ( $verification_grant['request_id'] ?? '' ) );
 			if ( '' === $request_id ) {
 				continue;
@@ -4904,7 +4922,11 @@ final class Controller {
 			if ( '' === $signature ) {
 				continue;
 			}
-			$grants[ (string) $grant['ability_id'] . '|' . $signature ] = array(
+			$map_key = (string) $grant['ability_id'] . '|' . $signature;
+			if ( ! isset( $grants[ $map_key ] ) ) {
+				$grants[ $map_key ] = array();
+			}
+			$grants[ $map_key ][] = array(
 				'request_id' => sanitize_text_field( (string) $grant['request_id'] ),
 				'input'      => is_array( $grant['input'] ?? null ) ? $grant['input'] : array(),
 			);
