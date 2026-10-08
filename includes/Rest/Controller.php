@@ -2946,7 +2946,24 @@ final class Controller {
 	public function commit_preflight( WP_REST_Request $request ) {
 		$started     = microtime( true );
 		$proposal_id = (string) $request->get_param( 'proposal_id' );
-		$response    = $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight' );
+		$relay_proposal = $this->get_core_proposal_data( $proposal_id );
+		$relay_params   = array();
+		if ( ! is_wp_error( $relay_proposal ) ) {
+			$relay_actions = $this->normalize_execution_actions( $proposal_id, $relay_proposal );
+			if ( ! is_wp_error( $relay_actions ) ) {
+				$relay_verification_reads = $this->verification_reads_for_actions( $relay_actions );
+				if ( ! empty( $relay_verification_reads ) ) {
+					$relay_params['verification_reads'] = $relay_verification_reads;
+				}
+			}
+		}
+		$response    = $this->dispatch_upstream(
+			'POST',
+			'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight',
+			$relay_params,
+			false,
+			true
+		);
 		if ( ! is_wp_error( $response ) && $response instanceof WP_REST_Response ) {
 			$data = $response->get_data();
 			if ( is_array( $data ) ) {
@@ -3740,8 +3757,36 @@ final class Controller {
 		$read_context['write_ability_id']    = $ability_id;
 		$read_context['ability_id']          = $read_ability_id;
 		$verification_read_authorization     = array();
-		if ( ! empty( $base_request_context['verification_read_requests'][ $read_ability_id ] ) ) {
-			$verification_read_authorization['request_id'] = sanitize_text_field( (string) $base_request_context['verification_read_requests'][ $read_ability_id ] );
+		$verification_grants                 = is_array( $base_request_context['verification_read_requests'] ?? null ) ? $base_request_context['verification_read_requests'] : array();
+		$verification_candidates             = array();
+		$resolved_post_id                    = isset( $read_input['post_id'] ) && is_numeric( $read_input['post_id'] ) ? (int) $read_input['post_id'] : 0;
+		if ( $resolved_post_id > 0 ) {
+			$verification_candidates[] = 'post:' . $resolved_post_id;
+		}
+		$resolved_slug = isset( $slug ) && is_string( $slug ) ? sanitize_key( $slug ) : '';
+		if ( '' !== $resolved_slug ) {
+			$verification_candidates[] = 'slug:' . $resolved_slug;
+		}
+		foreach ( $verification_candidates as $verification_candidate ) {
+			if ( ! isset( $verification_grants[ $read_ability_id . '|' . $verification_candidate ] ) ) {
+				continue;
+			}
+			$verification_grant = $verification_grants[ $read_ability_id . '|' . $verification_candidate ];
+			$request_id         = sanitize_text_field( (string) ( $verification_grant['request_id'] ?? '' ) );
+			if ( '' === $request_id ) {
+				continue;
+			}
+			$verification_read_authorization['request_id'] = $request_id;
+			$grant_input = is_array( $verification_grant['input'] ?? null ) ? $verification_grant['input'] : array();
+			if ( isset( $grant_input['post_id'] ) && is_numeric( $grant_input['post_id'] ) && (int) $grant_input['post_id'] > 0 && $resolved_post_id > 0 ) {
+				// Same object by definition; keep the resolved id for the read.
+				$grant_input['post_id'] = $resolved_post_id;
+				$read_input = $grant_input;
+			} elseif ( isset( $grant_input['slug'] ) && '' !== $resolved_slug ) {
+				// Slug-addressed grant (for example upsert-template-blocks): read by the approved slug.
+				$read_input = $grant_input;
+			}
+			break;
 		}
 		$response                            = $this->run_read_ability( $read_ability_id, $read_input, $read_context, $verification_read_authorization );
 		if ( is_wp_error( $response ) ) {
@@ -3911,16 +3956,7 @@ final class Controller {
 		$npcink_governance_core['proposal_id']          = $proposal_id;
 		$npcink_governance_core['correlation_id']       = $correlation_id;
 		$base_request_context['npcink_governance_core'] = $npcink_governance_core;
-		$verification_read_requests                     = array();
-		$preflight_verification_reads                   = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
-		foreach ( $preflight_verification_reads as $preflight_verification_read ) {
-			if ( is_array( $preflight_verification_read ) && ! empty( $preflight_verification_read['request_id'] ) && ! empty( $preflight_verification_read['ability_id'] ) ) {
-				$verification_read_requests[ (string) $preflight_verification_read['ability_id'] ] = sanitize_text_field( (string) $preflight_verification_read['request_id'] );
-			}
-		}
-		if ( ! empty( $verification_read_requests ) ) {
-			$base_request_context['verification_read_requests'] = $verification_read_requests;
-		}
+		$base_request_context['verification_read_requests'] = $this->verification_read_grant_map( $preflight );
 
 		$results = array();
 		$outputs = array();
@@ -4802,7 +4838,7 @@ final class Controller {
 	 * derived from each normalized action's write input so Core can mint single-use
 	 * verification read requests at commit preflight (Core ADR-011).
 	 *
-	 * @param array<string,mixed> $proposal Core proposal.
+	 * @param array<int,array<string,mixed>> $actions Normalized execution actions.
 	 * @return array<int,array<string,mixed>> Verification read requests.
 	 */
 	private function verification_reads_for_actions( array $actions ): array {
@@ -4843,6 +4879,55 @@ final class Controller {
 		}
 
 		return $reads;
+	}
+
+	/**
+	 * Returns the grant map from a preflight response.
+	 *
+	 * Keyed by read ability plus the object signature the minted input
+	 * addresses, so multiple actions pairing to the same read ability keep
+	 * their own single-use grants. Each entry carries the minted input so
+	 * the readback can present exactly the approved addressing.
+	 *
+	 * @param array<string,mixed> $preflight Commit preflight response.
+	 * @return array<string,array<string,mixed>> Grant map.
+	 */
+	private function verification_read_grant_map( array $preflight ): array {
+		$grants  = array();
+		$granted = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
+
+		foreach ( $granted as $grant ) {
+			if ( ! is_array( $grant ) || empty( $grant['request_id'] ) || empty( $grant['ability_id'] ) ) {
+				continue;
+			}
+			$signature = $this->verification_read_signature( is_array( $grant['input'] ?? null ) ? $grant['input'] : array() );
+			if ( '' === $signature ) {
+				continue;
+			}
+			$grants[ (string) $grant['ability_id'] . '|' . $signature ] = array(
+				'request_id' => sanitize_text_field( (string) $grant['request_id'] ),
+				'input'      => is_array( $grant['input'] ?? null ) ? $grant['input'] : array(),
+			);
+		}
+
+		return $grants;
+	}
+
+	/**
+	 * Returns the object signature of one verification read input.
+	 *
+	 * @param array<string,mixed> $input Verification read input.
+	 * @return string Signature like "post:42" or "slug:single", empty when unaddressed.
+	 */
+	private function verification_read_signature( array $input ): string {
+		if ( isset( $input['post_id'] ) && is_numeric( $input['post_id'] ) && (int) $input['post_id'] > 0 ) {
+			return 'post:' . (int) $input['post_id'];
+		}
+		if ( isset( $input['slug'] ) && is_string( $input['slug'] ) && '' !== (string) $input['slug'] ) {
+			return 'slug:' . sanitize_key( (string) $input['slug'] );
+		}
+
+		return '';
 	}
 
 	/**
