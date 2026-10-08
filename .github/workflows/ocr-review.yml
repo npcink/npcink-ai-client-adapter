@@ -120,9 +120,11 @@ jobs:
       - name: Run OpenCodeReview (attempt 1 of 3)
         id: ocr_review_1
         continue-on-error: true
-        # alibaba/open-code-review v1.12.10 (tag object b465046, commit
-        # 579b931; pinned by commit SHA because the action receives the LLM
-        # auth token - bump deliberately and record the new tag->commit pair).
+        # alibaba/open-code-review v1.12.11 (tag object ee83f15, commit
+        # a758d9c) plus post-tag fix 182898c "allow unlisted OpenRouter model
+        # overrides" (upstream #1610); pinned by commit SHA because the action
+        # receives the LLM auth token - bump deliberately and record the new
+        # tag->commit pair).
         uses: alibaba/open-code-review@182898cf522da3d04157b422752d028417974e19
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
