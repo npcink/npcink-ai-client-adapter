@@ -4732,16 +4732,13 @@ final class Controller {
 	 * @return array<string,mixed>|null
 	 */
 	/**
-	 * Re-runs failed post-execution readbacks with Core-recorded evidence.
-	 *
-	 * ADR-013 supplement pass: actions whose readback could not be granted at
-	 * preflight (in-transaction objects) get a second chance after Core's
-	 * provisional execution record mints result-bound single-use grants.
-	 * Fail-open: any failure leaves the original degraded verification.
+	 * Re-runs failed post-execution readbacks with Core-recorded evidence (ADR-013).
 	 *
 	 * @param string              $proposal_id Proposal id.
+	 * @param array<string,mixed> $proposal Core proposal.
 	 * @param array<string,mixed> $preflight Core preflight payload.
 	 * @param string              $correlation_id Execution correlation id.
+	 * @param array<int,array<string,mixed>> $actions Normalized actions.
 	 * @param array<int,array<string,mixed>> $results Executed action results, modified in place.
 	 * @return void
 	 */
@@ -4848,7 +4845,7 @@ final class Controller {
 
 		foreach ( $needs_supplement as $index ) {
 			$row            = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
-			$ability_input  = array();
+			$ability_input  = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
 			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
 			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
 
@@ -4860,9 +4857,12 @@ final class Controller {
 			}
 		}
 
-		unset( $this->verification_grant_queues[ $correlation_id ] );
 	}
 
+	/**
+	 * @param array<string,mixed> $execution Execution.
+	 * @return array<string,mixed>|null
+	 */
 	private function compact_execution_verification( array $execution ): ?array {
 		return $this->execution_records->compact_verification( $execution );
 	}
