@@ -2957,8 +2957,8 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function commit_preflight( WP_REST_Request $request ) {
-		$started     = microtime( true );
-		$proposal_id = (string) $request->get_param( 'proposal_id' );
+		$started               = microtime( true );
+		$proposal_id           = (string) $request->get_param( 'proposal_id' );
 		$relay_proposal        = $this->get_core_proposal_data( $proposal_id );
 		$relay_params          = array();
 		$relay_reads_derived   = false;
@@ -3002,7 +3002,7 @@ final class Controller {
 				array( 'proposal_id' => $proposal_id )
 			);
 		}
-		$response    = $this->dispatch_upstream(
+		$response = $this->dispatch_upstream(
 			'POST',
 			'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight',
 			$relay_params,
@@ -3049,9 +3049,9 @@ final class Controller {
 						(array) $data['execution_verification_reads']['granted']
 					);
 				}
-				$data['adapter_execution_route']          = '/wp-json/' . self::NAMESPACE . '/proposals/' . rawurlencode( $proposal_id ) . '/execute';
-				$data['execution_handoff_posture']        = $this->execution_handoff_posture();
-				$batch_review_feedback                    = $this->batch_review_feedback_from_preflight( $data, $proposal );
+				$data['adapter_execution_route']   = '/wp-json/' . self::NAMESPACE . '/proposals/' . rawurlencode( $proposal_id ) . '/execute';
+				$data['execution_handoff_posture'] = $this->execution_handoff_posture();
+				$batch_review_feedback             = $this->batch_review_feedback_from_preflight( $data, $proposal );
 				if ( ! empty( $batch_review_feedback ) ) {
 					$data['batch_review_feedback'] = $batch_review_feedback;
 				}
@@ -3871,10 +3871,10 @@ final class Controller {
 			// Shift only once the grant is known usable: each repeated write on the same object takes its own single-use grant.
 			array_shift( $this->verification_grant_queues[ $queue_correlation ][ $verification_queue_key ] );
 			$verification_read_authorization['request_id'] = $request_id;
-			$grant_input = is_array( $next_grant['input'] ?? null ) ? $next_grant['input'] : array();
+			$grant_input                                   = is_array( $next_grant['input'] ?? null ) ? $next_grant['input'] : array();
 			if ( 0 === strpos( $verification_candidate, 'slug:' ) ) {
 				// The slug candidate matched (for example upsert-template-blocks): address the read by the approved slug.
-				$grant_slug  = isset( $grant_input['slug'] ) && is_string( $grant_input['slug'] ) ? sanitize_key( (string) $grant_input['slug'] ) : '';
+				$grant_slug = isset( $grant_input['slug'] ) && is_string( $grant_input['slug'] ) ? sanitize_key( (string) $grant_input['slug'] ) : '';
 				$read_input = '' !== $grant_slug ? array( 'slug' => $grant_slug ) : $read_input;
 			}
 			// Post-addressed grants keep the derived read input (including include_inner_blocks) untouched;
@@ -4057,17 +4057,17 @@ final class Controller {
 		}
 		$preflight['implementation_posture_evidence'] = $implementation_posture_evidence;
 
-		$base_request_context                           = $this->request_log_context( $request, '' !== $proposal_ability_id ? $proposal_ability_id : (string) ( $actions[0]['ability_id'] ?? '' ) );
-		$base_request_context['proposal_id']            = $proposal_id;
-		$base_request_context['correlation_id']         = $correlation_id;
-		$npcink_governance_core                         = is_array( $base_request_context['npcink_governance_core'] ?? null ) ? $base_request_context['npcink_governance_core'] : array();
-		$npcink_governance_core['proposal_id']          = $proposal_id;
-		$npcink_governance_core['correlation_id']       = $correlation_id;
-		$base_request_context['npcink_governance_core'] = $npcink_governance_core;
+		$base_request_context                               = $this->request_log_context( $request, '' !== $proposal_ability_id ? $proposal_ability_id : (string) ( $actions[0]['ability_id'] ?? '' ) );
+		$base_request_context['proposal_id']                = $proposal_id;
+		$base_request_context['correlation_id']             = $correlation_id;
+		$npcink_governance_core                             = is_array( $base_request_context['npcink_governance_core'] ?? null ) ? $base_request_context['npcink_governance_core'] : array();
+		$npcink_governance_core['proposal_id']              = $proposal_id;
+		$npcink_governance_core['correlation_id']           = $correlation_id;
+		$base_request_context['npcink_governance_core']     = $npcink_governance_core;
 		$this->verification_grant_queues[ $correlation_id ] = $this->verification_read_grant_map( $preflight, $actions );
-		$expected_reference_skips    = array();
-		$expected_verification_reads = $this->verification_reads_for_actions( $actions, $expected_reference_skips );
-		$granted_verification_total  = array_sum( array_map( 'count', $this->verification_grant_queues[ $correlation_id ] ) );
+		$expected_reference_skips                           = array();
+		$expected_verification_reads                        = $this->verification_reads_for_actions( $actions, $expected_reference_skips );
+		$granted_verification_total                         = array_sum( array_map( 'count', $this->verification_grant_queues[ $correlation_id ] ) );
 		if ( array() !== $expected_reference_skips || count( $expected_verification_reads ) > $granted_verification_total ) {
 			// Fail-open by design, but never silent: a readback-paired action
 			// without a minted grant (including partial denials) degrades under
@@ -5068,17 +5068,22 @@ final class Controller {
 	 * @return array<string, array<int, array<string, mixed>>> Grant map.
 	 */
 	private function verification_read_grant_map( array $preflight, array $actions ): array {
-		$grants  = array();
-		$handoff = is_array( $preflight['execution_handoff'] ?? null ) ? $preflight['execution_handoff'] : array();
-		$granted = is_array( $handoff['execution_verification_reads'] ?? null ) ? (array) $handoff['execution_verification_reads'] : array();
+		$grants       = array();
+		$handoff      = is_array( $preflight['execution_handoff'] ?? null ) ? $preflight['execution_handoff'] : array();
+		$granted      = is_array( $handoff['execution_verification_reads'] ?? null ) ? (array) $handoff['execution_verification_reads'] : array();
 		$from_handoff = true;
 		if ( empty( $granted ) ) {
 			// Fallback for pre-hardening Core, whose top-level response still carried usable ids.
 			$from_handoff = false;
 			$top_level    = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
-			$granted      = array_values( array_filter( $top_level, static function ( $entry ): bool {
-				return is_array( $entry ) && ! empty( $entry['request_id'] );
-			} ) );
+			$granted      = array_values(
+				array_filter(
+					$top_level,
+					static function ( $entry ): bool {
+						return is_array( $entry ) && ! empty( $entry['request_id'] );
+					}
+				)
+			);
 		}
 
 		// Positional per-ability binding inputs for handoff grants that carry none.
