@@ -4726,12 +4726,6 @@ final class Controller {
 	}
 
 	/**
-	 * Returns the compact verification projection of an execution.
-	 *
-	 * @param array<string,mixed> $execution Execution.
-	 * @return array<string,mixed>|null
-	 */
-	/**
 	 * Re-runs failed post-execution readbacks with Core-recorded evidence (ADR-013).
 	 *
 	 * @param string              $proposal_id Proposal id.
@@ -4758,7 +4752,13 @@ final class Controller {
 			}
 
 			$needs_supplement[] = $index;
-			$recorded_result    = array_intersect_key( $result_data, array( 'post_id' => true, 'slug' => true ) );
+			$recorded_result    = array_intersect_key(
+				$result_data,
+				array(
+					'post_id' => true,
+					'slug'    => true,
+				)
+			);
 			if ( empty( $recorded_result ) && isset( $result['post_id'] ) ) {
 				$recorded_result = array( 'post_id' => $result['post_id'] );
 			}
@@ -4827,6 +4827,61 @@ final class Controller {
 		}
 
 		// Seed the per-execution queue with the recorded-evidence grants, then re-run only the failed readbacks.
+		$this->seed_supplement_verification_grants( $correlation_id, $granted );
+
+		$supplement_context = array(
+			'proposal_id'    => $proposal_id,
+			'correlation_id' => $correlation_id,
+		);
+
+		foreach ( $needs_supplement as $index ) {
+			$row           = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
+			$ability_input = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
+			foreach ( $actions as $candidate ) {
+				if ( ! ( is_array( $candidate ) && (int) ( $candidate['action_index'] ?? -1 ) === $index ) ) {
+					continue;
+				}
+				$candidate_input = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
+				if ( array() === $ability_input && isset( $candidate_input['post_id'] ) && is_numeric( $candidate_input['post_id'] ) ) {
+					// The approved numeric addressing is the completeness fallback when the row lost its object id.
+					$ability_input = array( 'post_id' => absint( $candidate_input['post_id'] ) );
+				}
+				if ( isset( $candidate_input['slug'] ) && is_string( $candidate_input['slug'] ) ) {
+					// Slug-addressed writes keep their approved slug when the result row carries no numeric id.
+					$ability_input['slug'] = sanitize_key( (string) $candidate_input['slug'] );
+				}
+				break;
+			}
+			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
+			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
+
+			if ( ! empty( $supplement ) && 'verified' === (string) ( $supplement['block_readback_status'] ?? '' ) ) {
+				if ( ! is_array( $results[ $index ]['result'] ?? null ) ) {
+					// Re-verified evidence is preserved even when the executed row carried no array result.
+					$results[ $index ]['result'] = array();
+				}
+				$results[ $index ]['result']['verification'] = array_merge(
+					is_array( $results[ $index ]['result']['verification'] ?? null ) ? $results[ $index ]['result']['verification'] : array(),
+					$supplement
+				);
+			}
+		}
+	}
+
+	/**
+	 * Seeds the per-execution grant queue with Core-recorded evidence grants.
+	 *
+	 * Grants append per queue key even when the key already exists from the
+	 * preflight grant map: array_shift consumption leaves drained keys in
+	 * place, so a re-minted recorded-evidence grant must never be discarded
+	 * for an existing-but-empty key. Single-use queues stay FIFO: the next
+	 * readback on that key takes the freshly appended grant.
+	 *
+	 * @param string                         $correlation_id Execution correlation id.
+	 * @param array<int,array<string,mixed>> $granted Granted recorded-evidence reads.
+	 * @return void
+	 */
+	private function seed_supplement_verification_grants( string $correlation_id, array $granted ): void {
 		foreach ( $granted as $grant ) {
 			if ( ! is_array( $grant ) || empty( $grant['request_id'] ) || empty( $grant['ability_id'] ) ) {
 				continue;
@@ -4844,32 +4899,6 @@ final class Controller {
 				'request_id' => sanitize_text_field( (string) $grant['request_id'] ),
 				'input'      => $grant_input,
 			);
-		}
-
-		$supplement_context = array(
-			'proposal_id'    => $proposal_id,
-			'correlation_id' => $correlation_id,
-		);
-
-		foreach ( $needs_supplement as $index ) {
-			$row            = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
-			$ability_input  = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
-			foreach ( $actions as $candidate ) {
-				if ( is_array( $candidate ) && (int) ( $candidate['action_index'] ?? -1 ) === $index && isset( $candidate['input']['slug'] ) && is_string( $candidate['input']['slug'] ) ) {
-					// Slug-addressed writes keep their approved slug when the result row carries no numeric id.
-					$ability_input['slug'] = sanitize_key( (string) $candidate['input']['slug'] );
-					break;
-				}
-			}
-			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
-			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
-
-			if ( ! empty( $supplement ) && 'verified' === (string) ( $supplement['block_readback_status'] ?? '' ) && is_array( $results[ $index ]['result'] ?? null ) ) {
-				$results[ $index ]['result']['verification'] = array_merge(
-					is_array( $results[ $index ]['result']['verification'] ?? null ) ? $results[ $index ]['result']['verification'] : array(),
-					$supplement
-				);
-			}
 		}
 	}
 

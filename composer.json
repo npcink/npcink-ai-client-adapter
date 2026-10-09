@@ -19,6 +19,7 @@
     "test:execution-input-validator": "php tests/execution-input-validator-behavior.php",
     "test:execution-action-runner": "php tests/execution-action-runner-behavior.php",
     "test:security-hardening": "php tests/security-hardening-behavior.php",
+    "test:verification-supplement": "php tests/verification-supplement-behavior.php",
     "test:ai-review-gate": "bash scripts/verify-ai-review.sh --self-test",
     "smoke:wp": "bash tests/smoke-wp.sh",
     "smoke:package-install": "bash tests/package-install-smoke.sh",
@@ -49,6 +50,7 @@
       "@test:execution-input-validator",
       "@test:execution-action-runner",
       "@test:security-hardening",
+      "@test:verification-supplement",
       "@test:ai-review-gate",
       "@test"
     ]
