@@ -3870,13 +3870,29 @@ final class Controller {
 			}
 			// Shift only once the grant is known usable: each repeated write on the same object takes its own single-use grant.
 			array_shift( $this->verification_grant_queues[ $queue_correlation ][ $verification_queue_key ] );
-			$verification_read_authorization['request_id'] = $request_id;
-			$grant_input                                   = is_array( $next_grant['input'] ?? null ) ? $next_grant['input'] : array();
+			$grant_input = is_array( $next_grant['input'] ?? null ) ? $next_grant['input'] : array();
 			if ( 0 === strpos( $verification_candidate, 'slug:' ) ) {
 				// The slug candidate matched (for example upsert-template-blocks): address the read by the approved slug.
 				$grant_slug = isset( $grant_input['slug'] ) && is_string( $grant_input['slug'] ) ? sanitize_key( (string) $grant_input['slug'] ) : '';
-				$read_input = '' !== $grant_slug ? array( 'slug' => $grant_slug ) : $read_input;
+				if ( '' === $grant_slug ) {
+					// Unusable slug grant: keep the derived addressing, drop the grant, try the next candidate.
+					$this->emit_operation_event(
+						'adapter.execution.verification_grant_dropped',
+						microtime( true ),
+						new WP_Error(
+							'npcink_openclaw_adapter_verification_grant_unusable',
+							__( 'A minted verification read grant was dropped because it carried no usable slug addressing.', 'npcink-ai-client-adapter' )
+						),
+						array(
+							'correlation_id' => $queue_correlation,
+							'ability_id'     => $read_ability_id,
+						)
+					);
+					continue;
+				}
+				$read_input = array( 'slug' => $grant_slug );
 			}
+			$verification_read_authorization['request_id'] = $request_id;
 			// Post-addressed grants keep the derived read input (including include_inner_blocks) untouched;
 			// the resolved post id equals the approved object by the queue key, so no field replacement is needed.
 			break;
@@ -4065,9 +4081,12 @@ final class Controller {
 		$npcink_governance_core['correlation_id']           = $correlation_id;
 		$base_request_context['npcink_governance_core']     = $npcink_governance_core;
 		$this->verification_grant_queues[ $correlation_id ] = $this->verification_read_grant_map( $preflight, $actions );
-		$expected_reference_skips                           = array();
-		$expected_verification_reads                        = $this->verification_reads_for_actions( $actions, $expected_reference_skips );
-		$granted_verification_total                         = array_sum( array_map( 'count', $this->verification_grant_queues[ $correlation_id ] ) );
+		// Grant ids are captured in the instance queues; the preflight that travels
+		// into execution responses and stored records never carries usable ids.
+		$preflight                   = $this->redact_verification_grant_material( $preflight );
+		$expected_reference_skips    = array();
+		$expected_verification_reads = $this->verification_reads_for_actions( $actions, $expected_reference_skips );
+		$granted_verification_total  = array_sum( array_map( 'count', $this->verification_grant_queues[ $correlation_id ] ) );
 		if ( array() !== $expected_reference_skips || count( $expected_verification_reads ) > $granted_verification_total ) {
 			// Fail-open by design, but never silent: a readback-paired action
 			// without a minted grant (including partial denials) degrades under
@@ -5043,6 +5062,43 @@ final class Controller {
 		}
 
 		return $reads;
+	}
+
+	/**
+	 * Redacts verification read grant material down to granted ability ids.
+	 *
+	 * Applied once the grant map is captured: a preflight that travels into
+	 * execution responses or stored records must never carry usable
+	 * single-use request ids.
+	 *
+	 * @param array<string,mixed> $preflight Commit preflight payload.
+	 * @return array<string,mixed> Redacted preflight payload.
+	 */
+	private function redact_verification_grant_material( array $preflight ): array {
+		if ( isset( $preflight['execution_handoff']['execution_verification_reads'] ) ) {
+			$preflight['execution_handoff']['execution_verification_reads'] = array_map(
+				static function ( $grant ): array {
+					if ( ! is_array( $grant ) ) {
+						return array();
+					}
+					return array( 'ability_id' => (string) ( $grant['ability_id'] ?? '' ) );
+				},
+				(array) $preflight['execution_handoff']['execution_verification_reads']
+			);
+		}
+		if ( isset( $preflight['execution_verification_reads']['granted'] ) ) {
+			$preflight['execution_verification_reads']['granted'] = array_map(
+				static function ( $grant ): array {
+					if ( ! is_array( $grant ) ) {
+						return array();
+					}
+					return array( 'ability_id' => (string) ( $grant['ability_id'] ?? '' ) );
+				},
+				(array) $preflight['execution_verification_reads']['granted']
+			);
+		}
+
+		return $preflight;
 	}
 
 	/**

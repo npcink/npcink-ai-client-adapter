@@ -27,15 +27,11 @@ parameters:
 			message: '#^Call to function is_array\(\) with array(<.*)? will always evaluate to true\.$#'
 			path: includes/Rest/Proposal_Review.php
 			count: 2
-		-
-			message: '#^Call to function is_array\(\) with array(<.*)? will always evaluate to true\.$#'
-			path: includes/Rest/Signing_Auth.php
-			count: 1
-		-
-			message: '#^Offset .+ on non-empty-array on left side of \?\? always exists and is not nullable\.$#'
-			path: includes/Rest/Controller.php
-			count: 1
-		-
-			message: '#^Variable \$_GET in isset\(\) always exists and is not nullable\.$#'
-			path: includes/Rest/Signing_Auth.php
-			count: 1
+			-
+				message: '#^Call to function is_array\(\) with array(<.*)? will always evaluate to true\.$#'
+				path: includes/Rest/Signing_Auth.php
+				count: 1
+			-
+				message: '#^Variable \$_GET in isset\(\) always exists and is not nullable\.$#'
+				path: includes/Rest/Signing_Auth.php
+				count: 1
