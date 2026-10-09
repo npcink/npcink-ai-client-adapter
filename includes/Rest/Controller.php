@@ -4849,17 +4849,18 @@ final class Controller {
 			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
 			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
 
-			if ( ! empty( $supplement ) && 'verified' === (string) ( $supplement['block_readback_status'] ?? '' ) ) {
+			if ( ! empty( $supplement ) && 'verified' === (string) ( $supplement['block_readback_status'] ?? '' ) && is_array( $results[ $index ]['result'] ?? null ) ) {
 				$results[ $index ]['result']['verification'] = array_merge(
 					is_array( $results[ $index ]['result']['verification'] ?? null ) ? $results[ $index ]['result']['verification'] : array(),
 					$supplement
 				);
 			}
 		}
-
 	}
 
 	/**
+	 * Returns the compacted verification summary for one execution.
+	 *
 	 * @param array<string,mixed> $execution Execution.
 	 * @return array<string,mixed>|null
 	 */
