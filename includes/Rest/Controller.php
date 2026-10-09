@@ -150,6 +150,19 @@ final class Controller {
 	private $read_governance;
 
 	/**
+	 * Per-execution verification read grant queues, keyed by correlation id.
+	 *
+	 * Instance state on purpose: the execution context passes by value, so a
+	 * context-local queue cannot record single-use consumption across actions.
+	 * Each queue holds the next unused grant per ability/object signature;
+	 * grant material never travels in request contexts, log contexts, or REST
+	 * responses.
+	 *
+	 * @var array<string,array<string,array<int,array<string,mixed>>>>
+	 */
+	private $verification_grant_queues = array();
+
+	/**
 	 * Creates the REST controller with the canonical execution profile rules.
 	 */
 	public function __construct() {
@@ -2966,7 +2979,7 @@ final class Controller {
 				'adapter.commit.preflight_verification_reads_unavailable',
 				microtime( true ),
 				new WP_Error(
-					'npcink_openclaw_adapter_verification_reads_undeived',
+					'npcink_openclaw_adapter_verification_reads_underived',
 					__( 'Commit preflight relay could not derive verification reads; the post-execution readback may degrade under read-authorization-requiring deployments.', 'npcink-ai-client-adapter' )
 				),
 				array( 'proposal_id' => $proposal_id )
@@ -3771,10 +3784,15 @@ final class Controller {
 		$read_context['verification_source'] = 'post_execution_block_readback';
 		$read_context['write_ability_id']    = $ability_id;
 		$read_context['ability_id']          = $read_ability_id;
-		$verification_read_authorization     = array();
-		$verification_grants                 = is_array( $base_request_context['verification_read_requests'] ?? null ) ? $base_request_context['verification_read_requests'] : array();
-		$verification_candidates             = array();
-		$resolved_post_id                    = isset( $read_input['post_id'] ) && is_numeric( $read_input['post_id'] ) ? (int) $read_input['post_id'] : 0;
+		// Grant material never travels in contexts: read_context reaches logs and REST responses.
+		unset( $read_context['verification_read_requests'] );
+		$verification_read_authorization = array();
+		$queue_correlation               = (string) ( $base_request_context['correlation_id'] ?? '' );
+		$verification_queue_set          = '' !== $queue_correlation && is_array( $this->verification_grant_queues[ $queue_correlation ] ?? null )
+			? $this->verification_grant_queues[ $queue_correlation ]
+			: array();
+		$verification_candidates         = array();
+		$resolved_post_id                = isset( $read_input['post_id'] ) && is_numeric( $read_input['post_id'] ) ? (int) $read_input['post_id'] : 0;
 		if ( $resolved_post_id > 0 ) {
 			$verification_candidates[] = 'post:' . $resolved_post_id;
 		}
@@ -3784,29 +3802,29 @@ final class Controller {
 		}
 		foreach ( $verification_candidates as $verification_candidate ) {
 			$verification_queue_key = $read_ability_id . '|' . $verification_candidate;
-			if ( empty( $verification_grants[ $verification_queue_key ] ) || ! is_array( $verification_grants[ $verification_queue_key ] ) ) {
+			if ( empty( $verification_queue_set[ $verification_queue_key ] ) || ! is_array( $verification_queue_set[ $verification_queue_key ] ) ) {
 				continue;
 			}
-			// Shift the next single-use grant: repeated write actions on the same object each consume their own grant.
-			$verification_grant = array_shift( $verification_grants[ $verification_queue_key ] );
-			$base_request_context['verification_read_requests'][ $verification_queue_key ] = $verification_grants[ $verification_queue_key ];
-			$request_id         = sanitize_text_field( (string) ( $verification_grant['request_id'] ?? '' ) );
+			$next_grant = $verification_queue_set[ $verification_queue_key ][0];
+			$request_id = sanitize_text_field( (string) ( $next_grant['request_id'] ?? '' ) );
 			if ( '' === $request_id ) {
+				// Consume the unusable grant so it cannot wedge the queue, then try the next candidate.
+				array_shift( $this->verification_grant_queues[ $queue_correlation ][ $verification_queue_key ] );
 				continue;
 			}
+			// Shift only once the grant is known usable: each repeated write on the same object takes its own single-use grant.
+			array_shift( $this->verification_grant_queues[ $queue_correlation ][ $verification_queue_key ] );
 			$verification_read_authorization['request_id'] = $request_id;
-			$grant_input = is_array( $verification_grant['input'] ?? null ) ? $verification_grant['input'] : array();
-			if ( isset( $grant_input['post_id'] ) && is_numeric( $grant_input['post_id'] ) && (int) $grant_input['post_id'] > 0 && $resolved_post_id > 0 ) {
-				// Same object by definition; keep the resolved id for the read.
-				$grant_input['post_id'] = $resolved_post_id;
-				$read_input = $grant_input;
-			} elseif ( isset( $grant_input['slug'] ) && '' !== $resolved_slug ) {
-				// Slug-addressed grant (for example upsert-template-blocks): read by the approved slug.
-				$read_input = $grant_input;
+			$grant_input = is_array( $next_grant['input'] ?? null ) ? $next_grant['input'] : array();
+			if ( isset( $grant_input['slug'] ) && is_string( $grant_input['slug'] ) && '' !== (string) $grant_input['slug'] ) {
+				// Slug-addressed grant (for example upsert-template-blocks): swap addressing to the approved slug.
+				$read_input = array( 'slug' => sanitize_key( (string) $grant_input['slug'] ) );
 			}
+			// Post-addressed grants keep the derived read input (including include_inner_blocks) untouched;
+			// the resolved post id equals the approved object by the queue key, so no field replacement is needed.
 			break;
 		}
-		$response                            = $this->run_read_ability( $read_ability_id, $read_input, $read_context, $verification_read_authorization );
+		$response = $this->run_read_ability( $read_ability_id, $read_input, $read_context, $verification_read_authorization );
 		if ( is_wp_error( $response ) ) {
 			$error_data = $response->get_error_data();
 			$error_data = is_array( $error_data ) ? $error_data : array();
@@ -3974,7 +3992,7 @@ final class Controller {
 		$npcink_governance_core['proposal_id']          = $proposal_id;
 		$npcink_governance_core['correlation_id']       = $correlation_id;
 		$base_request_context['npcink_governance_core'] = $npcink_governance_core;
-		$base_request_context['verification_read_requests'] = $this->verification_read_grant_map( $preflight );
+		$this->verification_grant_queues[ $correlation_id ] = $this->verification_read_grant_map( $preflight );
 
 		$results = array();
 		$outputs = array();
@@ -4912,7 +4930,15 @@ final class Controller {
 	 */
 	private function verification_read_grant_map( array $preflight ): array {
 		$grants  = array();
-		$granted = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
+		$handoff = is_array( $preflight['execution_handoff'] ?? null ) ? $preflight['execution_handoff'] : array();
+		$granted = is_array( $handoff['execution_verification_reads'] ?? null ) ? (array) $handoff['execution_verification_reads'] : array();
+		if ( empty( $granted ) ) {
+			// Fallback for pre-hardening Core, whose top-level response still carried usable ids.
+			$top_level = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
+			$granted   = array_values( array_filter( $top_level, static function ( $entry ): bool {
+				return is_array( $entry ) && ! empty( $entry['request_id'] );
+			} ) );
+		}
 
 		foreach ( $granted as $grant ) {
 			if ( ! is_array( $grant ) || empty( $grant['request_id'] ) || empty( $grant['ability_id'] ) ) {
