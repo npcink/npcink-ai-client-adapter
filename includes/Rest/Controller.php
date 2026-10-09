@@ -4782,13 +4782,21 @@ final class Controller {
 
 		$approval_context    = is_array( $preflight['approval_context'] ?? null ) ? $preflight['approval_context'] : array();
 		$approved_input_hash = (string) ( $approval_context['approved_input_hash'] ?? $preflight['approved_input_hash'] ?? '' );
+		$recorded_status     = 'succeeded';
+		foreach ( $needs_supplement as $supplement_index ) {
+			$row_status = (string) ( $results[ $supplement_index ]['status'] ?? '' );
+			if ( 'executed' !== $row_status ) {
+				$recorded_status = 'failed';
+				break;
+			}
+		}
 
 		$response = $this->dispatch_upstream(
 			'POST',
 			'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/record-execution',
 			array(
 				'record_phase'        => 'provisional',
-				'execution_status'    => 'succeeded',
+				'execution_status'    => $recorded_status,
 				'correlation_id'      => $correlation_id,
 				'approved_input_hash' => $approved_input_hash,
 				'actions'             => $recorded_actions,
@@ -4846,6 +4854,13 @@ final class Controller {
 		foreach ( $needs_supplement as $index ) {
 			$row            = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
 			$ability_input  = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
+			foreach ( $actions as $candidate ) {
+				if ( is_array( $candidate ) && (int) ( $candidate['action_index'] ?? -1 ) === $index && isset( $candidate['input']['slug'] ) && is_string( $candidate['input']['slug'] ) ) {
+					// Slug-addressed writes keep their approved slug when the result row carries no numeric id.
+					$ability_input['slug'] = sanitize_key( (string) $candidate['input']['slug'] );
+					break;
+				}
+			}
 			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
 			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
 
