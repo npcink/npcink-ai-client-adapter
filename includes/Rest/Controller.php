@@ -150,6 +150,19 @@ final class Controller {
 	private $read_governance;
 
 	/**
+	 * Per-execution verification read grant queues, keyed by correlation id.
+	 *
+	 * Instance state on purpose: the execution context passes by value, so a
+	 * context-local queue cannot record single-use consumption across actions.
+	 * Each queue holds the next unused grant per ability/object signature;
+	 * grant material never travels in request contexts, log contexts, or REST
+	 * responses.
+	 *
+	 * @var array<string,array<string,array<int,array<string,mixed>>>>
+	 */
+	private $verification_grant_queues = array();
+
+	/**
 	 * Creates the REST controller with the canonical execution profile rules.
 	 */
 	public function __construct() {
@@ -2944,14 +2957,67 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function commit_preflight( WP_REST_Request $request ) {
-		$started     = microtime( true );
-		$proposal_id = (string) $request->get_param( 'proposal_id' );
-		$response    = $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight' );
+		$started               = microtime( true );
+		$proposal_id           = (string) $request->get_param( 'proposal_id' );
+		$relay_proposal        = $this->get_core_proposal_data( $proposal_id );
+		$relay_params          = array();
+		$relay_reads_derived   = false;
+		$relay_reference_skips = array();
+		if ( ! is_wp_error( $relay_proposal ) ) {
+			$relay_actions = $this->normalize_execution_actions( $proposal_id, $relay_proposal );
+			if ( ! is_wp_error( $relay_actions ) ) {
+				$relay_verification_reads = $this->verification_reads_for_actions( $relay_actions, $relay_reference_skips );
+				$relay_reads_derived      = true;
+				if ( ! empty( $relay_verification_reads ) ) {
+					$relay_params['verification_reads'] = $relay_verification_reads;
+				}
+				if ( array() !== $relay_reference_skips ) {
+					// Reference-addressed actions resolve only at execute time, after
+					// the preflight mint; their readback degradation must not be silent.
+					$this->emit_operation_event(
+						'adapter.commit.preflight_verification_reads_unavailable',
+						microtime( true ),
+						new WP_Error(
+							'npcink_openclaw_adapter_verification_reads_reference_addressed',
+							__( 'Commit preflight relay skipped reference-addressed verification reads; the post-execution readback may degrade under read-authorization-requiring deployments.', 'npcink-ai-client-adapter' )
+						),
+						array(
+							'proposal_id'             => $proposal_id,
+							'reference_skipped_count' => count( $relay_reference_skips ),
+						)
+					);
+				}
+			}
+		}
+		if ( ! $relay_reads_derived ) {
+			// Fail-open by design, but never silent: the post-execution readback of a
+			// grant-requiring deployment degrades without a minted verification read.
+			$this->emit_operation_event(
+				'adapter.commit.preflight_verification_reads_unavailable',
+				microtime( true ),
+				new WP_Error(
+					'npcink_openclaw_adapter_verification_reads_underived',
+					__( 'Commit preflight relay could not derive verification reads; the post-execution readback may degrade under read-authorization-requiring deployments.', 'npcink-ai-client-adapter' )
+				),
+				array( 'proposal_id' => $proposal_id )
+			);
+		}
+		$response = $this->dispatch_upstream(
+			'POST',
+			'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight',
+			$relay_params,
+			false,
+			true
+		);
 		if ( ! is_wp_error( $response ) && $response instanceof WP_REST_Response ) {
 			$data = $response->get_data();
 			if ( is_array( $data ) ) {
 				$proposal = is_array( $data['proposal'] ?? null ) ? $data['proposal'] : array();
-				if ( empty( $proposal ) ) {
+				if ( empty( $proposal ) && ! is_wp_error( $relay_proposal ) ) {
+					// The relay fetch is moments old and proposals do not mutate at
+					// commit preflight; avoid the second upstream round trip.
+					$proposal = $relay_proposal;
+				} elseif ( empty( $proposal ) ) {
 					$proposal_detail = $this->get_core_proposal_data( $proposal_id );
 					if ( ! is_wp_error( $proposal_detail ) ) {
 						$proposal = $proposal_detail;
@@ -2960,9 +3026,32 @@ final class Controller {
 
 				$handoff                                  = $this->store_preflight_handoff( $proposal_id, $proposal, $data );
 				$data['adapter_preflight_handoff_cached'] = is_array( $handoff );
-				$data['adapter_execution_route']          = '/wp-json/' . self::NAMESPACE . '/proposals/' . rawurlencode( $proposal_id ) . '/execute';
-				$data['execution_handoff_posture']        = $this->execution_handoff_posture();
-				$batch_review_feedback                    = $this->batch_review_feedback_from_preflight( $data, $proposal );
+				// The cached handoff keeps grants for the execute path; the REST response never does.
+				if ( isset( $data['execution_handoff']['execution_verification_reads'] ) ) {
+					$data['execution_handoff']['execution_verification_reads'] = array_map(
+						static function ( $grant ): array {
+							if ( ! is_array( $grant ) ) {
+								return array();
+							}
+							return array( 'ability_id' => (string) ( $grant['ability_id'] ?? '' ) );
+						},
+						(array) $data['execution_handoff']['execution_verification_reads']
+					);
+				}
+				if ( isset( $data['execution_verification_reads']['granted'] ) ) {
+					$data['execution_verification_reads']['granted'] = array_map(
+						static function ( $grant ): array {
+							if ( ! is_array( $grant ) ) {
+								return array();
+							}
+							return array( 'ability_id' => (string) ( $grant['ability_id'] ?? '' ) );
+						},
+						(array) $data['execution_verification_reads']['granted']
+					);
+				}
+				$data['adapter_execution_route']   = '/wp-json/' . self::NAMESPACE . '/proposals/' . rawurlencode( $proposal_id ) . '/execute';
+				$data['execution_handoff_posture'] = $this->execution_handoff_posture();
+				$batch_review_feedback             = $this->batch_review_feedback_from_preflight( $data, $proposal );
 				if ( ! empty( $batch_review_feedback ) ) {
 					$data['batch_review_feedback'] = $batch_review_feedback;
 				}
@@ -3739,7 +3828,91 @@ final class Controller {
 		$read_context['verification_source'] = 'post_execution_block_readback';
 		$read_context['write_ability_id']    = $ability_id;
 		$read_context['ability_id']          = $read_ability_id;
-		$response                            = $this->run_read_ability( $read_ability_id, $read_input, $read_context );
+		// Grant material never travels in contexts: read_context reaches logs and REST responses.
+		unset( $read_context['verification_read_requests'] );
+		$verification_read_authorization = array();
+		$queue_correlation               = (string) ( $base_request_context['correlation_id'] ?? '' );
+		$verification_queue_set          = '' !== $queue_correlation && is_array( $this->verification_grant_queues[ $queue_correlation ] ?? null )
+			? $this->verification_grant_queues[ $queue_correlation ]
+			: array();
+		$verification_candidates         = array();
+		$resolved_post_id                = isset( $read_input['post_id'] ) && is_numeric( $read_input['post_id'] ) ? (int) $read_input['post_id'] : 0;
+		if ( $resolved_post_id > 0 ) {
+			$verification_candidates[] = 'post:' . $resolved_post_id;
+		}
+		$resolved_slug = isset( $slug ) && is_string( $slug ) ? sanitize_key( $slug ) : '';
+		if ( '' !== $resolved_slug ) {
+			$verification_candidates[] = 'slug:' . $resolved_slug;
+		}
+		foreach ( $verification_candidates as $verification_candidate ) {
+			$verification_queue_key = $read_ability_id . '|' . $verification_candidate;
+			if ( empty( $verification_queue_set[ $verification_queue_key ] ) || ! is_array( $verification_queue_set[ $verification_queue_key ] ) ) {
+				continue;
+			}
+			$next_grant = $verification_queue_set[ $verification_queue_key ][0];
+			$request_id = sanitize_text_field( (string) ( $next_grant['request_id'] ?? '' ) );
+			if ( '' === $request_id ) {
+				// Consume the unusable grant so it cannot wedge the queue, then try the next candidate.
+				array_shift( $this->verification_grant_queues[ $queue_correlation ][ $verification_queue_key ] );
+				$this->emit_operation_event(
+					'adapter.execution.verification_grant_dropped',
+					microtime( true ),
+					new WP_Error(
+						'npcink_openclaw_adapter_verification_grant_unusable',
+						__( 'A minted verification read grant was dropped because it carried no usable request id.', 'npcink-ai-client-adapter' )
+					),
+					array(
+						'correlation_id' => $queue_correlation,
+						'ability_id'     => $read_ability_id,
+					)
+				);
+				continue;
+			}
+			// Shift only once the grant is known usable: each repeated write on the same object takes its own single-use grant.
+			array_shift( $this->verification_grant_queues[ $queue_correlation ][ $verification_queue_key ] );
+			$grant_input = is_array( $next_grant['input'] ?? null ) ? $next_grant['input'] : array();
+			if ( 0 === strpos( $verification_candidate, 'slug:' ) ) {
+				// The slug candidate matched (for example upsert-template-blocks): address the read by the approved slug.
+				$grant_slug = isset( $grant_input['slug'] ) && is_string( $grant_input['slug'] ) ? sanitize_key( (string) $grant_input['slug'] ) : '';
+				if ( '' === $grant_slug ) {
+					// Unusable slug grant: keep the derived addressing, drop the grant, try the next candidate.
+					$this->emit_operation_event(
+						'adapter.execution.verification_grant_dropped',
+						microtime( true ),
+						new WP_Error(
+							'npcink_openclaw_adapter_verification_grant_unusable',
+							__( 'A minted verification read grant was dropped because it carried no usable slug addressing.', 'npcink-ai-client-adapter' )
+						),
+						array(
+							'correlation_id' => $queue_correlation,
+							'ability_id'     => $read_ability_id,
+						)
+					);
+					continue;
+				}
+				$read_input = array( 'slug' => $grant_slug );
+			}
+			$verification_read_authorization['request_id'] = $request_id;
+			// Post-addressed grants keep the derived read input (including include_inner_blocks) untouched;
+			// the resolved post id equals the approved object by the queue key, so no field replacement is needed.
+			break;
+		}
+		if ( empty( $verification_read_authorization['request_id'] ) && ! empty( $verification_queue_set ) ) {
+			// Fail-open by design, but never silent: grants existed for this execution but none matched this readback.
+			$this->emit_operation_event(
+				'adapter.execution.verification_grant_unmatched',
+				microtime( true ),
+				new WP_Error(
+					'npcink_openclaw_adapter_verification_grant_unmatched',
+					__( 'No minted verification read grant matched this readback; it runs without execution-attached authorization.', 'npcink-ai-client-adapter' )
+				),
+				array(
+					'correlation_id' => $queue_correlation,
+					'ability_id'     => $read_ability_id,
+				)
+			);
+		}
+		$response = $this->run_read_ability( $read_ability_id, $read_input, $read_context, $verification_read_authorization );
 		if ( is_wp_error( $response ) ) {
 			$error_data = $response->get_error_data();
 			$error_data = is_array( $error_data ) ? $error_data : array();
@@ -3816,7 +3989,13 @@ final class Controller {
 		$preflight        = $this->consume_cached_preflight_handoff( $proposal_id, $proposal );
 		$preflight_source = is_array( $preflight ) ? 'adapter_cached_handoff' : 'core_commit_preflight';
 		if ( ! is_array( $preflight ) ) {
-			$preflight_response = $this->dispatch_upstream( 'POST', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight' );
+			$preflight_response = $this->dispatch_upstream(
+				'POST',
+				'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/commit-preflight',
+				array( 'verification_reads' => $this->verification_reads_for_actions( $actions ) ),
+				false,
+				true
+			);
 			if ( is_wp_error( $preflight_response ) ) {
 				return $this->error_with_operator_feedback( $preflight_response, $this->preflight_operator_feedback( $preflight_response, $proposal ) );
 			}
@@ -3894,262 +4073,295 @@ final class Controller {
 		}
 		$preflight['implementation_posture_evidence'] = $implementation_posture_evidence;
 
-		$base_request_context                           = $this->request_log_context( $request, '' !== $proposal_ability_id ? $proposal_ability_id : (string) ( $actions[0]['ability_id'] ?? '' ) );
-		$base_request_context['proposal_id']            = $proposal_id;
-		$base_request_context['correlation_id']         = $correlation_id;
-		$npcink_governance_core                         = is_array( $base_request_context['npcink_governance_core'] ?? null ) ? $base_request_context['npcink_governance_core'] : array();
-		$npcink_governance_core['proposal_id']          = $proposal_id;
-		$npcink_governance_core['correlation_id']       = $correlation_id;
-		$base_request_context['npcink_governance_core'] = $npcink_governance_core;
+		$base_request_context                               = $this->request_log_context( $request, '' !== $proposal_ability_id ? $proposal_ability_id : (string) ( $actions[0]['ability_id'] ?? '' ) );
+		$base_request_context['proposal_id']                = $proposal_id;
+		$base_request_context['correlation_id']             = $correlation_id;
+		$npcink_governance_core                             = is_array( $base_request_context['npcink_governance_core'] ?? null ) ? $base_request_context['npcink_governance_core'] : array();
+		$npcink_governance_core['proposal_id']              = $proposal_id;
+		$npcink_governance_core['correlation_id']           = $correlation_id;
+		$base_request_context['npcink_governance_core']     = $npcink_governance_core;
+		$this->verification_grant_queues[ $correlation_id ] = $this->verification_read_grant_map( $preflight, $actions );
+		// Grant ids are captured in the instance queues; the preflight that travels
+		// into execution responses and stored records never carries usable ids.
+		$preflight                   = $this->redact_verification_grant_material( $preflight );
+		$expected_reference_skips    = array();
+		$expected_verification_reads = $this->verification_reads_for_actions( $actions, $expected_reference_skips );
+		$granted_verification_total  = array_sum( array_map( 'count', $this->verification_grant_queues[ $correlation_id ] ) );
+		if ( array() !== $expected_reference_skips || count( $expected_verification_reads ) > $granted_verification_total ) {
+			// Fail-open by design, but never silent: a readback-paired action
+			// without a minted grant (including partial denials) degrades under
+			// grant-requiring deployments.
+			$this->emit_operation_event(
+				'adapter.commit.preflight_verification_reads_unavailable',
+				microtime( true ),
+				new WP_Error(
+					'npcink_openclaw_adapter_verification_reads_ungranted',
+					__( 'Execution found readback-paired actions without minted verification read grants; the post-execution readback may degrade under read-authorization-requiring deployments.', 'npcink-ai-client-adapter' )
+				),
+				array(
+					'proposal_id'             => $proposal_id,
+					'correlation_id'          => $correlation_id,
+					'expected_read_count'     => count( $expected_verification_reads ),
+					'granted_read_count'      => $granted_verification_total,
+					'reference_skipped_count' => count( $expected_reference_skips ),
+				)
+			);
+		}
 
 		$results = array();
 		$outputs = array();
-		foreach ( $actions as $action ) {
-			$action_index   = absint( $action['action_index'] ?? 0 );
-			$resolved_input = $this->execution_input_validator->resolve_output_references(
-				is_array( $action['input'] ?? null ) ? $action['input'] : array(),
-				$outputs,
-				$proposal_id,
-				$action_index
-			);
-			if ( is_wp_error( $resolved_input ) ) {
-				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$execution_record  = $this->store_failed_execution_record(
+		try {
+			foreach ( $actions as $action ) {
+				$action_index   = absint( $action['action_index'] ?? 0 );
+				$resolved_input = $this->execution_input_validator->resolve_output_references(
+					is_array( $action['input'] ?? null ) ? $action['input'] : array(),
+					$outputs,
 					$proposal_id,
-					$proposal,
-					$actions,
-					$results,
-					$preflight,
-					$correlation_id,
-					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
-					$resolved_input,
-					$action
+					$action_index
 				);
-				$resolved_input->add_data(
-					array_merge(
-						(array) $resolved_input->get_error_data(),
-						array(
-							'correlation_id'       => $correlation_id,
-							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'         => $action_index,
-							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'       => $execution_summary['selected_count'],
-							'submitted_count'      => $execution_summary['submitted_count'],
-							'executed_count'       => $execution_summary['executed_count'],
-							'failed_count'         => $execution_summary['failed_count'],
-							'blocked_count'        => $execution_summary['blocked_count'],
-							'partial_success'      => $execution_summary['partial_success'],
-							'retryable'            => $execution_summary['retryable'],
-							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results'     => $results,
-							'execution_record'     => $execution_record,
+				if ( is_wp_error( $resolved_input ) ) {
+					$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
+					$execution_record  = $this->store_failed_execution_record(
+						$proposal_id,
+						$proposal,
+						$actions,
+						$results,
+						$preflight,
+						$correlation_id,
+						sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+						$resolved_input,
+						$action
+					);
+					$resolved_input->add_data(
+						array_merge(
+							(array) $resolved_input->get_error_data(),
+							array(
+								'correlation_id'       => $correlation_id,
+								'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+								'action_index'         => $action_index,
+								'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+								'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+								'selected_count'       => $execution_summary['selected_count'],
+								'submitted_count'      => $execution_summary['submitted_count'],
+								'executed_count'       => $execution_summary['executed_count'],
+								'failed_count'         => $execution_summary['failed_count'],
+								'blocked_count'        => $execution_summary['blocked_count'],
+								'partial_success'      => $execution_summary['partial_success'],
+								'retryable'            => $execution_summary['retryable'],
+								'operator_next_action' => $execution_summary['operator_next_action'],
+								'executed_results'     => $results,
+								'execution_record'     => $execution_record,
+							)
 						)
-					)
-				);
-				return $resolved_input;
-			}
-
-			$action['input']   = is_array( $resolved_input ) ? $resolved_input : array();
-			$action['post_id'] = absint( $action['input']['post_id'] ?? 0 );
-			$valid_input       = $this->execution_input_validator->validate_execute_action_input(
-				$proposal_id,
-				sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) ),
-				$action['input'],
-				absint( $action['post_id'] ?? 0 ),
-				$action_index,
-				false,
-				true
-			);
-			if ( is_wp_error( $valid_input ) ) {
-				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$execution_record  = $this->store_failed_execution_record(
-					$proposal_id,
-					$proposal,
-					$actions,
-					$results,
-					$preflight,
-					$correlation_id,
-					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
-					$valid_input,
-					$action
-				);
-				$valid_input->add_data(
-					array_merge(
-						(array) $valid_input->get_error_data(),
-						array(
-							'correlation_id'       => $correlation_id,
-							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'         => $action_index,
-							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'       => $execution_summary['selected_count'],
-							'submitted_count'      => $execution_summary['submitted_count'],
-							'executed_count'       => $execution_summary['executed_count'],
-							'failed_count'         => $execution_summary['failed_count'],
-							'blocked_count'        => $execution_summary['blocked_count'],
-							'partial_success'      => $execution_summary['partial_success'],
-							'retryable'            => $execution_summary['retryable'],
-							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results'     => $results,
-							'execution_record'     => $execution_record,
-						)
-					)
-				);
-				return $valid_input;
-			}
-
-			$media_alt_live_preflight = $this->media_alt_live_preflight( $proposal_id, $action, $preflight, $approval_context, $correlation_id, $base_request_context );
-			if ( is_wp_error( $media_alt_live_preflight ) ) {
-				$execution_record = $this->store_failed_execution_record(
-					$proposal_id,
-					$proposal,
-					$actions,
-					$results,
-					$preflight,
-					$correlation_id,
-					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
-					$media_alt_live_preflight,
-					$action
-				);
-				$media_alt_live_preflight->add_data(
-					array_merge(
-						(array) $media_alt_live_preflight->get_error_data(),
-						array( 'execution_record' => $execution_record )
-					)
-				);
-				return $media_alt_live_preflight;
-			}
-			if ( ! empty( $media_alt_live_preflight ) ) {
-				$action['media_alt_live_preflight'] = $media_alt_live_preflight;
-			}
-
-			$result = $this->execution_action_runner->execute( $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
-			if ( is_wp_error( $result ) ) {
-				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$error_data        = $result->get_error_data();
-				$error_data        = is_array( $error_data ) ? $error_data : array();
-				$status            = absint( $error_data['status'] ?? 0 );
-				if ( 0 === $status ) {
-					$status = 409;
+					);
+					return $resolved_input;
 				}
 
-				$execution_record = $this->store_failed_execution_record(
+				$action['input']   = is_array( $resolved_input ) ? $resolved_input : array();
+				$action['post_id'] = absint( $action['input']['post_id'] ?? 0 );
+				$valid_input       = $this->execution_input_validator->validate_execute_action_input(
 					$proposal_id,
-					$proposal,
-					$actions,
-					$results,
-					$preflight,
-					$correlation_id,
-					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
-					$result,
-					$action
+					sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) ),
+					$action['input'],
+					absint( $action['post_id'] ?? 0 ),
+					$action_index,
+					false,
+					true
 				);
-				$result->add_data(
-					array_merge(
-						$error_data,
-						array(
-							'status'               => $status,
-							'proposal_id'          => $proposal_id,
-							'correlation_id'       => $correlation_id,
-							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'         => absint( $action['action_index'] ?? 0 ),
-							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'       => $execution_summary['selected_count'],
-							'submitted_count'      => $execution_summary['submitted_count'],
-							'executed_count'       => $execution_summary['executed_count'],
-							'failed_count'         => $execution_summary['failed_count'],
-							'blocked_count'        => $execution_summary['blocked_count'],
-							'partial_success'      => $execution_summary['partial_success'],
-							'retryable'            => $execution_summary['retryable'],
-							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results'     => $results,
-							'execution_record'     => $execution_record,
+				if ( is_wp_error( $valid_input ) ) {
+					$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
+					$execution_record  = $this->store_failed_execution_record(
+						$proposal_id,
+						$proposal,
+						$actions,
+						$results,
+						$preflight,
+						$correlation_id,
+						sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+						$valid_input,
+						$action
+					);
+					$valid_input->add_data(
+						array_merge(
+							(array) $valid_input->get_error_data(),
+							array(
+								'correlation_id'       => $correlation_id,
+								'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+								'action_index'         => $action_index,
+								'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+								'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+								'selected_count'       => $execution_summary['selected_count'],
+								'submitted_count'      => $execution_summary['submitted_count'],
+								'executed_count'       => $execution_summary['executed_count'],
+								'failed_count'         => $execution_summary['failed_count'],
+								'blocked_count'        => $execution_summary['blocked_count'],
+								'partial_success'      => $execution_summary['partial_success'],
+								'retryable'            => $execution_summary['retryable'],
+								'operator_next_action' => $execution_summary['operator_next_action'],
+								'executed_results'     => $results,
+								'execution_record'     => $execution_record,
+							)
 						)
-					)
-				);
-				return $result;
+					);
+					return $valid_input;
+				}
+
+				$media_alt_live_preflight = $this->media_alt_live_preflight( $proposal_id, $action, $preflight, $approval_context, $correlation_id, $base_request_context );
+				if ( is_wp_error( $media_alt_live_preflight ) ) {
+					$execution_record = $this->store_failed_execution_record(
+						$proposal_id,
+						$proposal,
+						$actions,
+						$results,
+						$preflight,
+						$correlation_id,
+						sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+						$media_alt_live_preflight,
+						$action
+					);
+					$media_alt_live_preflight->add_data(
+						array_merge(
+							(array) $media_alt_live_preflight->get_error_data(),
+							array( 'execution_record' => $execution_record )
+						)
+					);
+					return $media_alt_live_preflight;
+				}
+				if ( ! empty( $media_alt_live_preflight ) ) {
+					$action['media_alt_live_preflight'] = $media_alt_live_preflight;
+				}
+
+				$result = $this->execution_action_runner->execute( $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
+				if ( is_wp_error( $result ) ) {
+					$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
+					$error_data        = $result->get_error_data();
+					$error_data        = is_array( $error_data ) ? $error_data : array();
+					$status            = absint( $error_data['status'] ?? 0 );
+					if ( 0 === $status ) {
+						$status = 409;
+					}
+
+					$execution_record = $this->store_failed_execution_record(
+						$proposal_id,
+						$proposal,
+						$actions,
+						$results,
+						$preflight,
+						$correlation_id,
+						sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+						$result,
+						$action
+					);
+					$result->add_data(
+						array_merge(
+							$error_data,
+							array(
+								'status'               => $status,
+								'proposal_id'          => $proposal_id,
+								'correlation_id'       => $correlation_id,
+								'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+								'action_index'         => absint( $action['action_index'] ?? 0 ),
+								'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+								'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+								'selected_count'       => $execution_summary['selected_count'],
+								'submitted_count'      => $execution_summary['submitted_count'],
+								'executed_count'       => $execution_summary['executed_count'],
+								'failed_count'         => $execution_summary['failed_count'],
+								'blocked_count'        => $execution_summary['blocked_count'],
+								'partial_success'      => $execution_summary['partial_success'],
+								'retryable'            => $execution_summary['retryable'],
+								'operator_next_action' => $execution_summary['operator_next_action'],
+								'executed_results'     => $results,
+								'execution_record'     => $execution_record,
+							)
+						)
+					);
+					return $result;
+				}
+
+				$results[] = $result;
+				$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
 			}
 
-			$results[] = $result;
-			$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
-		}
-
-		$first_result        = is_array( $results[0] ?? null ) ? $results[0] : array();
-		$post_ids            = array_values(
-			array_map(
-				'absint',
-				array_column( $results, 'post_id' )
-			)
-		);
-		$target_ability_ids  = array_values(
-			array_unique(
+			$first_result        = is_array( $results[0] ?? null ) ? $results[0] : array();
+			$post_ids            = array_values(
 				array_map(
-					static function ( $result ) {
-						return is_array( $result ) ? sanitize_text_field( (string) ( $result['target_ability_id'] ?? '' ) ) : '';
-					},
-					$results
+					'absint',
+					array_column( $results, 'post_id' )
 				)
-			)
-		);
-		$target_ability_ids  = array_values( array_filter( $target_ability_ids ) );
-		$execution_mode      = count( $actions ) > 1 || 'batch_write_actions' === (string) ( $actions[0]['execution_mode'] ?? '' ) ? 'batch_write_actions' : 'single_post';
-		$response_ability_id = 1 === count( $target_ability_ids ) ? $target_ability_ids[0] : $proposal_ability_id;
-		$execution_summary   = $this->selected_batch_execution_summary( $actions, $results );
+			);
+			$target_ability_ids  = array_values(
+				array_unique(
+					array_map(
+						static function ( $result ) {
+							return is_array( $result ) ? sanitize_text_field( (string) ( $result['target_ability_id'] ?? '' ) ) : '';
+						},
+						$results
+					)
+				)
+			);
+			$target_ability_ids  = array_values( array_filter( $target_ability_ids ) );
+			$execution_mode      = count( $actions ) > 1 || 'batch_write_actions' === (string) ( $actions[0]['execution_mode'] ?? '' ) ? 'batch_write_actions' : 'single_post';
+			$response_ability_id = 1 === count( $target_ability_ids ) ? $target_ability_ids[0] : $proposal_ability_id;
+			$execution_summary   = $this->selected_batch_execution_summary( $actions, $results );
 
-		$execution                     = array(
-			'ability_id'                      => $response_ability_id,
-			'post_id'                         => absint( $first_result['post_id'] ?? 0 ),
-			'post_ids'                        => $post_ids,
-			'correlation_id'                  => $correlation_id,
-			'adapter_request_id'              => (string) ( $base_request_context['adapter_request_id'] ?? '' ),
-			'approval_context'                => $approval_context,
-			'preflight_source'                => $preflight_source,
-			'preflight'                       => $preflight,
-			'core_preflight_evidence'         => array(
-				'authorized'                           => true,
-				'policy_version'                       => sanitize_text_field( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) ),
-				'approved_input_hash'                  => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
-				'correlation_id'                       => $correlation_id,
-				'preflight_source'                     => $preflight_source,
-				'commit_execution'                     => false,
-				'adapter_preflight_source'             => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? $preflight_source ) ),
-				'implementation_posture_status'        => sanitize_key( (string) ( $implementation_posture_evidence['status'] ?? '' ) ),
-				'implementation_posture_checked_count' => absint( $implementation_posture_evidence['checked_count'] ?? 0 ),
-			),
-			'implementation_posture_evidence' => $implementation_posture_evidence,
-			'media_alt_live_preflight'        => is_array( $first_result['media_alt_live_preflight'] ?? null ) ? $first_result['media_alt_live_preflight'] : array(),
-			'batch_review_feedback'           => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
-			'execution_mode'                  => $execution_mode,
-			'selected_count'                  => $execution_summary['selected_count'],
-			'submitted_count'                 => $execution_summary['submitted_count'],
-			'executed_count'                  => $execution_summary['executed_count'],
-			'failed_count'                    => $execution_summary['failed_count'],
-			'blocked_count'                   => $execution_summary['blocked_count'],
-			'partial_success'                 => $execution_summary['partial_success'],
-			'retryable'                       => $execution_summary['retryable'],
-			'operator_next_action'            => $execution_summary['operator_next_action'],
-			'results'                         => $results,
-			'post_status_before'              => (string) ( $first_result['post_status_before'] ?? '' ),
-			'post_status_after'               => (string) ( $first_result['post_status_after'] ?? '' ),
-			'result'                          => 1 === count( $results ) ? ( $first_result['result'] ?? array() ) : array(
-				'success'              => true,
-				'execution_mode'       => $execution_mode,
-				'selected_count'       => $execution_summary['selected_count'],
-				'submitted_count'      => $execution_summary['submitted_count'],
-				'executed_count'       => $execution_summary['executed_count'],
-				'failed_count'         => $execution_summary['failed_count'],
-				'blocked_count'        => $execution_summary['blocked_count'],
-				'partial_success'      => $execution_summary['partial_success'],
-				'retryable'            => $execution_summary['retryable'],
-				'operator_next_action' => $execution_summary['operator_next_action'],
-				'results'              => $results,
-			),
-		);
-		$execution['execution_record'] = $this->store_completed_execution_record( $proposal_id, $proposal, $execution );
+			$execution                     = array(
+				'ability_id'                      => $response_ability_id,
+				'post_id'                         => absint( $first_result['post_id'] ?? 0 ),
+				'post_ids'                        => $post_ids,
+				'correlation_id'                  => $correlation_id,
+				'adapter_request_id'              => (string) ( $base_request_context['adapter_request_id'] ?? '' ),
+				'approval_context'                => $approval_context,
+				'preflight_source'                => $preflight_source,
+				'preflight'                       => $preflight,
+				'core_preflight_evidence'         => array(
+					'authorized'                           => true,
+					'policy_version'                       => sanitize_text_field( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) ),
+					'approved_input_hash'                  => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
+					'correlation_id'                       => $correlation_id,
+					'preflight_source'                     => $preflight_source,
+					'commit_execution'                     => false,
+					'adapter_preflight_source'             => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? $preflight_source ) ),
+					'implementation_posture_status'        => sanitize_key( (string) ( $implementation_posture_evidence['status'] ?? '' ) ),
+					'implementation_posture_checked_count' => absint( $implementation_posture_evidence['checked_count'] ?? 0 ),
+				),
+				'implementation_posture_evidence' => $implementation_posture_evidence,
+				'media_alt_live_preflight'        => is_array( $first_result['media_alt_live_preflight'] ?? null ) ? $first_result['media_alt_live_preflight'] : array(),
+				'batch_review_feedback'           => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
+				'execution_mode'                  => $execution_mode,
+				'selected_count'                  => $execution_summary['selected_count'],
+				'submitted_count'                 => $execution_summary['submitted_count'],
+				'executed_count'                  => $execution_summary['executed_count'],
+				'failed_count'                    => $execution_summary['failed_count'],
+				'blocked_count'                   => $execution_summary['blocked_count'],
+				'partial_success'                 => $execution_summary['partial_success'],
+				'retryable'                       => $execution_summary['retryable'],
+				'operator_next_action'            => $execution_summary['operator_next_action'],
+				'results'                         => $results,
+				'post_status_before'              => (string) ( $first_result['post_status_before'] ?? '' ),
+				'post_status_after'               => (string) ( $first_result['post_status_after'] ?? '' ),
+				'result'                          => 1 === count( $results ) ? ( $first_result['result'] ?? array() ) : array(
+					'success'              => true,
+					'execution_mode'       => $execution_mode,
+					'selected_count'       => $execution_summary['selected_count'],
+					'submitted_count'      => $execution_summary['submitted_count'],
+					'executed_count'       => $execution_summary['executed_count'],
+					'failed_count'         => $execution_summary['failed_count'],
+					'blocked_count'        => $execution_summary['blocked_count'],
+					'partial_success'      => $execution_summary['partial_success'],
+					'retryable'            => $execution_summary['retryable'],
+					'operator_next_action' => $execution_summary['operator_next_action'],
+					'results'              => $results,
+				),
+			);
+			$execution['execution_record'] = $this->store_completed_execution_record( $proposal_id, $proposal, $execution );
 
-		return $execution;
+			return $execution;
+		} finally {
+			// Authorization material never outlives the execution: every exit path
+			// (in-loop error returns and the success return above) drops the queue.
+			unset( $this->verification_grant_queues[ $correlation_id ] );
+		}
 	}
 
 	/**
@@ -4774,6 +4986,222 @@ final class Controller {
 		);
 	}
 
+
+	/**
+	 * Returns the verification reads the post-execution readback will need.
+	 *
+	 * Mirrors block_write_readback_verification()'s write-to-read pairing,
+	 * derived from each normalized action's write input so Core can mint single-use
+	 * verification read requests at commit preflight (Core ADR-012). Actions whose
+	 * addressing is an unresolved output reference cannot be minted at preflight
+	 * time and are reported through the by-reference skip list.
+	 *
+	 * @param array<int,array<string,mixed>> $actions Normalized execution actions.
+	 * @param array<int,array<string,mixed>> $reference_skipped_actions Reference-addressed paired actions, set by reference.
+	 * @return array<int,array<string,mixed>> Verification read requests.
+	 */
+	private function verification_reads_for_actions( array $actions, array &$reference_skipped_actions = array() ): array {
+		$reads                     = array();
+		$reference_skipped_actions = array();
+
+		foreach ( (array) $actions as $action ) {
+			$action     = is_array( $action ) ? $action : array();
+			$ability_id = sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) );
+			$input      = is_array( $action['input'] ?? null ) ? $action['input'] : array();
+			$post_id    = isset( $input['post_id'] ) && is_numeric( $input['post_id'] ) ? absint( $input['post_id'] ) : 0;
+			$raw_post   = isset( $input['post_id'] ) && is_string( $input['post_id'] ) ? trim( (string) $input['post_id'] ) : '';
+			$raw_slug   = isset( $input['slug'] ) && is_string( $input['slug'] ) ? trim( (string) $input['slug'] ) : '';
+			$slug       = '' !== $raw_slug ? sanitize_key( $raw_slug ) : '';
+
+			$paired_write_ability = in_array(
+				$ability_id,
+				array(
+					'npcink-abilities-toolkit/update-post-blocks',
+					'npcink-abilities-toolkit/update-template-blocks',
+					'npcink-abilities-toolkit/upsert-template-blocks',
+					'npcink-abilities-toolkit/update-template-part-blocks',
+				),
+				true
+			);
+			if ( $paired_write_ability && ( 0 === stripos( $raw_post, '$outputs.' ) || 0 === stripos( $raw_slug, '$outputs.' ) ) ) {
+				// Reference addressing resolves only at execute time, after the
+				// preflight mint; Core cannot bind a read to an unresolved id. This
+				// is the recorded ADR-012 limitation (adapter issue #93).
+				$reference_skipped_actions[] = array(
+					'ability_id'   => $ability_id,
+					'action_index' => absint( $action['action_index'] ?? 0 ),
+				);
+				continue;
+			}
+
+			if ( 'npcink-abilities-toolkit/update-post-blocks' === $ability_id && $post_id > 0 ) {
+				$reads[] = array(
+					'ability_id' => 'npcink-abilities-toolkit/get-post-blocks',
+					'input'      => array(
+						'post_id'              => $post_id,
+						'include_inner_blocks' => true,
+					),
+				);
+				continue;
+			}
+
+			if ( ( 'npcink-abilities-toolkit/update-template-blocks' === $ability_id || 'npcink-abilities-toolkit/upsert-template-blocks' === $ability_id ) && ( $post_id > 0 || '' !== $slug ) ) {
+				$reads[] = array(
+					'ability_id' => 'npcink-abilities-toolkit/get-template-blocks',
+					'input'      => $post_id > 0 ? array( 'post_id' => $post_id ) : array( 'slug' => $slug ),
+				);
+				continue;
+			}
+
+			if ( 'npcink-abilities-toolkit/update-template-part-blocks' === $ability_id && ( $post_id > 0 || '' !== $slug ) ) {
+				$reads[] = array(
+					'ability_id' => 'npcink-abilities-toolkit/get-template-part-blocks',
+					'input'      => $post_id > 0 ? array( 'post_id' => $post_id ) : array( 'slug' => $slug ),
+				);
+			}
+		}
+
+		return $reads;
+	}
+
+	/**
+	 * Redacts verification read grant material down to granted ability ids.
+	 *
+	 * Applied once the grant map is captured: a preflight that travels into
+	 * execution responses or stored records must never carry usable
+	 * single-use request ids.
+	 *
+	 * @param array<string,mixed> $preflight Commit preflight payload.
+	 * @return array<string,mixed> Redacted preflight payload.
+	 */
+	private function redact_verification_grant_material( array $preflight ): array {
+		if ( isset( $preflight['execution_handoff']['execution_verification_reads'] ) ) {
+			$preflight['execution_handoff']['execution_verification_reads'] = array_map(
+				static function ( $grant ): array {
+					if ( ! is_array( $grant ) ) {
+						return array();
+					}
+					return array( 'ability_id' => (string) ( $grant['ability_id'] ?? '' ) );
+				},
+				(array) $preflight['execution_handoff']['execution_verification_reads']
+			);
+		}
+		if ( isset( $preflight['execution_verification_reads']['granted'] ) ) {
+			$preflight['execution_verification_reads']['granted'] = array_map(
+				static function ( $grant ): array {
+					if ( ! is_array( $grant ) ) {
+						return array();
+					}
+					return array( 'ability_id' => (string) ( $grant['ability_id'] ?? '' ) );
+				},
+				(array) $preflight['execution_verification_reads']['granted']
+			);
+		}
+
+		return $preflight;
+	}
+
+	/**
+	 * Returns the grant map from a preflight response.
+	 *
+	 * Keyed by read ability plus the object signature the minted input
+	 * addresses, so multiple actions pairing to the same read ability keep
+	 * their own single-use grants. Each entry carries the minted input so
+	 * the readback can present exactly the approved addressing.
+	 *
+	 * Hardened Core (npcink-governance-core#131, ADR-012) returns granted ids
+	 * only inside the execution handoff, and those entries carry no input;
+	 * the addressing input is recovered by binding each granted id
+	 * positionally, per read ability, to the requested reads this adapter
+	 * derived from the same actions. Core exposes no per-input denial
+	 * detail, so when same-ability requests were denied the positional
+	 * binding can key a grant to the wrong object; the affected readback
+	 * then finds no grant or is rejected on Core's approved-input hash — a
+	 * visible degradation that never widens authorization.
+	 *
+	 * @param array<string,mixed>            $preflight Commit preflight response.
+	 * @param array<int,array<string,mixed>> $actions   Normalized execution actions.
+	 * @return array<string, array<int, array<string, mixed>>> Grant map.
+	 */
+	private function verification_read_grant_map( array $preflight, array $actions ): array {
+		$grants       = array();
+		$handoff      = is_array( $preflight['execution_handoff'] ?? null ) ? $preflight['execution_handoff'] : array();
+		$granted      = is_array( $handoff['execution_verification_reads'] ?? null ) ? (array) $handoff['execution_verification_reads'] : array();
+		$from_handoff = true;
+		if ( empty( $granted ) ) {
+			// Fallback for pre-hardening Core, whose top-level response still carried usable ids.
+			$from_handoff = false;
+			$top_level    = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
+			$granted      = array_values(
+				array_filter(
+					$top_level,
+					static function ( $entry ): bool {
+						return is_array( $entry ) && ! empty( $entry['request_id'] );
+					}
+				)
+			);
+		}
+
+		// Positional per-ability binding inputs for handoff grants that carry none.
+		$requested_by_ability = array();
+		if ( $from_handoff ) {
+			foreach ( $this->verification_reads_for_actions( $actions ) as $requested_read ) {
+				$requested_by_ability[ sanitize_text_field( (string) ( $requested_read['ability_id'] ?? '' ) ) ][] = $requested_read;
+			}
+		}
+		$cursors = array();
+
+		foreach ( $granted as $grant ) {
+			if ( ! is_array( $grant ) || empty( $grant['request_id'] ) || empty( $grant['ability_id'] ) ) {
+				continue;
+			}
+			$grant_ability_id = (string) $grant['ability_id'];
+			$grant_input      = is_array( $grant['input'] ?? null ) ? $grant['input'] : array();
+
+			if ( $from_handoff && array() === $grant_input && isset( $requested_by_ability[ $grant_ability_id ] ) ) {
+				// The i-th granted id of an ability maps to the i-th requested read of that ability.
+				$cursor = $cursors[ $grant_ability_id ] ?? 0;
+				$pool   = $requested_by_ability[ $grant_ability_id ];
+				if ( $cursor >= count( $pool ) ) {
+					continue;
+				}
+				$cursors[ $grant_ability_id ] = $cursor + 1;
+				$grant_input                  = is_array( $pool[ $cursor ]['input'] ?? null ) ? $pool[ $cursor ]['input'] : array();
+			}
+
+			$signature = $this->verification_read_signature( $grant_input );
+			if ( '' === $signature ) {
+				continue;
+			}
+			$map_key = $grant_ability_id . '|' . $signature;
+			if ( ! isset( $grants[ $map_key ] ) ) {
+				$grants[ $map_key ] = array();
+			}
+			$grants[ $map_key ][] = array(
+				'request_id' => sanitize_text_field( (string) $grant['request_id'] ),
+				'input'      => $grant_input,
+			);
+		}
+
+		return $grants;
+	}
+
+	/**
+	 * Returns the object signature of one verification read input.
+	 *
+	 * @param array<string,mixed> $input Verification read input.
+	 * @return string Signature like "post:42" or "slug:single", empty when unaddressed.
+	 */
+	private function verification_read_signature( array $input ): string {
+		if ( isset( $input['post_id'] ) && is_numeric( $input['post_id'] ) && (int) $input['post_id'] > 0 ) {
+			return 'post:' . (int) $input['post_id'];
+		}
+		if ( isset( $input['slug'] ) && is_string( $input['slug'] ) && '' !== (string) $input['slug'] ) {
+			return 'slug:' . sanitize_key( (string) $input['slug'] );
+		}
+
+		return '';
+	}
 
 	/**
 	 * Runs a read-only ability through WordPress Abilities API.
