@@ -3005,6 +3005,29 @@ final class Controller {
 
 				$handoff                                  = $this->store_preflight_handoff( $proposal_id, $proposal, $data );
 				$data['adapter_preflight_handoff_cached'] = is_array( $handoff );
+				// The cached handoff keeps grants for the execute path; the REST response never does.
+				if ( isset( $data['execution_handoff']['execution_verification_reads'] ) ) {
+					$data['execution_handoff']['execution_verification_reads'] = array_map(
+						static function ( $grant ): array {
+							if ( ! is_array( $grant ) ) {
+								return array();
+							}
+							return array( 'ability_id' => (string) ( $grant['ability_id'] ?? '' ) );
+						},
+						(array) $data['execution_handoff']['execution_verification_reads']
+					);
+				}
+				if ( isset( $data['execution_verification_reads']['granted'] ) ) {
+					$data['execution_verification_reads']['granted'] = array_map(
+						static function ( $grant ): array {
+							if ( ! is_array( $grant ) ) {
+								return array();
+							}
+							return array( 'ability_id' => (string) ( $grant['ability_id'] ?? '' ) );
+						},
+						(array) $data['execution_verification_reads']['granted']
+					);
+				}
 				$data['adapter_execution_route']          = '/wp-json/' . self::NAMESPACE . '/proposals/' . rawurlencode( $proposal_id ) . '/execute';
 				$data['execution_handoff_posture']        = $this->execution_handoff_posture();
 				$batch_review_feedback                    = $this->batch_review_feedback_from_preflight( $data, $proposal );
