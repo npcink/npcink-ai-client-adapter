@@ -4283,13 +4283,15 @@ final class Controller {
 				$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
 			}
 
-			$this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $proposal, $preflight, $correlation_id, $actions, $results );
+			$supplemented = $this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $proposal, $preflight, $correlation_id, $actions, $results );
 
-			// The outputs snapshots were taken per action inside the loop; a supplement
-			// that flips a row's verification afterwards must be reflected in them.
-			foreach ( $results as $result ) {
-				if ( is_array( $result ) && '' !== (string) ( $result['action_id'] ?? '' ) ) {
-					$outputs[ sanitize_key( (string) ( $result['action_id'] ) ) ] = $this->output_map_from_action_result( $result );
+			if ( $supplemented ) {
+				// The outputs snapshots were taken per action inside the loop; a supplement
+				// that flips a row's verification afterwards must be reflected in them.
+				foreach ( $results as $result ) {
+					if ( is_array( $result ) && '' !== (string) ( $result['action_id'] ?? '' ) ) {
+						$outputs[ sanitize_key( (string) ( $result['action_id'] ) ) ] = $this->output_map_from_action_result( $result );
+					}
 				}
 			}
 
@@ -4742,9 +4744,9 @@ final class Controller {
 	 * @param string              $correlation_id Execution correlation id.
 	 * @param array<int,array<string,mixed>> $actions Normalized actions.
 	 * @param array<int,array<string,mixed>> $results Executed action results, modified in place.
-	 * @return void
+	 * @return bool True when at least one result row's verification was updated.
 	 */
-	private function supplement_execution_verification_with_recorded_evidence( string $proposal_id, array $proposal, array $preflight, string $correlation_id, array $actions, array &$results ): void {
+	private function supplement_execution_verification_with_recorded_evidence( string $proposal_id, array $proposal, array $preflight, string $correlation_id, array $actions, array &$results ): bool {
 		unset( $proposal );
 		$needs_supplement = array();
 		$recorded_actions = array();
@@ -4789,7 +4791,7 @@ final class Controller {
 		}
 
 		if ( empty( $needs_supplement ) ) {
-			return;
+			return false;
 		}
 
 		$approval_context    = is_array( $preflight['approval_context'] ?? null ) ? $preflight['approval_context'] : array();
@@ -4827,7 +4829,7 @@ final class Controller {
 					'correlation_id' => $correlation_id,
 				)
 			);
-			return;
+			return false;
 		}
 
 		$data    = $response->get_data();
@@ -4835,7 +4837,7 @@ final class Controller {
 		$granted = is_array( $data['execution_verification_reads']['granted'] ?? null ) ? (array) $data['execution_verification_reads']['granted'] : array();
 
 		if ( empty( $granted ) ) {
-			return;
+			return false;
 		}
 
 		// Seed the per-execution queue with the recorded-evidence grants, then re-run only the failed readbacks.
@@ -4846,6 +4848,7 @@ final class Controller {
 			'correlation_id' => $correlation_id,
 		);
 
+		$applied = false;
 		foreach ( $needs_supplement as $index ) {
 			$row           = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
 			$ability_input = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
@@ -4881,8 +4884,11 @@ final class Controller {
 					$existing_verification,
 					$supplement
 				);
+				$applied = true;
 			}
 		}
+
+		return $applied;
 	}
 
 	/**
