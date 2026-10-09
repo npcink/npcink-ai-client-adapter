@@ -4780,8 +4780,8 @@ final class Controller {
 			if ( empty( $recorded_result ) && isset( $result['post_id'] ) ) {
 				$recorded_result = array( 'post_id' => $result['post_id'] );
 			}
-			$row_action_index = (int) ( $result['action_index'] ?? $index );
-			$action_input     = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ]['input'] ?? null )
+			$row_action_index   = (int) ( $result['action_index'] ?? $index );
+			$action_input       = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ]['input'] ?? null )
 				? $actions_by_index[ $row_action_index ]['input']
 				: array();
 			$recorded_actions[] = array(
@@ -4855,11 +4855,11 @@ final class Controller {
 
 		$applied = false;
 		foreach ( $needs_supplement as $index ) {
-			$row           = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
-			$ability_input = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
+			$row              = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
+			$ability_input    = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
 			$row_action_index = (int) ( $row['action_index'] ?? $index );
-			$candidate       = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ] ) ? $actions_by_index[ $row_action_index ] : array();
-			$candidate_input = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
+			$candidate        = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ] ) ? $actions_by_index[ $row_action_index ] : array();
+			$candidate_input  = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
 			if ( array() === $ability_input && isset( $candidate_input['post_id'] ) && is_numeric( $candidate_input['post_id'] ) ) {
 				$row_result_data = is_array( $row['result'] ?? null ) ? $row['result'] : array();
 				$recorded_slug   = isset( $row_result_data['slug'] ) && is_string( $row_result_data['slug'] ) ? sanitize_key( (string) $row_result_data['slug'] ) : '';
@@ -4892,7 +4892,7 @@ final class Controller {
 					$existing_verification,
 					$supplement
 				);
-				$applied = true;
+				$applied                                     = true;
 			}
 		}
 
