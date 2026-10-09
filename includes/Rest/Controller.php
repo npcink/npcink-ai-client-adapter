@@ -4813,7 +4813,7 @@ final class Controller {
 				'record_phase'        => 'provisional',
 				'execution_status'    => $recorded_status,
 				'correlation_id'      => $correlation_id,
-				'approved_input_hash' => $approved_input_hash,
+				'approved_input_hash' => sanitize_text_field( $approved_input_hash ),
 				'actions'             => $recorded_actions,
 			),
 			false,
@@ -4856,7 +4856,8 @@ final class Controller {
 		$applied = false;
 		foreach ( $needs_supplement as $index ) {
 			$row              = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
-			$ability_input    = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
+			$row_post_id      = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? absint( $row['post_id'] ) : 0;
+			$ability_input    = $row_post_id > 0 ? array( 'post_id' => $row_post_id ) : array();
 			$row_action_index = (int) ( $row['action_index'] ?? $index );
 			$candidate        = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ] ) ? $actions_by_index[ $row_action_index ] : array();
 			$candidate_input  = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
