@@ -3996,6 +3996,7 @@ final class Controller {
 
 		$results = array();
 		$outputs = array();
+		try {
 		foreach ( $actions as $action ) {
 			$action_index   = absint( $action['action_index'] ?? 0 );
 			$resolved_input = $this->execution_input_validator->resolve_output_references(
@@ -4242,6 +4243,11 @@ final class Controller {
 		$execution['execution_record'] = $this->store_completed_execution_record( $proposal_id, $proposal, $execution );
 
 		return $execution;
+		} finally {
+			// Authorization material never outlives the execution: every exit path
+			// (in-loop error returns and the success return above) drops the queue.
+			unset( $this->verification_grant_queues[ $correlation_id ] );
+		}
 	}
 
 	/**
