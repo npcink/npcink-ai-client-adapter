@@ -4843,8 +4843,13 @@ final class Controller {
 				}
 				$candidate_input = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
 				if ( array() === $ability_input && isset( $candidate_input['post_id'] ) && is_numeric( $candidate_input['post_id'] ) ) {
-					// The approved numeric addressing is the completeness fallback when the row lost its object id.
-					$ability_input = array( 'post_id' => absint( $candidate_input['post_id'] ) );
+					$row_result_data = is_array( $row['result'] ?? null ) ? $row['result'] : array();
+					$recorded_slug   = isset( $row_result_data['slug'] ) && is_string( $row_result_data['slug'] ) ? sanitize_key( (string) $row_result_data['slug'] ) : '';
+					if ( '' === $recorded_slug ) {
+						// Only when the recorded evidence carries no addressing of its own: a slug-addressed
+						// record must keep slug addressing so the re-run key matches the seeded grant.
+						$ability_input = array( 'post_id' => absint( $candidate_input['post_id'] ) );
+					}
 				}
 				if ( isset( $candidate_input['slug'] ) && is_string( $candidate_input['slug'] ) ) {
 					// Slug-addressed writes keep their approved slug when the result row carries no numeric id.
