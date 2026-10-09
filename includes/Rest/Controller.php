@@ -4283,6 +4283,18 @@ final class Controller {
 				$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
 			}
 
+			$supplemented = $this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $preflight, $correlation_id, $actions, $base_request_context, $results );
+
+			if ( $supplemented ) {
+				// The outputs snapshots were taken per action inside the loop; a supplement
+				// that flips a row's verification afterwards must be reflected in them.
+				foreach ( $results as $result ) {
+					if ( is_array( $result ) && '' !== (string) ( $result['action_id'] ?? '' ) ) {
+						$outputs[ sanitize_key( (string) ( $result['action_id'] ) ) ] = $this->output_map_from_action_result( $result );
+					}
+				}
+			}
+
 			$first_result        = is_array( $results[0] ?? null ) ? $results[0] : array();
 			$post_ids            = array_values(
 				array_map(
@@ -4724,7 +4736,206 @@ final class Controller {
 	}
 
 	/**
-	 * Returns the compact verification projection of an execution.
+	 * Re-runs failed post-execution readbacks with Core-recorded evidence (ADR-013).
+	 *
+	 * @param string              $proposal_id Proposal id.
+	 * @param array<string,mixed> $preflight Core preflight payload.
+	 * @param string              $correlation_id Execution correlation id.
+	 * @param array<int,array<string,mixed>> $actions Normalized actions.
+	 * @param array<string,mixed> $base_request_context Execution base request context for re-run logs.
+	 * @param array<int,array<string,mixed>> $results Executed action results, modified in place.
+	 * @return bool True when at least one result row's verification was updated.
+	 */
+	private function supplement_execution_verification_with_recorded_evidence( string $proposal_id, array $preflight, string $correlation_id, array $actions, array $base_request_context, array &$results ): bool {
+		$needs_supplement = array();
+		$recorded_actions = array();
+		// Action indexes are unique per normalized batch; one keyed copy serves both passes.
+		$actions_by_index = array();
+		foreach ( $actions as $candidate ) {
+			if ( is_array( $candidate ) ) {
+				$actions_by_index[ (int) ( $candidate['action_index'] ?? -1 ) ] = $candidate;
+			}
+		}
+
+		foreach ( $results as $index => $result ) {
+			$result       = is_array( $result ) ? $result : array();
+			$result_data  = is_array( $result['result'] ?? null ) ? $result['result'] : array();
+			$verification = is_array( $result_data['verification'] ?? null ) ? $result_data['verification'] : array();
+			$status       = (string) ( $verification['block_readback_status'] ?? '' );
+
+			if ( '' === $status || 'verified' === $status ) {
+				continue;
+			}
+
+			$needs_supplement[] = $index;
+			$recorded_result    = array_intersect_key(
+				$result_data,
+				array(
+					'post_id' => true,
+					'slug'    => true,
+				)
+			);
+			if ( empty( $recorded_result ) && isset( $result['post_id'] ) ) {
+				$recorded_result = array( 'post_id' => $result['post_id'] );
+			}
+			$row_action_index   = (int) ( $result['action_index'] ?? $index );
+			$action_input       = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ]['input'] ?? null )
+				? $actions_by_index[ $row_action_index ]['input']
+				: array();
+			$recorded_actions[] = array(
+				'ability_id' => (string) ( $result['ability_id'] ?? '' ),
+				'input'      => $action_input,
+				'result'     => $recorded_result,
+			);
+		}
+
+		if ( empty( $needs_supplement ) ) {
+			return false;
+		}
+
+		$approval_context    = is_array( $preflight['approval_context'] ?? null ) ? $preflight['approval_context'] : array();
+		$approved_input_hash = (string) ( $approval_context['approved_input_hash'] ?? $preflight['approved_input_hash'] ?? '' );
+		// The supplement only runs after every action executed, so this loop agrees with the
+		// definitive record; deriving from ALL rows keeps it aligned if that invariant changes.
+		$recorded_status = 'succeeded';
+		foreach ( $results as $status_row ) {
+			$row_status = (string) ( is_array( $status_row ) ? ( $status_row['status'] ?? '' ) : '' );
+			if ( 'executed' !== $row_status ) {
+				$recorded_status = 'failed';
+				break;
+			}
+		}
+
+		$response = $this->dispatch_upstream(
+			'POST',
+			'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/record-execution',
+			array(
+				'record_phase'        => 'provisional',
+				'execution_status'    => $recorded_status,
+				'correlation_id'      => $correlation_id,
+				'approved_input_hash' => sanitize_text_field( $approved_input_hash ),
+				'actions'             => $recorded_actions,
+			),
+			false,
+			true
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$this->emit_operation_event(
+				'adapter.execution.verification_supplement_unavailable',
+				microtime( true ),
+				$response,
+				array(
+					'proposal_id'    => $proposal_id,
+					'correlation_id' => $correlation_id,
+				)
+			);
+			return false;
+		}
+
+		$data    = $response->get_data();
+		$data    = is_array( $data ) ? $data : array();
+		$granted = is_array( $data['execution_verification_reads']['granted'] ?? null ) ? (array) $data['execution_verification_reads']['granted'] : array();
+
+		if ( empty( $granted ) ) {
+			return false;
+		}
+
+		// Seed the per-execution queue with the recorded-evidence grants, then re-run only the failed readbacks.
+		$this->seed_supplement_verification_grants( $correlation_id, $granted );
+
+		// Re-run readbacks log through the same request context as the first pass.
+		$supplement_context = array_merge(
+			$base_request_context,
+			array(
+				'proposal_id'    => $proposal_id,
+				'correlation_id' => $correlation_id,
+			)
+		);
+
+		$applied = false;
+		foreach ( $needs_supplement as $index ) {
+			$row              = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
+			$row_post_id      = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? absint( $row['post_id'] ) : 0;
+			$ability_input    = $row_post_id > 0 ? array( 'post_id' => $row_post_id ) : array();
+			$row_action_index = (int) ( $row['action_index'] ?? $index );
+			$candidate        = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ] ) ? $actions_by_index[ $row_action_index ] : array();
+			$candidate_input  = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
+			if ( array() === $ability_input && isset( $candidate_input['post_id'] ) && is_numeric( $candidate_input['post_id'] ) ) {
+				$row_result_data = is_array( $row['result'] ?? null ) ? $row['result'] : array();
+				$recorded_slug   = isset( $row_result_data['slug'] ) && is_string( $row_result_data['slug'] ) ? sanitize_key( (string) $row_result_data['slug'] ) : '';
+				if ( '' === $recorded_slug ) {
+					// Only when the recorded evidence carries no addressing of its own: a slug-addressed
+					// record must keep slug addressing so the re-run key matches the seeded grant.
+					$ability_input = array( 'post_id' => absint( $candidate_input['post_id'] ) );
+				}
+			}
+			if ( isset( $candidate_input['slug'] ) && is_string( $candidate_input['slug'] ) && 0 !== stripos( (string) $candidate_input['slug'], '$outputs.' ) ) {
+				// Slug-addressed writes keep their approved slug when the result row carries no numeric id.
+				// Unresolved $outputs.* references are Core's addressing evidence, never a read address.
+				$ability_input['slug'] = sanitize_key( (string) $candidate_input['slug'] );
+			}
+			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
+			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
+
+			if ( ! empty( $supplement ) ) {
+				if ( ! is_array( $results[ $index ]['result'] ?? null ) ) {
+					// The latest attempt's outcome is preserved even when the row carried no array result.
+					$results[ $index ]['result'] = array();
+				}
+				$existing_verification = is_array( $results[ $index ]['result']['verification'] ?? null ) ? $results[ $index ]['result']['verification'] : array();
+				if ( 'verified' === (string) ( $supplement['block_readback_status'] ?? '' ) ) {
+					// A verified supplement supersedes the failed readback's failure-only metadata.
+					unset( $existing_verification['block_readback_error_code'], $existing_verification['block_readback_status_code'] );
+				}
+				// The supplement payload carries the LATEST attempt's metadata, verified or failed.
+				$results[ $index ]['result']['verification'] = array_merge(
+					$existing_verification,
+					$supplement
+				);
+				$applied                                     = true;
+			}
+		}
+
+		return $applied;
+	}
+
+	/**
+	 * Seeds the per-execution grant queue with Core-recorded evidence grants.
+	 *
+	 * Grants append per queue key even when the key already exists from the
+	 * preflight grant map: array_shift consumption leaves drained keys in
+	 * place, so a re-minted recorded-evidence grant must never be discarded
+	 * for an existing-but-empty key. Single-use queues stay FIFO: the next
+	 * readback on that key takes the freshly appended grant.
+	 *
+	 * @param string                         $correlation_id Execution correlation id.
+	 * @param array<int,array<string,mixed>> $granted Granted recorded-evidence reads.
+	 * @return void
+	 */
+	private function seed_supplement_verification_grants( string $correlation_id, array $granted ): void {
+		foreach ( $granted as $grant ) {
+			if ( ! is_array( $grant ) || empty( $grant['request_id'] ) || empty( $grant['ability_id'] ) ) {
+				continue;
+			}
+			$grant_input = is_array( $grant['input'] ?? null ) ? $grant['input'] : array();
+			$signature   = $this->verification_read_signature( $grant_input );
+			if ( '' === $signature ) {
+				continue;
+			}
+			$queue_key = (string) $grant['ability_id'] . '|' . $signature;
+			if ( ! isset( $this->verification_grant_queues[ $correlation_id ][ $queue_key ] ) ) {
+				$this->verification_grant_queues[ $correlation_id ][ $queue_key ] = array();
+			}
+			$this->verification_grant_queues[ $correlation_id ][ $queue_key ][] = array(
+				'request_id' => sanitize_text_field( (string) $grant['request_id'] ),
+				'input'      => $grant_input,
+			);
+		}
+	}
+
+	/**
+	 * Returns the compacted verification summary for one execution.
 	 *
 	 * @param array<string,mixed> $execution Execution.
 	 * @return array<string,mixed>|null
