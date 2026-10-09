@@ -2959,16 +2959,33 @@ final class Controller {
 	public function commit_preflight( WP_REST_Request $request ) {
 		$started     = microtime( true );
 		$proposal_id = (string) $request->get_param( 'proposal_id' );
-		$relay_proposal = $this->get_core_proposal_data( $proposal_id );
-		$relay_params   = array();
-		$relay_reads_derived = false;
+		$relay_proposal        = $this->get_core_proposal_data( $proposal_id );
+		$relay_params          = array();
+		$relay_reads_derived   = false;
+		$relay_reference_skips = array();
 		if ( ! is_wp_error( $relay_proposal ) ) {
 			$relay_actions = $this->normalize_execution_actions( $proposal_id, $relay_proposal );
 			if ( ! is_wp_error( $relay_actions ) ) {
-				$relay_verification_reads = $this->verification_reads_for_actions( $relay_actions );
+				$relay_verification_reads = $this->verification_reads_for_actions( $relay_actions, $relay_reference_skips );
 				$relay_reads_derived      = true;
 				if ( ! empty( $relay_verification_reads ) ) {
 					$relay_params['verification_reads'] = $relay_verification_reads;
+				}
+				if ( array() !== $relay_reference_skips ) {
+					// Reference-addressed actions resolve only at execute time, after
+					// the preflight mint; their readback degradation must not be silent.
+					$this->emit_operation_event(
+						'adapter.commit.preflight_verification_reads_unavailable',
+						microtime( true ),
+						new WP_Error(
+							'npcink_openclaw_adapter_verification_reads_reference_addressed',
+							__( 'Commit preflight relay skipped reference-addressed verification reads; the post-execution readback may degrade under read-authorization-requiring deployments.', 'npcink-ai-client-adapter' )
+						),
+						array(
+							'proposal_id'             => $proposal_id,
+							'reference_skipped_count' => count( $relay_reference_skips ),
+						)
+					);
 				}
 			}
 		}
@@ -2996,7 +3013,11 @@ final class Controller {
 			$data = $response->get_data();
 			if ( is_array( $data ) ) {
 				$proposal = is_array( $data['proposal'] ?? null ) ? $data['proposal'] : array();
-				if ( empty( $proposal ) ) {
+				if ( empty( $proposal ) && ! is_wp_error( $relay_proposal ) ) {
+					// The relay fetch is moments old and proposals do not mutate at
+					// commit preflight; avoid the second upstream round trip.
+					$proposal = $relay_proposal;
+				} elseif ( empty( $proposal ) ) {
 					$proposal_detail = $this->get_core_proposal_data( $proposal_id );
 					if ( ! is_wp_error( $proposal_detail ) ) {
 						$proposal = $proposal_detail;
@@ -4043,7 +4064,30 @@ final class Controller {
 		$npcink_governance_core['proposal_id']          = $proposal_id;
 		$npcink_governance_core['correlation_id']       = $correlation_id;
 		$base_request_context['npcink_governance_core'] = $npcink_governance_core;
-		$this->verification_grant_queues[ $correlation_id ] = $this->verification_read_grant_map( $preflight );
+		$this->verification_grant_queues[ $correlation_id ] = $this->verification_read_grant_map( $preflight, $actions );
+		$expected_reference_skips    = array();
+		$expected_verification_reads = $this->verification_reads_for_actions( $actions, $expected_reference_skips );
+		$granted_verification_total  = array_sum( array_map( 'count', $this->verification_grant_queues[ $correlation_id ] ) );
+		if ( array() !== $expected_reference_skips || count( $expected_verification_reads ) > $granted_verification_total ) {
+			// Fail-open by design, but never silent: a readback-paired action
+			// without a minted grant (including partial denials) degrades under
+			// grant-requiring deployments.
+			$this->emit_operation_event(
+				'adapter.commit.preflight_verification_reads_unavailable',
+				microtime( true ),
+				new WP_Error(
+					'npcink_openclaw_adapter_verification_reads_ungranted',
+					__( 'Execution found readback-paired actions without minted verification read grants; the post-execution readback may degrade under read-authorization-requiring deployments.', 'npcink-ai-client-adapter' )
+				),
+				array(
+					'proposal_id'             => $proposal_id,
+					'correlation_id'          => $correlation_id,
+					'expected_read_count'     => count( $expected_verification_reads ),
+					'granted_read_count'      => $granted_verification_total,
+					'reference_skipped_count' => count( $expected_reference_skips ),
+				)
+			);
+		}
 
 		$results = array();
 		$outputs = array();
@@ -4929,20 +4973,47 @@ final class Controller {
 	 *
 	 * Mirrors block_write_readback_verification()'s write-to-read pairing,
 	 * derived from each normalized action's write input so Core can mint single-use
-	 * verification read requests at commit preflight (Core ADR-011).
+	 * verification read requests at commit preflight (Core ADR-012). Actions whose
+	 * addressing is an unresolved output reference cannot be minted at preflight
+	 * time and are reported through the by-reference skip list.
 	 *
 	 * @param array<int,array<string,mixed>> $actions Normalized execution actions.
+	 * @param array<int,array<string,mixed>> $reference_skipped_actions Reference-addressed paired actions, set by reference.
 	 * @return array<int,array<string,mixed>> Verification read requests.
 	 */
-	private function verification_reads_for_actions( array $actions ): array {
-		$reads = array();
+	private function verification_reads_for_actions( array $actions, array &$reference_skipped_actions = array() ): array {
+		$reads                     = array();
+		$reference_skipped_actions = array();
 
 		foreach ( (array) $actions as $action ) {
-			$action    = is_array( $action ) ? $action : array();
+			$action     = is_array( $action ) ? $action : array();
 			$ability_id = sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) );
 			$input      = is_array( $action['input'] ?? null ) ? $action['input'] : array();
 			$post_id    = isset( $input['post_id'] ) && is_numeric( $input['post_id'] ) ? absint( $input['post_id'] ) : 0;
-			$slug       = isset( $input['slug'] ) && is_string( $input['slug'] ) ? sanitize_key( $input['slug'] ) : '';
+			$raw_post   = isset( $input['post_id'] ) && is_string( $input['post_id'] ) ? trim( (string) $input['post_id'] ) : '';
+			$raw_slug   = isset( $input['slug'] ) && is_string( $input['slug'] ) ? trim( (string) $input['slug'] ) : '';
+			$slug       = '' !== $raw_slug ? sanitize_key( $raw_slug ) : '';
+
+			$paired_write_ability = in_array(
+				$ability_id,
+				array(
+					'npcink-abilities-toolkit/update-post-blocks',
+					'npcink-abilities-toolkit/update-template-blocks',
+					'npcink-abilities-toolkit/upsert-template-blocks',
+					'npcink-abilities-toolkit/update-template-part-blocks',
+				),
+				true
+			);
+			if ( $paired_write_ability && ( 0 === stripos( $raw_post, '$outputs.' ) || 0 === stripos( $raw_slug, '$outputs.' ) ) ) {
+				// Reference addressing resolves only at execute time, after the
+				// preflight mint; Core cannot bind a read to an unresolved id. This
+				// is the recorded ADR-012 limitation (adapter issue #93).
+				$reference_skipped_actions[] = array(
+					'ability_id'   => $ability_id,
+					'action_index' => absint( $action['action_index'] ?? 0 ),
+				);
+				continue;
+			}
 
 			if ( 'npcink-abilities-toolkit/update-post-blocks' === $ability_id && $post_id > 0 ) {
 				$reads[] = array(
@@ -4982,36 +5053,72 @@ final class Controller {
 	 * their own single-use grants. Each entry carries the minted input so
 	 * the readback can present exactly the approved addressing.
 	 *
-	 * @param array<string,mixed> $preflight Commit preflight response.
-	 * @return array<string,array<string,mixed>> Grant map.
+	 * Hardened Core (npcink-governance-core#131, ADR-012) returns granted ids
+	 * only inside the execution handoff, and those entries carry no input;
+	 * the addressing input is recovered by binding each granted id
+	 * positionally, per read ability, to the requested reads this adapter
+	 * derived from the same actions. Core exposes no per-input denial
+	 * detail, so when same-ability requests were denied the positional
+	 * binding can key a grant to the wrong object; the affected readback
+	 * then finds no grant or is rejected on Core's approved-input hash — a
+	 * visible degradation that never widens authorization.
+	 *
+	 * @param array<string,mixed>            $preflight Commit preflight response.
+	 * @param array<int,array<string,mixed>> $actions   Normalized execution actions.
+	 * @return array<string, array<int, array<string, mixed>>> Grant map.
 	 */
-	private function verification_read_grant_map( array $preflight ): array {
+	private function verification_read_grant_map( array $preflight, array $actions ): array {
 		$grants  = array();
 		$handoff = is_array( $preflight['execution_handoff'] ?? null ) ? $preflight['execution_handoff'] : array();
 		$granted = is_array( $handoff['execution_verification_reads'] ?? null ) ? (array) $handoff['execution_verification_reads'] : array();
+		$from_handoff = true;
 		if ( empty( $granted ) ) {
 			// Fallback for pre-hardening Core, whose top-level response still carried usable ids.
-			$top_level = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
-			$granted   = array_values( array_filter( $top_level, static function ( $entry ): bool {
+			$from_handoff = false;
+			$top_level    = is_array( $preflight['execution_verification_reads']['granted'] ?? null ) ? (array) $preflight['execution_verification_reads']['granted'] : array();
+			$granted      = array_values( array_filter( $top_level, static function ( $entry ): bool {
 				return is_array( $entry ) && ! empty( $entry['request_id'] );
 			} ) );
 		}
+
+		// Positional per-ability binding inputs for handoff grants that carry none.
+		$requested_by_ability = array();
+		if ( $from_handoff ) {
+			foreach ( $this->verification_reads_for_actions( $actions ) as $requested_read ) {
+				$requested_by_ability[ sanitize_text_field( (string) ( $requested_read['ability_id'] ?? '' ) ) ][] = $requested_read;
+			}
+		}
+		$cursors = array();
 
 		foreach ( $granted as $grant ) {
 			if ( ! is_array( $grant ) || empty( $grant['request_id'] ) || empty( $grant['ability_id'] ) ) {
 				continue;
 			}
-			$signature = $this->verification_read_signature( is_array( $grant['input'] ?? null ) ? $grant['input'] : array() );
+			$grant_ability_id = (string) $grant['ability_id'];
+			$grant_input      = is_array( $grant['input'] ?? null ) ? $grant['input'] : array();
+
+			if ( $from_handoff && array() === $grant_input && isset( $requested_by_ability[ $grant_ability_id ] ) ) {
+				// The i-th granted id of an ability maps to the i-th requested read of that ability.
+				$cursor = $cursors[ $grant_ability_id ] ?? 0;
+				$pool   = $requested_by_ability[ $grant_ability_id ];
+				if ( $cursor >= count( $pool ) ) {
+					continue;
+				}
+				$cursors[ $grant_ability_id ] = $cursor + 1;
+				$grant_input                  = is_array( $pool[ $cursor ]['input'] ?? null ) ? $pool[ $cursor ]['input'] : array();
+			}
+
+			$signature = $this->verification_read_signature( $grant_input );
 			if ( '' === $signature ) {
 				continue;
 			}
-			$map_key = (string) $grant['ability_id'] . '|' . $signature;
+			$map_key = $grant_ability_id . '|' . $signature;
 			if ( ! isset( $grants[ $map_key ] ) ) {
 				$grants[ $map_key ] = array();
 			}
 			$grants[ $map_key ][] = array(
 				'request_id' => sanitize_text_field( (string) $grant['request_id'] ),
-				'input'      => is_array( $grant['input'] ?? null ) ? $grant['input'] : array(),
+				'input'      => $grant_input,
 			);
 		}
 
