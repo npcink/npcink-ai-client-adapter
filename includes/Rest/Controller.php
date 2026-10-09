@@ -3833,19 +3833,47 @@ final class Controller {
 			if ( '' === $request_id ) {
 				// Consume the unusable grant so it cannot wedge the queue, then try the next candidate.
 				array_shift( $this->verification_grant_queues[ $queue_correlation ][ $verification_queue_key ] );
+				$this->emit_operation_event(
+					'adapter.execution.verification_grant_dropped',
+					microtime( true ),
+					new WP_Error(
+						'npcink_openclaw_adapter_verification_grant_unusable',
+						__( 'A minted verification read grant was dropped because it carried no usable request id.', 'npcink-ai-client-adapter' )
+					),
+					array(
+						'correlation_id' => $queue_correlation,
+						'ability_id'     => $read_ability_id,
+					)
+				);
 				continue;
 			}
 			// Shift only once the grant is known usable: each repeated write on the same object takes its own single-use grant.
 			array_shift( $this->verification_grant_queues[ $queue_correlation ][ $verification_queue_key ] );
 			$verification_read_authorization['request_id'] = $request_id;
 			$grant_input = is_array( $next_grant['input'] ?? null ) ? $next_grant['input'] : array();
-			if ( isset( $grant_input['slug'] ) && is_string( $grant_input['slug'] ) && '' !== (string) $grant_input['slug'] ) {
-				// Slug-addressed grant (for example upsert-template-blocks): swap addressing to the approved slug.
-				$read_input = array( 'slug' => sanitize_key( (string) $grant_input['slug'] ) );
+			if ( 0 === strpos( $verification_candidate, 'slug:' ) ) {
+				// The slug candidate matched (for example upsert-template-blocks): address the read by the approved slug.
+				$grant_slug  = isset( $grant_input['slug'] ) && is_string( $grant_input['slug'] ) ? sanitize_key( (string) $grant_input['slug'] ) : '';
+				$read_input = '' !== $grant_slug ? array( 'slug' => $grant_slug ) : $read_input;
 			}
 			// Post-addressed grants keep the derived read input (including include_inner_blocks) untouched;
 			// the resolved post id equals the approved object by the queue key, so no field replacement is needed.
 			break;
+		}
+		if ( empty( $verification_read_authorization['request_id'] ) && ! empty( $verification_queue_set ) ) {
+			// Fail-open by design, but never silent: grants existed for this execution but none matched this readback.
+			$this->emit_operation_event(
+				'adapter.execution.verification_grant_unmatched',
+				microtime( true ),
+				new WP_Error(
+					'npcink_openclaw_adapter_verification_grant_unmatched',
+					__( 'No minted verification read grant matched this readback; it runs without execution-attached authorization.', 'npcink-ai-client-adapter' )
+				),
+				array(
+					'correlation_id' => $queue_correlation,
+					'ability_id'     => $read_ability_id,
+				)
+			);
 		}
 		$response = $this->run_read_ability( $read_ability_id, $read_input, $read_context, $verification_read_authorization );
 		if ( is_wp_error( $response ) ) {
@@ -4020,252 +4048,252 @@ final class Controller {
 		$results = array();
 		$outputs = array();
 		try {
-		foreach ( $actions as $action ) {
-			$action_index   = absint( $action['action_index'] ?? 0 );
-			$resolved_input = $this->execution_input_validator->resolve_output_references(
-				is_array( $action['input'] ?? null ) ? $action['input'] : array(),
-				$outputs,
-				$proposal_id,
-				$action_index
-			);
-			if ( is_wp_error( $resolved_input ) ) {
-				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$execution_record  = $this->store_failed_execution_record(
+			foreach ( $actions as $action ) {
+				$action_index   = absint( $action['action_index'] ?? 0 );
+				$resolved_input = $this->execution_input_validator->resolve_output_references(
+					is_array( $action['input'] ?? null ) ? $action['input'] : array(),
+					$outputs,
 					$proposal_id,
-					$proposal,
-					$actions,
-					$results,
-					$preflight,
-					$correlation_id,
-					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
-					$resolved_input,
-					$action
+					$action_index
 				);
-				$resolved_input->add_data(
-					array_merge(
-						(array) $resolved_input->get_error_data(),
-						array(
-							'correlation_id'       => $correlation_id,
-							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'         => $action_index,
-							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'       => $execution_summary['selected_count'],
-							'submitted_count'      => $execution_summary['submitted_count'],
-							'executed_count'       => $execution_summary['executed_count'],
-							'failed_count'         => $execution_summary['failed_count'],
-							'blocked_count'        => $execution_summary['blocked_count'],
-							'partial_success'      => $execution_summary['partial_success'],
-							'retryable'            => $execution_summary['retryable'],
-							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results'     => $results,
-							'execution_record'     => $execution_record,
+				if ( is_wp_error( $resolved_input ) ) {
+					$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
+					$execution_record  = $this->store_failed_execution_record(
+						$proposal_id,
+						$proposal,
+						$actions,
+						$results,
+						$preflight,
+						$correlation_id,
+						sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+						$resolved_input,
+						$action
+					);
+					$resolved_input->add_data(
+						array_merge(
+							(array) $resolved_input->get_error_data(),
+							array(
+								'correlation_id'       => $correlation_id,
+								'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+								'action_index'         => $action_index,
+								'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+								'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+								'selected_count'       => $execution_summary['selected_count'],
+								'submitted_count'      => $execution_summary['submitted_count'],
+								'executed_count'       => $execution_summary['executed_count'],
+								'failed_count'         => $execution_summary['failed_count'],
+								'blocked_count'        => $execution_summary['blocked_count'],
+								'partial_success'      => $execution_summary['partial_success'],
+								'retryable'            => $execution_summary['retryable'],
+								'operator_next_action' => $execution_summary['operator_next_action'],
+								'executed_results'     => $results,
+								'execution_record'     => $execution_record,
+							)
 						)
-					)
-				);
-				return $resolved_input;
-			}
-
-			$action['input']   = is_array( $resolved_input ) ? $resolved_input : array();
-			$action['post_id'] = absint( $action['input']['post_id'] ?? 0 );
-			$valid_input       = $this->execution_input_validator->validate_execute_action_input(
-				$proposal_id,
-				sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) ),
-				$action['input'],
-				absint( $action['post_id'] ?? 0 ),
-				$action_index,
-				false,
-				true
-			);
-			if ( is_wp_error( $valid_input ) ) {
-				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$execution_record  = $this->store_failed_execution_record(
-					$proposal_id,
-					$proposal,
-					$actions,
-					$results,
-					$preflight,
-					$correlation_id,
-					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
-					$valid_input,
-					$action
-				);
-				$valid_input->add_data(
-					array_merge(
-						(array) $valid_input->get_error_data(),
-						array(
-							'correlation_id'       => $correlation_id,
-							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'         => $action_index,
-							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'       => $execution_summary['selected_count'],
-							'submitted_count'      => $execution_summary['submitted_count'],
-							'executed_count'       => $execution_summary['executed_count'],
-							'failed_count'         => $execution_summary['failed_count'],
-							'blocked_count'        => $execution_summary['blocked_count'],
-							'partial_success'      => $execution_summary['partial_success'],
-							'retryable'            => $execution_summary['retryable'],
-							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results'     => $results,
-							'execution_record'     => $execution_record,
-						)
-					)
-				);
-				return $valid_input;
-			}
-
-			$media_alt_live_preflight = $this->media_alt_live_preflight( $proposal_id, $action, $preflight, $approval_context, $correlation_id, $base_request_context );
-			if ( is_wp_error( $media_alt_live_preflight ) ) {
-				$execution_record = $this->store_failed_execution_record(
-					$proposal_id,
-					$proposal,
-					$actions,
-					$results,
-					$preflight,
-					$correlation_id,
-					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
-					$media_alt_live_preflight,
-					$action
-				);
-				$media_alt_live_preflight->add_data(
-					array_merge(
-						(array) $media_alt_live_preflight->get_error_data(),
-						array( 'execution_record' => $execution_record )
-					)
-				);
-				return $media_alt_live_preflight;
-			}
-			if ( ! empty( $media_alt_live_preflight ) ) {
-				$action['media_alt_live_preflight'] = $media_alt_live_preflight;
-			}
-
-			$result = $this->execution_action_runner->execute( $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
-			if ( is_wp_error( $result ) ) {
-				$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
-				$error_data        = $result->get_error_data();
-				$error_data        = is_array( $error_data ) ? $error_data : array();
-				$status            = absint( $error_data['status'] ?? 0 );
-				if ( 0 === $status ) {
-					$status = 409;
+					);
+					return $resolved_input;
 				}
 
-				$execution_record = $this->store_failed_execution_record(
+				$action['input']   = is_array( $resolved_input ) ? $resolved_input : array();
+				$action['post_id'] = absint( $action['input']['post_id'] ?? 0 );
+				$valid_input       = $this->execution_input_validator->validate_execute_action_input(
 					$proposal_id,
-					$proposal,
-					$actions,
-					$results,
-					$preflight,
-					$correlation_id,
-					sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
-					$result,
-					$action
+					sanitize_text_field( (string) ( $action['ability_id'] ?? '' ) ),
+					$action['input'],
+					absint( $action['post_id'] ?? 0 ),
+					$action_index,
+					false,
+					true
 				);
-				$result->add_data(
-					array_merge(
-						$error_data,
-						array(
-							'status'               => $status,
-							'proposal_id'          => $proposal_id,
-							'correlation_id'       => $correlation_id,
-							'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
-							'action_index'         => absint( $action['action_index'] ?? 0 ),
-							'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
-							'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
-							'selected_count'       => $execution_summary['selected_count'],
-							'submitted_count'      => $execution_summary['submitted_count'],
-							'executed_count'       => $execution_summary['executed_count'],
-							'failed_count'         => $execution_summary['failed_count'],
-							'blocked_count'        => $execution_summary['blocked_count'],
-							'partial_success'      => $execution_summary['partial_success'],
-							'retryable'            => $execution_summary['retryable'],
-							'operator_next_action' => $execution_summary['operator_next_action'],
-							'executed_results'     => $results,
-							'execution_record'     => $execution_record,
+				if ( is_wp_error( $valid_input ) ) {
+					$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
+					$execution_record  = $this->store_failed_execution_record(
+						$proposal_id,
+						$proposal,
+						$actions,
+						$results,
+						$preflight,
+						$correlation_id,
+						sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+						$valid_input,
+						$action
+					);
+					$valid_input->add_data(
+						array_merge(
+							(array) $valid_input->get_error_data(),
+							array(
+								'correlation_id'       => $correlation_id,
+								'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+								'action_index'         => $action_index,
+								'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+								'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+								'selected_count'       => $execution_summary['selected_count'],
+								'submitted_count'      => $execution_summary['submitted_count'],
+								'executed_count'       => $execution_summary['executed_count'],
+								'failed_count'         => $execution_summary['failed_count'],
+								'blocked_count'        => $execution_summary['blocked_count'],
+								'partial_success'      => $execution_summary['partial_success'],
+								'retryable'            => $execution_summary['retryable'],
+								'operator_next_action' => $execution_summary['operator_next_action'],
+								'executed_results'     => $results,
+								'execution_record'     => $execution_record,
+							)
 						)
-					)
-				);
-				return $result;
+					);
+					return $valid_input;
+				}
+
+				$media_alt_live_preflight = $this->media_alt_live_preflight( $proposal_id, $action, $preflight, $approval_context, $correlation_id, $base_request_context );
+				if ( is_wp_error( $media_alt_live_preflight ) ) {
+					$execution_record = $this->store_failed_execution_record(
+						$proposal_id,
+						$proposal,
+						$actions,
+						$results,
+						$preflight,
+						$correlation_id,
+						sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+						$media_alt_live_preflight,
+						$action
+					);
+					$media_alt_live_preflight->add_data(
+						array_merge(
+							(array) $media_alt_live_preflight->get_error_data(),
+							array( 'execution_record' => $execution_record )
+						)
+					);
+					return $media_alt_live_preflight;
+				}
+				if ( ! empty( $media_alt_live_preflight ) ) {
+					$action['media_alt_live_preflight'] = $media_alt_live_preflight;
+				}
+
+				$result = $this->execution_action_runner->execute( $proposal_id, $action, $approval_context, $correlation_id, $base_request_context );
+				if ( is_wp_error( $result ) ) {
+					$execution_summary = $this->selected_batch_execution_summary( $actions, $results, $action );
+					$error_data        = $result->get_error_data();
+					$error_data        = is_array( $error_data ) ? $error_data : array();
+					$status            = absint( $error_data['status'] ?? 0 );
+					if ( 0 === $status ) {
+						$status = 409;
+					}
+
+					$execution_record = $this->store_failed_execution_record(
+						$proposal_id,
+						$proposal,
+						$actions,
+						$results,
+						$preflight,
+						$correlation_id,
+						sanitize_text_field( (string) ( $base_request_context['adapter_request_id'] ?? '' ) ),
+						$result,
+						$action
+					);
+					$result->add_data(
+						array_merge(
+							$error_data,
+							array(
+								'status'               => $status,
+								'proposal_id'          => $proposal_id,
+								'correlation_id'       => $correlation_id,
+								'action_id'            => sanitize_key( (string) ( $action['action_id'] ?? '' ) ),
+								'action_index'         => absint( $action['action_index'] ?? 0 ),
+								'execution_profile'    => sanitize_text_field( (string) ( $action['execution_profile'] ?? '' ) ),
+								'idempotency_key'      => sanitize_text_field( (string) ( $action['idempotency_key'] ?? '' ) ),
+								'selected_count'       => $execution_summary['selected_count'],
+								'submitted_count'      => $execution_summary['submitted_count'],
+								'executed_count'       => $execution_summary['executed_count'],
+								'failed_count'         => $execution_summary['failed_count'],
+								'blocked_count'        => $execution_summary['blocked_count'],
+								'partial_success'      => $execution_summary['partial_success'],
+								'retryable'            => $execution_summary['retryable'],
+								'operator_next_action' => $execution_summary['operator_next_action'],
+								'executed_results'     => $results,
+								'execution_record'     => $execution_record,
+							)
+						)
+					);
+					return $result;
+				}
+
+				$results[] = $result;
+				$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
 			}
 
-			$results[] = $result;
-			$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
-		}
-
-		$first_result        = is_array( $results[0] ?? null ) ? $results[0] : array();
-		$post_ids            = array_values(
-			array_map(
-				'absint',
-				array_column( $results, 'post_id' )
-			)
-		);
-		$target_ability_ids  = array_values(
-			array_unique(
+			$first_result        = is_array( $results[0] ?? null ) ? $results[0] : array();
+			$post_ids            = array_values(
 				array_map(
-					static function ( $result ) {
-						return is_array( $result ) ? sanitize_text_field( (string) ( $result['target_ability_id'] ?? '' ) ) : '';
-					},
-					$results
+					'absint',
+					array_column( $results, 'post_id' )
 				)
-			)
-		);
-		$target_ability_ids  = array_values( array_filter( $target_ability_ids ) );
-		$execution_mode      = count( $actions ) > 1 || 'batch_write_actions' === (string) ( $actions[0]['execution_mode'] ?? '' ) ? 'batch_write_actions' : 'single_post';
-		$response_ability_id = 1 === count( $target_ability_ids ) ? $target_ability_ids[0] : $proposal_ability_id;
-		$execution_summary   = $this->selected_batch_execution_summary( $actions, $results );
+			);
+			$target_ability_ids  = array_values(
+				array_unique(
+					array_map(
+						static function ( $result ) {
+							return is_array( $result ) ? sanitize_text_field( (string) ( $result['target_ability_id'] ?? '' ) ) : '';
+						},
+						$results
+					)
+				)
+			);
+			$target_ability_ids  = array_values( array_filter( $target_ability_ids ) );
+			$execution_mode      = count( $actions ) > 1 || 'batch_write_actions' === (string) ( $actions[0]['execution_mode'] ?? '' ) ? 'batch_write_actions' : 'single_post';
+			$response_ability_id = 1 === count( $target_ability_ids ) ? $target_ability_ids[0] : $proposal_ability_id;
+			$execution_summary   = $this->selected_batch_execution_summary( $actions, $results );
 
-		$execution                     = array(
-			'ability_id'                      => $response_ability_id,
-			'post_id'                         => absint( $first_result['post_id'] ?? 0 ),
-			'post_ids'                        => $post_ids,
-			'correlation_id'                  => $correlation_id,
-			'adapter_request_id'              => (string) ( $base_request_context['adapter_request_id'] ?? '' ),
-			'approval_context'                => $approval_context,
-			'preflight_source'                => $preflight_source,
-			'preflight'                       => $preflight,
-			'core_preflight_evidence'         => array(
-				'authorized'                           => true,
-				'policy_version'                       => sanitize_text_field( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) ),
-				'approved_input_hash'                  => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
-				'correlation_id'                       => $correlation_id,
-				'preflight_source'                     => $preflight_source,
-				'commit_execution'                     => false,
-				'adapter_preflight_source'             => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? $preflight_source ) ),
-				'implementation_posture_status'        => sanitize_key( (string) ( $implementation_posture_evidence['status'] ?? '' ) ),
-				'implementation_posture_checked_count' => absint( $implementation_posture_evidence['checked_count'] ?? 0 ),
-			),
-			'implementation_posture_evidence' => $implementation_posture_evidence,
-			'media_alt_live_preflight'        => is_array( $first_result['media_alt_live_preflight'] ?? null ) ? $first_result['media_alt_live_preflight'] : array(),
-			'batch_review_feedback'           => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
-			'execution_mode'                  => $execution_mode,
-			'selected_count'                  => $execution_summary['selected_count'],
-			'submitted_count'                 => $execution_summary['submitted_count'],
-			'executed_count'                  => $execution_summary['executed_count'],
-			'failed_count'                    => $execution_summary['failed_count'],
-			'blocked_count'                   => $execution_summary['blocked_count'],
-			'partial_success'                 => $execution_summary['partial_success'],
-			'retryable'                       => $execution_summary['retryable'],
-			'operator_next_action'            => $execution_summary['operator_next_action'],
-			'results'                         => $results,
-			'post_status_before'              => (string) ( $first_result['post_status_before'] ?? '' ),
-			'post_status_after'               => (string) ( $first_result['post_status_after'] ?? '' ),
-			'result'                          => 1 === count( $results ) ? ( $first_result['result'] ?? array() ) : array(
-				'success'              => true,
-				'execution_mode'       => $execution_mode,
-				'selected_count'       => $execution_summary['selected_count'],
-				'submitted_count'      => $execution_summary['submitted_count'],
-				'executed_count'       => $execution_summary['executed_count'],
-				'failed_count'         => $execution_summary['failed_count'],
-				'blocked_count'        => $execution_summary['blocked_count'],
-				'partial_success'      => $execution_summary['partial_success'],
-				'retryable'            => $execution_summary['retryable'],
-				'operator_next_action' => $execution_summary['operator_next_action'],
-				'results'              => $results,
-			),
-		);
-		$execution['execution_record'] = $this->store_completed_execution_record( $proposal_id, $proposal, $execution );
+			$execution                     = array(
+				'ability_id'                      => $response_ability_id,
+				'post_id'                         => absint( $first_result['post_id'] ?? 0 ),
+				'post_ids'                        => $post_ids,
+				'correlation_id'                  => $correlation_id,
+				'adapter_request_id'              => (string) ( $base_request_context['adapter_request_id'] ?? '' ),
+				'approval_context'                => $approval_context,
+				'preflight_source'                => $preflight_source,
+				'preflight'                       => $preflight,
+				'core_preflight_evidence'         => array(
+					'authorized'                           => true,
+					'policy_version'                       => sanitize_text_field( (string) ( $approval_context['policy_version'] ?? ( $preflight['policy_version'] ?? '' ) ) ),
+					'approved_input_hash'                  => sanitize_text_field( (string) ( $approval_context['approved_input_hash'] ?? ( $preflight['approved_input_hash'] ?? '' ) ) ),
+					'correlation_id'                       => $correlation_id,
+					'preflight_source'                     => $preflight_source,
+					'commit_execution'                     => false,
+					'adapter_preflight_source'             => sanitize_text_field( (string) ( $preflight['adapter_preflight_source'] ?? $preflight_source ) ),
+					'implementation_posture_status'        => sanitize_key( (string) ( $implementation_posture_evidence['status'] ?? '' ) ),
+					'implementation_posture_checked_count' => absint( $implementation_posture_evidence['checked_count'] ?? 0 ),
+				),
+				'implementation_posture_evidence' => $implementation_posture_evidence,
+				'media_alt_live_preflight'        => is_array( $first_result['media_alt_live_preflight'] ?? null ) ? $first_result['media_alt_live_preflight'] : array(),
+				'batch_review_feedback'           => $this->batch_review_feedback_from_preflight( $preflight, $proposal ),
+				'execution_mode'                  => $execution_mode,
+				'selected_count'                  => $execution_summary['selected_count'],
+				'submitted_count'                 => $execution_summary['submitted_count'],
+				'executed_count'                  => $execution_summary['executed_count'],
+				'failed_count'                    => $execution_summary['failed_count'],
+				'blocked_count'                   => $execution_summary['blocked_count'],
+				'partial_success'                 => $execution_summary['partial_success'],
+				'retryable'                       => $execution_summary['retryable'],
+				'operator_next_action'            => $execution_summary['operator_next_action'],
+				'results'                         => $results,
+				'post_status_before'              => (string) ( $first_result['post_status_before'] ?? '' ),
+				'post_status_after'               => (string) ( $first_result['post_status_after'] ?? '' ),
+				'result'                          => 1 === count( $results ) ? ( $first_result['result'] ?? array() ) : array(
+					'success'              => true,
+					'execution_mode'       => $execution_mode,
+					'selected_count'       => $execution_summary['selected_count'],
+					'submitted_count'      => $execution_summary['submitted_count'],
+					'executed_count'       => $execution_summary['executed_count'],
+					'failed_count'         => $execution_summary['failed_count'],
+					'blocked_count'        => $execution_summary['blocked_count'],
+					'partial_success'      => $execution_summary['partial_success'],
+					'retryable'            => $execution_summary['retryable'],
+					'operator_next_action' => $execution_summary['operator_next_action'],
+					'results'              => $results,
+				),
+			);
+			$execution['execution_record'] = $this->store_completed_execution_record( $proposal_id, $proposal, $execution );
 
-		return $execution;
+			return $execution;
 		} finally {
 			// Authorization material never outlives the execution: every exit path
 			// (in-loop error returns and the success return above) drops the queue.
