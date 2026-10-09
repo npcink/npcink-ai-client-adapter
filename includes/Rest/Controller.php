@@ -4283,7 +4283,7 @@ final class Controller {
 				$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
 			}
 
-			$supplemented = $this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $proposal, $preflight, $correlation_id, $actions, $base_request_context, $results );
+			$supplemented = $this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $preflight, $correlation_id, $actions, $base_request_context, $results );
 
 			if ( $supplemented ) {
 				// The outputs snapshots were taken per action inside the loop; a supplement
@@ -4739,7 +4739,6 @@ final class Controller {
 	 * Re-runs failed post-execution readbacks with Core-recorded evidence (ADR-013).
 	 *
 	 * @param string              $proposal_id Proposal id.
-	 * @param array<string,mixed> $proposal Core proposal.
 	 * @param array<string,mixed> $preflight Core preflight payload.
 	 * @param string              $correlation_id Execution correlation id.
 	 * @param array<int,array<string,mixed>> $actions Normalized actions.
@@ -4747,8 +4746,7 @@ final class Controller {
 	 * @param array<int,array<string,mixed>> $results Executed action results, modified in place.
 	 * @return bool True when at least one result row's verification was updated.
 	 */
-	private function supplement_execution_verification_with_recorded_evidence( string $proposal_id, array $proposal, array $preflight, string $correlation_id, array $actions, array $base_request_context, array &$results ): bool {
-		unset( $proposal );
+	private function supplement_execution_verification_with_recorded_evidence( string $proposal_id, array $preflight, string $correlation_id, array $actions, array $base_request_context, array &$results ): bool {
 		$needs_supplement = array();
 		$recorded_actions = array();
 		// Action indexes are unique per normalized batch; one keyed copy serves both passes.
@@ -4797,9 +4795,11 @@ final class Controller {
 
 		$approval_context    = is_array( $preflight['approval_context'] ?? null ) ? $preflight['approval_context'] : array();
 		$approved_input_hash = (string) ( $approval_context['approved_input_hash'] ?? $preflight['approved_input_hash'] ?? '' );
-		$recorded_status     = 'succeeded';
-		foreach ( $needs_supplement as $supplement_index ) {
-			$row_status = (string) ( $results[ $supplement_index ]['status'] ?? '' );
+		// The supplement only runs after every action executed, so this loop agrees with the
+		// definitive record; deriving from ALL rows keeps it aligned if that invariant changes.
+		$recorded_status = 'succeeded';
+		foreach ( $results as $status_row ) {
+			$row_status = (string) ( is_array( $status_row ) ? ( $status_row['status'] ?? '' ) : '' );
 			if ( 'executed' !== $row_status ) {
 				$recorded_status = 'failed';
 				break;
