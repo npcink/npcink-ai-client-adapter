@@ -4283,7 +4283,7 @@ final class Controller {
 				$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
 			}
 
-			$supplemented = $this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $proposal, $preflight, $correlation_id, $actions, $results );
+			$supplemented = $this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $proposal, $preflight, $correlation_id, $actions, $base_request_context, $results );
 
 			if ( $supplemented ) {
 				// The outputs snapshots were taken per action inside the loop; a supplement
@@ -4743,10 +4743,11 @@ final class Controller {
 	 * @param array<string,mixed> $preflight Core preflight payload.
 	 * @param string              $correlation_id Execution correlation id.
 	 * @param array<int,array<string,mixed>> $actions Normalized actions.
+	 * @param array<string,mixed> $base_request_context Execution base request context for re-run logs.
 	 * @param array<int,array<string,mixed>> $results Executed action results, modified in place.
 	 * @return bool True when at least one result row's verification was updated.
 	 */
-	private function supplement_execution_verification_with_recorded_evidence( string $proposal_id, array $proposal, array $preflight, string $correlation_id, array $actions, array &$results ): bool {
+	private function supplement_execution_verification_with_recorded_evidence( string $proposal_id, array $proposal, array $preflight, string $correlation_id, array $actions, array $base_request_context, array &$results ): bool {
 		unset( $proposal );
 		$needs_supplement = array();
 		$recorded_actions = array();
@@ -4843,9 +4844,13 @@ final class Controller {
 		// Seed the per-execution queue with the recorded-evidence grants, then re-run only the failed readbacks.
 		$this->seed_supplement_verification_grants( $correlation_id, $granted );
 
-		$supplement_context = array(
-			'proposal_id'    => $proposal_id,
-			'correlation_id' => $correlation_id,
+		// Re-run readbacks log through the same request context as the first pass.
+		$supplement_context = array_merge(
+			$base_request_context,
+			array(
+				'proposal_id'    => $proposal_id,
+				'correlation_id' => $correlation_id,
+			)
 		);
 
 		$applied = false;
@@ -4872,14 +4877,17 @@ final class Controller {
 			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
 			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
 
-			if ( ! empty( $supplement ) && 'verified' === (string) ( $supplement['block_readback_status'] ?? '' ) ) {
+			if ( ! empty( $supplement ) ) {
 				if ( ! is_array( $results[ $index ]['result'] ?? null ) ) {
-					// Re-verified evidence is preserved even when the executed row carried no array result.
+					// The latest attempt's outcome is preserved even when the row carried no array result.
 					$results[ $index ]['result'] = array();
 				}
 				$existing_verification = is_array( $results[ $index ]['result']['verification'] ?? null ) ? $results[ $index ]['result']['verification'] : array();
-				// A verified supplement supersedes the failed readback's failure-only metadata.
-				unset( $existing_verification['block_readback_error_code'], $existing_verification['block_readback_status_code'] );
+				if ( 'verified' === (string) ( $supplement['block_readback_status'] ?? '' ) ) {
+					// A verified supplement supersedes the failed readback's failure-only metadata.
+					unset( $existing_verification['block_readback_error_code'], $existing_verification['block_readback_status_code'] );
+				}
+				// The supplement payload carries the LATEST attempt's metadata, verified or failed.
 				$results[ $index ]['result']['verification'] = array_merge(
 					$existing_verification,
 					$supplement
