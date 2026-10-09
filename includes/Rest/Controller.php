@@ -4283,6 +4283,8 @@ final class Controller {
 				$outputs[ sanitize_key( (string) ( $result['action_id'] ?? '' ) ) ] = $this->output_map_from_action_result( $result );
 			}
 
+			$this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $proposal, $preflight, $correlation_id, $actions, $results );
+
 			$first_result        = is_array( $results[0] ?? null ) ? $results[0] : array();
 			$post_ids            = array_values(
 				array_map(
@@ -4729,6 +4731,138 @@ final class Controller {
 	 * @param array<string,mixed> $execution Execution.
 	 * @return array<string,mixed>|null
 	 */
+	/**
+	 * Re-runs failed post-execution readbacks with Core-recorded evidence.
+	 *
+	 * ADR-013 supplement pass: actions whose readback could not be granted at
+	 * preflight (in-transaction objects) get a second chance after Core's
+	 * provisional execution record mints result-bound single-use grants.
+	 * Fail-open: any failure leaves the original degraded verification.
+	 *
+	 * @param string              $proposal_id Proposal id.
+	 * @param array<string,mixed> $preflight Core preflight payload.
+	 * @param string              $correlation_id Execution correlation id.
+	 * @param array<int,array<string,mixed>> $results Executed action results, modified in place.
+	 * @return void
+	 */
+	private function supplement_execution_verification_with_recorded_evidence( string $proposal_id, array $proposal, array $preflight, string $correlation_id, array $actions, array &$results ): void {
+		unset( $proposal );
+		$needs_supplement = array();
+		$recorded_actions = array();
+
+		foreach ( $results as $index => $result ) {
+			$result       = is_array( $result ) ? $result : array();
+			$result_data  = is_array( $result['result'] ?? null ) ? $result['result'] : array();
+			$verification = is_array( $result_data['verification'] ?? null ) ? $result_data['verification'] : array();
+			$status       = (string) ( $verification['block_readback_status'] ?? '' );
+
+			if ( '' === $status || 'verified' === $status ) {
+				continue;
+			}
+
+			$needs_supplement[] = $index;
+			$recorded_result    = array_intersect_key( $result_data, array( 'post_id' => true, 'slug' => true ) );
+			if ( empty( $recorded_result ) && isset( $result['post_id'] ) ) {
+				$recorded_result = array( 'post_id' => $result['post_id'] );
+			}
+			$action_input = array();
+			foreach ( $actions as $candidate ) {
+				if ( is_array( $candidate ) && (int) ( $candidate['action_index'] ?? -1 ) === $index ) {
+					$action_input = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
+					break;
+				}
+			}
+			$recorded_actions[] = array(
+				'ability_id' => (string) ( $result['ability_id'] ?? '' ),
+				'input'      => $action_input,
+				'result'     => $recorded_result,
+			);
+		}
+
+		if ( empty( $needs_supplement ) ) {
+			return;
+		}
+
+		$approval_context    = is_array( $preflight['approval_context'] ?? null ) ? $preflight['approval_context'] : array();
+		$approved_input_hash = (string) ( $approval_context['approved_input_hash'] ?? $preflight['approved_input_hash'] ?? '' );
+
+		$response = $this->dispatch_upstream(
+			'POST',
+			'/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) . '/record-execution',
+			array(
+				'record_phase'        => 'provisional',
+				'execution_status'    => 'succeeded',
+				'correlation_id'      => $correlation_id,
+				'approved_input_hash' => $approved_input_hash,
+				'actions'             => $recorded_actions,
+			),
+			false,
+			true
+		);
+
+		if ( is_wp_error( $response ) ) {
+			$this->emit_operation_event(
+				'adapter.execution.verification_supplement_unavailable',
+				microtime( true ),
+				$response,
+				array(
+					'proposal_id'    => $proposal_id,
+					'correlation_id' => $correlation_id,
+				)
+			);
+			return;
+		}
+
+		$data    = $response->get_data();
+		$data    = is_array( $data ) ? $data : array();
+		$granted = is_array( $data['execution_verification_reads']['granted'] ?? null ) ? (array) $data['execution_verification_reads']['granted'] : array();
+
+		if ( empty( $granted ) ) {
+			return;
+		}
+
+		// Seed the per-execution queue with the recorded-evidence grants, then re-run only the failed readbacks.
+		foreach ( $granted as $grant ) {
+			if ( ! is_array( $grant ) || empty( $grant['request_id'] ) || empty( $grant['ability_id'] ) ) {
+				continue;
+			}
+			$grant_input = is_array( $grant['input'] ?? null ) ? $grant['input'] : array();
+			$signature   = $this->verification_read_signature( $grant_input );
+			if ( '' === $signature ) {
+				continue;
+			}
+			$queue_key = (string) $grant['ability_id'] . '|' . $signature;
+			if ( ! isset( $this->verification_grant_queues[ $correlation_id ][ $queue_key ] ) ) {
+				$this->verification_grant_queues[ $correlation_id ][ $queue_key ] = array();
+			}
+			$this->verification_grant_queues[ $correlation_id ][ $queue_key ][] = array(
+				'request_id' => sanitize_text_field( (string) $grant['request_id'] ),
+				'input'      => $grant_input,
+			);
+		}
+
+		$supplement_context = array(
+			'proposal_id'    => $proposal_id,
+			'correlation_id' => $correlation_id,
+		);
+
+		foreach ( $needs_supplement as $index ) {
+			$row            = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
+			$ability_input  = array();
+			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
+			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
+
+			if ( ! empty( $supplement ) && 'verified' === (string) ( $supplement['block_readback_status'] ?? '' ) ) {
+				$results[ $index ]['result']['verification'] = array_merge(
+					is_array( $results[ $index ]['result']['verification'] ?? null ) ? $results[ $index ]['result']['verification'] : array(),
+					$supplement
+				);
+			}
+		}
+
+		unset( $this->verification_grant_queues[ $correlation_id ] );
+	}
+
 	private function compact_execution_verification( array $execution ): ?array {
 		return $this->execution_records->compact_verification( $execution );
 	}
