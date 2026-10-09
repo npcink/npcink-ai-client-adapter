@@ -4777,8 +4777,9 @@ final class Controller {
 			if ( empty( $recorded_result ) && isset( $result['post_id'] ) ) {
 				$recorded_result = array( 'post_id' => $result['post_id'] );
 			}
-			$action_input = isset( $actions_by_index[ $index ] ) && is_array( $actions_by_index[ $index ]['input'] ?? null )
-				? $actions_by_index[ $index ]['input']
+			$row_action_index = (int) ( $result['action_index'] ?? $index );
+			$action_input     = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ]['input'] ?? null )
+				? $actions_by_index[ $row_action_index ]['input']
 				: array();
 			$recorded_actions[] = array(
 				'ability_id' => (string) ( $result['ability_id'] ?? '' ),
@@ -4848,7 +4849,8 @@ final class Controller {
 		foreach ( $needs_supplement as $index ) {
 			$row           = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
 			$ability_input = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
-			$candidate       = isset( $actions_by_index[ $index ] ) && is_array( $actions_by_index[ $index ] ) ? $actions_by_index[ $index ] : array();
+			$row_action_index = (int) ( $row['action_index'] ?? $index );
+			$candidate       = isset( $actions_by_index[ $row_action_index ] ) && is_array( $actions_by_index[ $row_action_index ] ) ? $actions_by_index[ $row_action_index ] : array();
 			$candidate_input = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
 			if ( array() === $ability_input && isset( $candidate_input['post_id'] ) && is_numeric( $candidate_input['post_id'] ) ) {
 				$row_result_data = is_array( $row['result'] ?? null ) ? $row['result'] : array();
@@ -4859,8 +4861,9 @@ final class Controller {
 					$ability_input = array( 'post_id' => absint( $candidate_input['post_id'] ) );
 				}
 			}
-			if ( isset( $candidate_input['slug'] ) && is_string( $candidate_input['slug'] ) ) {
+			if ( isset( $candidate_input['slug'] ) && is_string( $candidate_input['slug'] ) && 0 !== stripos( (string) $candidate_input['slug'], '$outputs.' ) ) {
 				// Slug-addressed writes keep their approved slug when the result row carries no numeric id.
+				// Unresolved $outputs.* references are Core's addressing evidence, never a read address.
 				$ability_input['slug'] = sanitize_key( (string) $candidate_input['slug'] );
 			}
 			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
