@@ -4285,6 +4285,14 @@ final class Controller {
 
 			$this->supplement_execution_verification_with_recorded_evidence( $proposal_id, $proposal, $preflight, $correlation_id, $actions, $results );
 
+			// The outputs snapshots were taken per action inside the loop; a supplement
+			// that flips a row's verification afterwards must be reflected in them.
+			foreach ( $results as $result ) {
+				if ( is_array( $result ) && '' !== (string) ( $result['action_id'] ?? '' ) ) {
+					$outputs[ sanitize_key( (string) ( $result['action_id'] ) ) ] = $this->output_map_from_action_result( $result );
+				}
+			}
+
 			$first_result        = is_array( $results[0] ?? null ) ? $results[0] : array();
 			$post_ids            = array_values(
 				array_map(
@@ -4740,6 +4748,13 @@ final class Controller {
 		unset( $proposal );
 		$needs_supplement = array();
 		$recorded_actions = array();
+		// Action indexes are unique per normalized batch; one keyed copy serves both passes.
+		$actions_by_index = array();
+		foreach ( $actions as $candidate ) {
+			if ( is_array( $candidate ) ) {
+				$actions_by_index[ (int) ( $candidate['action_index'] ?? -1 ) ] = $candidate;
+			}
+		}
 
 		foreach ( $results as $index => $result ) {
 			$result       = is_array( $result ) ? $result : array();
@@ -4762,13 +4777,9 @@ final class Controller {
 			if ( empty( $recorded_result ) && isset( $result['post_id'] ) ) {
 				$recorded_result = array( 'post_id' => $result['post_id'] );
 			}
-			$action_input = array();
-			foreach ( $actions as $candidate ) {
-				if ( is_array( $candidate ) && (int) ( $candidate['action_index'] ?? -1 ) === $index ) {
-					$action_input = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
-					break;
-				}
-			}
+			$action_input = isset( $actions_by_index[ $index ] ) && is_array( $actions_by_index[ $index ]['input'] ?? null )
+				? $actions_by_index[ $index ]['input']
+				: array();
 			$recorded_actions[] = array(
 				'ability_id' => (string) ( $result['ability_id'] ?? '' ),
 				'input'      => $action_input,
@@ -4837,25 +4848,20 @@ final class Controller {
 		foreach ( $needs_supplement as $index ) {
 			$row           = is_array( $results[ $index ] ?? null ) ? $results[ $index ] : array();
 			$ability_input = isset( $row['post_id'] ) && is_numeric( $row['post_id'] ) ? array( 'post_id' => absint( $row['post_id'] ) ) : array();
-			foreach ( $actions as $candidate ) {
-				if ( ! ( is_array( $candidate ) && (int) ( $candidate['action_index'] ?? -1 ) === $index ) ) {
-					continue;
+			$candidate       = isset( $actions_by_index[ $index ] ) && is_array( $actions_by_index[ $index ] ) ? $actions_by_index[ $index ] : array();
+			$candidate_input = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
+			if ( array() === $ability_input && isset( $candidate_input['post_id'] ) && is_numeric( $candidate_input['post_id'] ) ) {
+				$row_result_data = is_array( $row['result'] ?? null ) ? $row['result'] : array();
+				$recorded_slug   = isset( $row_result_data['slug'] ) && is_string( $row_result_data['slug'] ) ? sanitize_key( (string) $row_result_data['slug'] ) : '';
+				if ( '' === $recorded_slug ) {
+					// Only when the recorded evidence carries no addressing of its own: a slug-addressed
+					// record must keep slug addressing so the re-run key matches the seeded grant.
+					$ability_input = array( 'post_id' => absint( $candidate_input['post_id'] ) );
 				}
-				$candidate_input = is_array( $candidate['input'] ?? null ) ? $candidate['input'] : array();
-				if ( array() === $ability_input && isset( $candidate_input['post_id'] ) && is_numeric( $candidate_input['post_id'] ) ) {
-					$row_result_data = is_array( $row['result'] ?? null ) ? $row['result'] : array();
-					$recorded_slug   = isset( $row_result_data['slug'] ) && is_string( $row_result_data['slug'] ) ? sanitize_key( (string) $row_result_data['slug'] ) : '';
-					if ( '' === $recorded_slug ) {
-						// Only when the recorded evidence carries no addressing of its own: a slug-addressed
-						// record must keep slug addressing so the re-run key matches the seeded grant.
-						$ability_input = array( 'post_id' => absint( $candidate_input['post_id'] ) );
-					}
-				}
-				if ( isset( $candidate_input['slug'] ) && is_string( $candidate_input['slug'] ) ) {
-					// Slug-addressed writes keep their approved slug when the result row carries no numeric id.
-					$ability_input['slug'] = sanitize_key( (string) $candidate_input['slug'] );
-				}
-				break;
+			}
+			if ( isset( $candidate_input['slug'] ) && is_string( $candidate_input['slug'] ) ) {
+				// Slug-addressed writes keep their approved slug when the result row carries no numeric id.
+				$ability_input['slug'] = sanitize_key( (string) $candidate_input['slug'] );
 			}
 			$ability_result = is_array( $row['result'] ?? null ) ? $row['result'] : array();
 			$supplement     = $this->block_write_readback_verification( (string) ( $row['ability_id'] ?? '' ), $ability_input, $ability_result, $supplement_context );
@@ -4865,8 +4871,11 @@ final class Controller {
 					// Re-verified evidence is preserved even when the executed row carried no array result.
 					$results[ $index ]['result'] = array();
 				}
+				$existing_verification = is_array( $results[ $index ]['result']['verification'] ?? null ) ? $results[ $index ]['result']['verification'] : array();
+				// A verified supplement supersedes the failed readback's failure-only metadata.
+				unset( $existing_verification['block_readback_error_code'], $existing_verification['block_readback_status_code'] );
 				$results[ $index ]['result']['verification'] = array_merge(
-					is_array( $results[ $index ]['result']['verification'] ?? null ) ? $results[ $index ]['result']['verification'] : array(),
+					$existing_verification,
 					$supplement
 				);
 			}
