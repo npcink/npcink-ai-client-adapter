@@ -107,3 +107,36 @@ explicitly or execution recording fails with `recorded=false`.
 - Recorded future options from the review rounds: a composite retry
   action to de-triplicate the workflow pin; expanding gate fixtures when
   a bumped action changes shapes.
+
+## Addendum 2026-10-09/10: the #95 thirteen-round loop
+
+The ADR-013 supplement pull request (#95) ran thirteen delivered rounds
+across two sessions (four inherited, nine in the closing session) and
+converged to zero findings plus one confirm-only low. What the loop
+taught beyond the 2026-10-06 rules above:
+
+- **Fix distinct defect classes; answer re-flags with evidence, not
+  code.** Each round converged only while it fixed a class the previous
+  round had not touched. A re-flagged finding gets the same
+  evidence-cited accept re-recorded under its new id — the gate matches
+  the latest run, so accept lines must be re-added every round.
+- **A class re-flagged a third time ends by aligning the code with its
+  invariant.** The provisional-status derivation was rescoped to scan
+  all result rows — behavior-identical under the all-executed
+  invariant, self-documenting, and the class never returned.
+  Point-arguing a misread three times costs more than making the code
+  state the invariant.
+- **Read the counterpart's implementation before arguing a speculative
+  finding.** Two medium/high classes (provisional-record lifecycle,
+  unresolved-input contract) collapsed to one-line accepts once gc's
+  `Proposal_Service::record_provisional_execution` (lines 538-607) and
+  `Commit_Preflight_Service::mint_result_bound_verification_reads`
+  (lines 496-636) had been read; both verdicts cite file and line.
+- **Probe suspected review misreads instead of debating them.** The
+  queue-collision bug-high was a misread of guard nesting; the unit
+  probe the handoff demanded (`tests/verification-supplement-behavior.php`)
+  pinned the drained-key invariant and became the durable answer.
+- **Conversation resolution is the real merge gate.** Required checks
+  were green for six consecutive rounds while the pull request stayed
+  BLOCKED on unresolved threads; triage lines in the PR body do not
+  resolve threads — reply to each thread, then resolve it.
