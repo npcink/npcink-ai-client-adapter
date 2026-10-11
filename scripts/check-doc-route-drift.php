@@ -267,11 +267,11 @@ foreach ( $registered as $patterns ) {
 // text and cannot be gated here.
 $controller_contents = npcink_adapter_route_drift_read( $controller );
 
-if ( preg_match_all( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_{}./-]+)#', $controller_contents, $label_matches, PREG_SET_ORDER ) ) {
+if ( preg_match_all( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_{}./-]+)#', $controller_contents, $label_matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE ) ) {
 	$seen_labels = array();
 	foreach ( $label_matches as $label ) {
-		$method    = $label[1];
-		$path      = trim( rtrim( $label[2], '.,;):' ), '/' );
+		$method    = $label[1][0];
+		$path      = trim( rtrim( $label[2][0], '.,;):' ), '/' );
 		$cache_key = $method . ' /' . $path;
 
 		if ( isset( $seen_labels[ $cache_key ] ) ) {
@@ -294,7 +294,8 @@ if ( preg_match_all( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_{
 		}
 
 		if ( ! isset( $registered[ $method ] ) || ! npcink_adapter_route_drift_matches_any( $segments, $registered[ $method ] ) ) {
-			npcink_adapter_route_drift_fail( 'includes/Rest/Controller.php: route label `' . $cache_key . '` does not match a registered route.' );
+			$line_number = 1 + substr_count( substr( $controller_contents, 0, (int) $label[1][1] ), "\n" );
+			npcink_adapter_route_drift_fail( 'includes/Rest/Controller.php:' . $line_number . ': route label `' . $cache_key . '` does not match a registered route.' );
 		}
 	}
 }
