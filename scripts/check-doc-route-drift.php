@@ -279,6 +279,10 @@ if ( preg_match_all( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_{
 		}
 		$seen_labels[ $cache_key ] = true;
 
+		// Full-prefix URLs ('/wp-json/<namespace>/...') are Adapter routes;
+		// strip to the namespace-relative path before any other check.
+		$path = ltrim( npcink_adapter_route_drift_strip_namespace( '/' . $path, $namespace ), '/' );
+
 		// Foreign REST namespaces referenced from guidance strings are not
 		// Adapter route labels.
 		if ( npcink_adapter_route_drift_is_foreign( '/' . $path ) ) {
