@@ -84,6 +84,10 @@ function npcink_adapter_route_drift_registered( string $controller ): array {
 
 	foreach ( array_slice( explode( 'register_rest_route(', $contents ), 1 ) as $chunk ) {
 		if ( ! preg_match( "#\\s*self::NAMESPACE,\\s*'([^']+)'#", $chunk, $path_match ) ) {
+			// A registration this parser cannot read would make every doc
+			// mention of that route look unregistered, so surface it loudly
+			// instead of skipping silently.
+			npcink_adapter_route_drift_fail( 'Unrecognized register_rest_route() form; the drift gate parser needs updating: ' . trim( strtok( substr( $chunk, 0, 200 ), "\n" ) ) );
 			continue;
 		}
 
@@ -213,6 +217,26 @@ function npcink_adapter_route_drift_strip_namespace( string $path, string $rest_
 	return $path;
 }
 
+/**
+ * Returns true when a mentioned path belongs to a foreign REST namespace.
+ *
+ * Foreign namespaces (Core, Abilities API, wp/v2) are outside this gate;
+ * only Adapter-owned route mentions are checked.
+ *
+ * @param string $path Mentioned path relative to the Adapter namespace.
+ * @return bool
+ */
+function npcink_adapter_route_drift_is_foreign( string $path ): bool {
+	$foreign_prefixes = array( 'wp-json/', 'npcink-governance-core/', 'wp-abilities/', 'wp/v2/' );
+	$trimmed_path     = ltrim( $path, '/' );
+	foreach ( $foreign_prefixes as $foreign_prefix ) {
+		if ( 0 === strpos( $trimmed_path, $foreign_prefix ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
 $registered = npcink_adapter_route_drift_registered( $controller );
 
 if ( array() === $registered ) {
@@ -257,8 +281,7 @@ if ( preg_match_all( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_{
 
 		// Foreign REST namespaces referenced from guidance strings are not
 		// Adapter route labels.
-		$trimmed_label_path = ltrim( $path, '/' );
-		if ( 0 === strpos( $trimmed_label_path, 'wp-json/' ) || 0 === strpos( $trimmed_label_path, 'npcink-governance-core/' ) || 0 === strpos( $trimmed_label_path, 'wp-abilities/' ) || 0 === strpos( $trimmed_label_path, 'wp/v2/' ) ) {
+		if ( npcink_adapter_route_drift_is_foreign( '/' . $path ) ) {
 			continue;
 		}
 
@@ -314,13 +337,16 @@ foreach ( $doc_files as $doc_file ) {
 			}
 		}
 
-		if ( preg_match_all( '#(?<![A-Za-z])(?:GET|POST|PUT|PATCH|DELETE) (/[\w{}./-]+)#', $line, $method_matches, PREG_SET_ORDER ) ) {
+		// Markdown tables and backtick separators ("| GET | /health |") must
+		// count as method mentions too, so the separator may be any run of
+		// whitespace, pipes, or backticks.
+		if ( preg_match_all( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)[\s|`]+(/[\w{}./-]+)#', $line, $method_matches, PREG_SET_ORDER ) ) {
 			foreach ( $method_matches as $method_match ) {
 				// "METHOD /path" mentions are unambiguous route references,
 				// even when the path's first segment is not registered yet.
 				// The lookbehind stops words like BUDGET / TARGET from being
 				// read as method names.
-				$mentions[] = array( strtok( $method_match[0], ' ' ), $method_match[1], true );
+				$mentions[] = array( strtok( $method_match[0], " \t|`" ), $method_match[2], true );
 			}
 		}
 
@@ -343,14 +369,8 @@ foreach ( $doc_files as $doc_file ) {
 				continue;
 			}
 
-			// Foreign REST namespaces (Core, Abilities API, wp/v2) are outside
-			// this gate; only Adapter-owned route mentions are checked.
-			$foreign_prefixes = array( 'wp-json/', 'npcink-governance-core/', 'wp-abilities/', 'wp/v2/' );
-			$trimmed_path     = ltrim( $path, '/' );
-			foreach ( $foreign_prefixes as $foreign_prefix ) {
-				if ( 0 === strpos( $trimmed_path, $foreign_prefix ) ) {
-					continue 2;
-				}
+			if ( npcink_adapter_route_drift_is_foreign( $path ) ) {
+				continue;
 			}
 
 			// Bare paths are only gated when their first segment is an
