@@ -119,11 +119,17 @@ For WorkBuddy or another local broker, use key-pair device pairing instead of
 sending a browser-visible Application Password:
 
 ```text
-GET  /connection/manifest
-POST /connect/device/start
-POST /connect/device/poll
-GET  /connection/key-pairs
+GET    /connection/manifest
+POST   /connect/device/start
+POST   /connect/device/poll
+GET    /connection/key-pairs
+DELETE /connection/key-pairs/{key_id}   (administrator sessions only)
 ```
+
+`GET /help` advertises this as the preferred auth mode
+(`auth.preferred=key_pair_device_pairing`) with the Application Password flow
+as `auth.fallback`; `GET /connection/manifest` also lists the read and
+governed-write route URLs under `urls`.
 
 The local broker generates an Ed25519 key pair, keeps the private key local,
 and starts pairing with the public key. WordPress shows an admin approval page;
@@ -577,6 +583,12 @@ Failure code handling:
   call `POST /proposals/{proposal_id}/execute`.
 - `npcink_openclaw_adapter_execute_profile_unsupported`: stop; the proposal ability
   is outside Adapter's execution supported profiles.
+- `npcink_openclaw_adapter_invalid_path_id`: a `{proposal_id}`, `{request_id}`,
+  or `{key_id}` path value has the wrong shape; the error names the field and
+  expected shape. Fix the id instead of probing other URLs.
+- `npcink_openclaw_adapter_execution_in_progress` (409): another execution of
+  the same proposal is running; honor the `Retry-After` response header
+  (also present as `retry_after` data) before retrying.
 - `npcink_openclaw_adapter_proposal_rejected`: stop and show the Core rejection.
 - `npcink_openclaw_adapter_preflight_not_authorized` or
   `npcink_openclaw_adapter_preflight_item_blocked`: stop and show Core preflight

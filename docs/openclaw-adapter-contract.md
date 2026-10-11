@@ -821,6 +821,19 @@ OpenClaw may use capability discovery to decide what can be proposed, but
 Adapter must use execution profiles to decide what can be executed after Core
 approval and commit-preflight.
 
+Execution error shapes on these routes:
+
+- Concurrent execution of the same proposal returns `409
+  npcink_openclaw_adapter_execution_in_progress` with `retry_after` data and
+  the standard `Retry-After` response header, so stock HTTP clients back off
+  without parsing the body.
+- A malformed `{proposal_id}` path value (expected shape `[A-Za-z0-9_-]+`)
+  returns `400 npcink_openclaw_adapter_invalid_path_id` naming the field and
+  expected shape, instead of WordPress core's generic `rest_no_route` 404.
+- Non-administrator callers on administrator-only routes receive the
+  structured `403 npcink_openclaw_adapter_privilege_required` envelope with
+  `reason` and `next_step`, never bare `rest_forbidden`.
+
 For abilities that have an Adapter execution profile, `POST /proposals` must
 validate the profile-owned input shape before forwarding to Core. That includes
 rejecting undeclared input fields and invalid enum values, so a proposal that
@@ -1058,8 +1071,8 @@ Direct reads must use the generic route:
 Adapter does not expose direct-read shortcut routes or workflow recipe shortcut
 routes. The caller supplies the allowlisted `ability_id` and bounded input.
 
-Diagnostics shortcuts must remain aliases over `npcink-abilities-toolkit`
-direct-read abilities. Adapter must not collect plugin details, error-log
+Diagnostics reads go through the same generic route with the underlying
+`npcink-abilities-toolkit` ability ids. Adapter must not collect plugin details, error-log
 details, current-user capabilities, PHP extension state, database details,
 rewrite state, cron details, roles, widgets, block-theme details, or search
 status itself.
