@@ -6,6 +6,7 @@
 	<file>npcink-ai-client-adapter.php</file>
 	<file>uninstall.php</file>
 	<file>scripts/check-wordpress-org-review-rules.php</file>
+	<file>scripts/check-doc-route-drift.php</file>
 
 	<arg name="extensions" value="php"/>
 	<arg value="sp"/>

@@ -205,7 +205,8 @@ Smoke verifies the preconditions that can be checked without a browser:
   derivative preview URLs;
 - `core/columns` keeps `isStackedOnMobile=true` where columns are used;
 - FAQ output uses `core/details`;
-- `GET /post-blocks` can read the generated block tree through Adapter.
+- `POST /run-read-ability` with `npcink-abilities-toolkit/get-post-blocks`
+  can read the generated block tree through Adapter.
 
 Failing a browser check should feed back into the Toolkit pattern or article
 template. Do not fix visual issues by adding arbitrary CSS, direct WordPress

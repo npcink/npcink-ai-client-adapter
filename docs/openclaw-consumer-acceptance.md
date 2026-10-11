@@ -93,7 +93,7 @@ Run this order for a local acceptance pass:
 4. Require these health values:
    - `core_capabilities=true`
    - `abilities_catalog=true`
-   -    - `approval_surface=npcink_governance_core_admin`
+   - `approval_surface=npcink_governance_core_admin`
    - `core_proxy_execute=false`
    - `commit_execution=false`
 5. Call `GET /help` and confirm route discovery includes:
@@ -175,7 +175,10 @@ Run this order for a local acceptance pass:
    `requires_external_evidence=true`, `max_results=3`, `recency_days=30`, and
    `enhance_with_reader=false`; Adapter must only pass this intent to Toolbox
    and must not expose Cloud search provider keys.
-   - disabled approval and rejection stubs
+   - no standalone `POST /proposals/{proposal_id}/approve` or
+     `POST /proposals/{proposal_id}/reject` routes: they are unregistered, and
+     calling either path returns the standard WordPress REST `rest_no_route`
+     404
    - direct-read ability execution through `/run-read-ability`
 6. Call `GET /capabilities` and use only real `ability_id` values returned by
    Core guidance.
@@ -445,13 +448,12 @@ curl -sS --user "OPENCLAW_USERNAME:<openclaw-secret-field-value>" \
 OpenClaw must stop and report the reason when Adapter or Core returns:
 
 - `401` for missing or invalid WordPress REST authentication;
-- `403` for missing WordPress capability or disabled approval proxy;
-- `404` for missing proposal;
+- `403` for missing WordPress capability;
+- `404` for missing proposal, or `rest_no_route` 404 when calling the
+  unregistered standalone approve/reject paths;
 - `429` when Core app-key rate policy rejects an internal Core request;
 - `npcink_openclaw_adapter_proposal_required` when a caller tries to execute a
   proposal-required ability as a direct read;
-- `npcink_openclaw_adapter_execute_profile_unsupported` when a caller tries to approve or
-  reject through Adapter's standalone generic approval proxy routes;
 - `npcink_openclaw_adapter_execute_profile_unsupported` when the proposal ability is
   outside Adapter's execution supported profiles;
 - `npcink_openclaw_adapter_write_action_invalid`,
@@ -472,10 +474,11 @@ becoming a second approval truth: `status`, `message`, `reasons[]`,
 `core_evidence`. OpenClaw should display it, stop execution, and guide the
 operator to revise the plan or draft before creating a new proposal.
 
-The disabled approval and rejection stubs are part of the acceptance surface.
-They prove that OpenClaw can discover the routes while using
-`approve-and-execute` from an administrator session for the unified user
-action or Core admin for split approval decisions.
+The absence of standalone approve/reject routes is part of the acceptance
+surface. Calling either path returns the standard WordPress REST
+`rest_no_route` 404 because Adapter registers no route for it; approval
+decisions belong to the Core admin, or to `approve-and-execute` from an
+administrator session for the unified user action.
 
 ## Non-Goals
 
@@ -526,8 +529,9 @@ Core cross-reference does not need a Core WordPress smoke pass.
 OpenClaw consumer acceptance is complete when:
 
 - health, help, capabilities, direct read, diagnostics read, proposal create,
-  plan-to-proposal forwarding, proposal list/detail, disabled approve/reject
-  stubs, unified approve-and-execute, split Core admin approval/rejection, and
+  plan-to-proposal forwarding, proposal list/detail, unregistered standalone
+  approve/reject paths returning `rest_no_route` 404, unified
+  approve-and-execute, split Core admin approval/rejection, and
   commit preflight are all verified through Adapter;
 - Core audit and AI Request Logs can be correlated with `proposal_id` or
   `correlation_id`;
