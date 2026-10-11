@@ -158,7 +158,12 @@ approval, or audit state, and it does not expose secrets.
 ## REST Surface
 
 All routes require `manage_options` through normal WordPress REST
-authentication, such as an administrator Application Password.
+authentication, such as an administrator Application Password, with one
+deliberate exception: the `POST /connect/device/start` and
+`POST /connect/device/poll` pairing routes accept unauthenticated calls so a
+local client can begin public-key pairing; they only create or query a
+pending pairing that a WordPress administrator must approve before the key
+is trusted.
 
 - `GET /wp-json/npcink-openclaw-adapter/v1/health`
 - `GET /wp-json/npcink-openclaw-adapter/v1/help`
@@ -194,16 +199,17 @@ Adapter projects those Toolkit-owned definitions into client actions without
 copying them into an Adapter registry. Contract version 4 exposes this rule as
 `contract.workflow_projection` and fails closed on definition-version drift.
 
-Disabled compatibility stubs:
+Standalone approve/reject routes are not registered:
 
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve`
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/reject`
 
-These return HTTP 403 with
-`code=npcink_openclaw_adapter_approval_proxy_disabled`,
-`approval_proxy_enabled=false`, and
-`approval_surface=npcink_governance_core_admin`. Adapter does not forward
-standalone approve/reject decisions to Core.
+Calling either path returns the standard WordPress REST `rest_no_route` 404
+because Adapter registers no route for it. Adapter does not forward standalone
+approve/reject decisions to Core; approval decisions belong to
+`approval_surface=npcink_governance_core_admin`, which covers human approval
+in the Core admin and the administrator-session unified
+`approve-and-execute` action.
 
 Diagnostic reads should call `POST /run-read-ability` with the underlying
 Toolkit ability id and input. Adapter does not collect these facts itself.
@@ -452,9 +458,9 @@ local AI client and wait for polling to finish.
 
 The `status` command keeps the raw `/health` boundary fields and also prints
 derived `boundary` and `proposal_execution` guidance. In a healthy Adapter
-connection, `approval_proxy_enabled=false`, `core_proxy_execute=false`, and
+connection, `core_proxy_execute=false` and
 `commit_execution=false` are expected boundary controls. They mean Core did not
-execute final writes and standalone approval proxying is disabled; they are not
+execute final writes; they are not
 an execution-disabled signal. For proposal execution readiness, inspect
 `GET /proposals/{proposal_id}`; after a human approves the proposal in the
 Core admin, use the Adapter execute route. The unified approve-and-execute
@@ -634,7 +640,6 @@ Initial connection:
 3. OpenClaw calls `GET /health` and verifies:
    - `core_capabilities=true`
    - `abilities_catalog=true`
-   - `approval_proxy_enabled=false`
    - `approval_surface=npcink_governance_core_admin`
    - `core_proxy_execute=false`
    - `commit_execution=false`
@@ -686,9 +691,14 @@ Plan-to-proposal flow:
 	   `npcink-abilities-toolkit/build-media-inventory-fix-plan`,
 	   `npcink-abilities-toolkit/build-media-reference-repair-plan`, or
 	   `npcink-abilities-toolkit/build-media-settings-reference-repair-plan`, or
+		   `npcink-abilities-toolkit/build-media-optimization-plan`, or
 		   `npcink-abilities-toolkit/build-media-adoption-enhancement-plan`, or
 		   `npcink-abilities-toolkit/build-media-rename-plan`, or
+		   `npcink-abilities-toolkit/build-media-alt-apply-plan`, or
+		   `npcink-abilities-toolkit/build-content-metadata-apply-plan`, or
+		   `npcink-abilities-toolkit/build-article-audio-adoption-plan`, or
 		   `npcink-abilities-toolkit/build-article-optimization-apply-plan`, or
+		   `npcink-abilities-toolkit/build-article-block-plan`, or
 		   `npcink-abilities-toolkit/build-block-theme-site-plan`, or
 		   `npcink-abilities-toolkit/build-pattern-page-plan`, or
 	   `npcink-toolbox/build-article-write-plan`, or
@@ -861,6 +871,7 @@ Proposal-required write flow:
 9. For the current approved proposal execution path, Adapter may execute only
    `npcink-abilities-toolkit/trash-post`, `npcink-abilities-toolkit/create-draft`,
    `npcink-abilities-toolkit/update-post`, `npcink-abilities-toolkit/set-post-seo-meta`,
+   `npcink-abilities-toolkit/adopt-article-audio`,
    `npcink-abilities-toolkit/set-post-slug`, `npcink-abilities-toolkit/set-post-terms`,
 	   `npcink-abilities-toolkit/delete-term`, `npcink-abilities-toolkit/patch-post-content`,
 	   `npcink-abilities-toolkit/update-post-blocks`,
@@ -869,6 +880,8 @@ Proposal-required write flow:
 	   `npcink-abilities-toolkit/update-template-part-blocks`,
 	   `npcink-abilities-toolkit/patch-setting-value`,
 	   `npcink-abilities-toolkit/update-media-details`,
+	   `npcink-abilities-toolkit/upload-media-from-url`,
+	   `npcink-abilities-toolkit/set-post-featured-image`,
 	   `npcink-abilities-toolkit/optimize-media-asset`,
 	   `npcink-abilities-toolkit/replace-media-file`,
 	   `npcink-abilities-toolkit/restore-media-backup`,
@@ -938,14 +951,14 @@ Adapter only carries bounded request context such as `adapter_request_id`,
 `proposal_id`, `correlation_id`, and nested Core context for observability.
 
 `POST /proposals/{proposal_id}/approve` and
-`POST /proposals/{proposal_id}/reject` are disabled stubs. They return HTTP 403
-with `code=npcink_openclaw_adapter_approval_proxy_disabled`,
-`approval_proxy_enabled=false`, and
-`approval_surface=npcink_governance_core_admin`. For the unified user action,
+`POST /proposals/{proposal_id}/reject` are not registered routes; calling
+them returns the standard WordPress REST `rest_no_route` 404, and
+`approval_surface=npcink_governance_core_admin` remains the approval truth.
+For the unified user action,
 use `POST /proposals/{proposal_id}/approve-and-execute` from a WordPress
 administrator session; otherwise use
 Npcink Governance Core admin for split approval decisions. The adapter does not forward
-the standalone approve/reject stub routes to Core and does not require a
+standalone approve/reject decisions to Core and does not require a
 default Core key with approval or rejection scopes.
 
 Example health request:
@@ -1008,9 +1021,11 @@ Write or destructive abilities:
 	   `npcink-abilities-toolkit/upsert-template-blocks`,
 	   `npcink-abilities-toolkit/update-template-part-blocks`,
 	   `npcink-abilities-toolkit/patch-setting-value`,
-   `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/set-post-slug`,
+   `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/adopt-article-audio`,
+	   `npcink-abilities-toolkit/set-post-slug`,
 	   `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`,
-	   `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/optimize-media-asset`,
+	   `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/upload-media-from-url`,
+	   `npcink-abilities-toolkit/set-post-featured-image`, `npcink-abilities-toolkit/optimize-media-asset`,
 	   `npcink-abilities-toolkit/replace-media-file`,
 	   `npcink-abilities-toolkit/restore-media-backup`,
 	   `npcink-abilities-toolkit/adopt-cloud-media-derivative`,

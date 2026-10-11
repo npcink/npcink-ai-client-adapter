@@ -554,7 +554,7 @@ function mcpToolDescriptors() {
   return [
     {
       name: 'health',
-      description: 'Adapter health, dependency readiness, and boundary posture. Expected boundary controls: approval_proxy_enabled=false, core_proxy_execute=false, commit_execution=false.',
+      description: 'Adapter health, dependency readiness, and boundary posture. Expected boundary controls: core_proxy_execute=false, commit_execution=false.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       route: () => ({ method: 'GET', path: '/health' }),
     },
