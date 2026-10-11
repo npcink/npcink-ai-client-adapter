@@ -287,6 +287,12 @@ if ( preg_match_all( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_{
 
 		$segments = npcink_adapter_route_drift_doc_segments( '/' . $path );
 
+		// Concatenated literals ('POST /' . self::NAMESPACE . ...) can leave
+		// an empty path; there is nothing to gate.
+		if ( array() === $segments ) {
+			continue;
+		}
+
 		if ( ! isset( $registered[ $method ] ) || ! npcink_adapter_route_drift_matches_any( $segments, $registered[ $method ] ) ) {
 			npcink_adapter_route_drift_fail( 'includes/Rest/Controller.php: route label `' . $cache_key . '` does not match a registered route.' );
 		}
@@ -314,17 +320,52 @@ try {
 
 $absent_cues = '#(?:no Adapter-owned|not\s+(?:being\s+)?registered|unregistered|does not expose|do not expose|must not expose|no standalone|rest_no_route|were removed|has been removed|shortcut routes such as|Remove stale|Core\s+`)#i';
 
+/**
+ * Returns true when a line itself carries a strict Adapter route mention.
+ *
+ * Used to keep absent-cue suppression tight: a cue line that only explains
+ * absence (no route mention of its own) can introduce a fenced route list,
+ * while a cue line that also names routes may only suppress its immediate
+ * wrapped neighbors.
+ *
+ * @param string $line          Doc line.
+ * @param string $rest_namespace REST namespace such as npcink-openclaw-adapter/v1.
+ * @return bool
+ */
+function npcink_adapter_route_drift_line_has_mention( string $line, string $rest_namespace ): bool {
+	$has_url    = (bool) preg_match( '#' . preg_quote( $rest_namespace, '#' ) . '(/[\w{}./-]+)#', $line );
+	$has_method = (bool) preg_match( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)[\s|`]+(/[\w{}./-]+)#', $line );
+	return $has_url || $has_method;
+}
+
 foreach ( $doc_files as $doc_file ) {
-	$relative = str_replace( $root . '/', '', $doc_file );
-	$lines    = explode( "\n", npcink_adapter_route_drift_read( $doc_file ) );
-	$seen     = array();
+	$relative  = str_replace( $root . '/', '', $doc_file );
+	$lines     = explode( "\n", npcink_adapter_route_drift_read( $doc_file ) );
+	$seen      = array();
+	$last_line = count( $lines ) - 1;
 
 	foreach ( $lines as $line_number => $line ) {
-		// A mention counts as intentional when an absent-route cue appears
-		// near it (same line or within five lines in either direction), so a
-		// "not registered" sentence can introduce a fenced route list.
-		$context_window = implode( "\n", array_slice( $lines, max( 0, $line_number - 5 ), 11 ) );
-		if ( preg_match( $absent_cues, $line ) || preg_match( $absent_cues, $context_window ) ) {
+		// Absent-route cue suppression, tiered so it cannot hide real drift:
+		// a cue on the same line always applies; a cue line without its own
+		// route mention (e.g. a "not registered:" heading) applies within five
+		// lines; a cue line that also names routes only suppresses adjacent
+		// wrapped mention lines, so live routes a few lines below stay gated.
+		if ( preg_match( $absent_cues, $line ) ) {
+			continue;
+		}
+
+		$suppressed = false;
+		for ( $context = max( 0, $line_number - 5 ); $context <= min( $last_line, $line_number + 5 ); $context++ ) {
+			if ( $context === $line_number || ! preg_match( $absent_cues, $lines[ $context ] ) ) {
+				continue;
+			}
+			$distance = abs( $context - $line_number );
+			if ( ! npcink_adapter_route_drift_line_has_mention( $lines[ $context ], $namespace ) || $distance <= 1 ) {
+				$suppressed = true;
+				break;
+			}
+		}
+		if ( $suppressed ) {
 			continue;
 		}
 
