@@ -57,6 +57,7 @@ V1 supports only the Adapter execution supported profiles, currently:
 - `target_ability_id=npcink-abilities-toolkit/update-template-part-blocks`
 - `target_ability_id=npcink-abilities-toolkit/patch-setting-value`
 - `target_ability_id=npcink-abilities-toolkit/set-post-seo-meta`
+- `target_ability_id=npcink-abilities-toolkit/adopt-article-audio`
 - `target_ability_id=npcink-abilities-toolkit/set-post-slug`
 - `target_ability_id=npcink-abilities-toolkit/set-post-terms`
 - `target_ability_id=npcink-abilities-toolkit/delete-term`

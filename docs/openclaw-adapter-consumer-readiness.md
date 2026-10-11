@@ -2,6 +2,9 @@
 
 Status: complete
 Date: 2026-06-02
+Re-synced: 2026-10-11 against `npcink-ai-client-adapter` 0.4.1 (route surface
+and execution supported profiles refreshed; the original June dependency
+snapshot below is kept for history).
 
 ## Dependency Snapshot
 
@@ -30,20 +33,34 @@ needed to connect OpenClaw to Core governance and WordPress Abilities API.
 
 ## Verified Routes
 
-The consumer readiness pass verified these Adapter routes:
+The current Adapter route surface (re-synced to 0.4.1):
 
 - `GET /health`
 - `GET /help`
 - `GET /capabilities`
-- direct read shortcuts
-- diagnostics shortcuts
-- `POST /proposals`
-- `GET /proposals`
-- `GET /proposals/{proposal_id}`
+- `GET /connection/manifest`
+- `POST /connect/device/start`
+- `POST /connect/device/poll`
+- `GET /connection/key-pairs`
+- `DELETE /connection/key-pairs/{key_id}` (administrator sessions only)
+- `POST /run-read-ability`
+- `GET /read-requests`, `POST /read-requests`,
+  `GET /read-requests/{request_id}`
+- `POST /proposals`, `GET /proposals`,
+  `GET /proposals/{proposal_id}`
+- `POST /proposals/from-plan`
+- `POST /execute-approved-proposal`
+- `POST /proposals/{proposal_id}/execute`
+- `GET /proposals/{proposal_id}/media-optimization-readiness`
+- `POST /proposals/{proposal_id}/approve-and-execute`
+  (administrator sessions only)
 - `POST /proposals/{proposal_id}/commit-preflight`
-- `POST /proposals/{proposal_id}/approve-and-execute` (administrator sessions only)
-- `POST /proposals/{proposal_id}/approve` and
-  `POST /proposals/{proposal_id}/reject` as disabled HTTP 403 stubs
+
+Direct-read shortcut routes, diagnostics shortcut routes, and standalone
+`POST /proposals/{proposal_id}/approve` /
+`POST /proposals/{proposal_id}/reject` stubs from earlier snapshots are
+unregistered; calling those paths returns the standard WordPress REST
+`rest_no_route` 404.
 
 ## Verified Loop
 
@@ -57,17 +74,30 @@ The readiness pass verified:
   action is administrator-session only);
 - Core commit-preflight before execution;
 - supported final execution for `npcink-abilities-toolkit/trash-post`,
-  `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`,
-  `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/set-post-slug`,
-  `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`,
-  `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/optimize-media-asset`,
+  `npcink-abilities-toolkit/create-draft`,
+  `npcink-abilities-toolkit/update-post`,
+  `npcink-abilities-toolkit/patch-post-content`,
+  `npcink-abilities-toolkit/update-post-blocks`,
+  `npcink-abilities-toolkit/update-template-blocks`,
+  `npcink-abilities-toolkit/upsert-template-blocks`,
+  `npcink-abilities-toolkit/update-template-part-blocks`,
+  `npcink-abilities-toolkit/patch-setting-value`,
+  `npcink-abilities-toolkit/set-post-seo-meta`,
+  `npcink-abilities-toolkit/adopt-article-audio`,
+  `npcink-abilities-toolkit/set-post-slug`,
+  `npcink-abilities-toolkit/set-post-terms`,
+  `npcink-abilities-toolkit/delete-term`,
+  `npcink-abilities-toolkit/update-media-details`,
   `npcink-abilities-toolkit/upload-media-from-url`,
-  `npcink-abilities-toolkit/set-post-featured-image`, `npcink-abilities-toolkit/replace-media-file`,
+  `npcink-abilities-toolkit/set-post-featured-image`,
+  `npcink-abilities-toolkit/optimize-media-asset`,
+  `npcink-abilities-toolkit/replace-media-file`,
   `npcink-abilities-toolkit/restore-media-backup`,
   `npcink-abilities-toolkit/adopt-cloud-media-derivative`,
   `npcink-abilities-toolkit/rename-media-file`,
   `npcink-abilities-toolkit/delete-media-permanently`,
-  `npcink-abilities-toolkit/reply-comment`, `npcink-abilities-toolkit/trash-comment`, and
+  `npcink-abilities-toolkit/reply-comment`,
+  `npcink-abilities-toolkit/trash-comment`, and
   `npcink-abilities-toolkit/approve-comment`;
 - rejected proposals do not execute;
 - preflight-blocked proposals do not execute;
@@ -94,19 +124,35 @@ Adapter remains a thin OpenClaw channel layer:
 - Adapter does own the OpenClaw read envelope and bounded read-result redaction
   layer for direct-read rows where Core reports sensitive policy guidance.
 - Adapter execution supported profiles currently includes `npcink-abilities-toolkit/trash-post`,
-  `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`,
-  `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/set-post-slug`,
-  `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`,
-  `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/optimize-media-asset`,
+  `npcink-abilities-toolkit/create-draft`,
+  `npcink-abilities-toolkit/update-post`,
+  `npcink-abilities-toolkit/patch-post-content`,
+  `npcink-abilities-toolkit/update-post-blocks`,
+  `npcink-abilities-toolkit/update-template-blocks`,
+  `npcink-abilities-toolkit/upsert-template-blocks`,
+  `npcink-abilities-toolkit/update-template-part-blocks`,
+  `npcink-abilities-toolkit/patch-setting-value`,
+  `npcink-abilities-toolkit/set-post-seo-meta`,
+  `npcink-abilities-toolkit/adopt-article-audio`,
+  `npcink-abilities-toolkit/set-post-slug`,
+  `npcink-abilities-toolkit/set-post-terms`,
+  `npcink-abilities-toolkit/delete-term`,
+  `npcink-abilities-toolkit/update-media-details`,
+  `npcink-abilities-toolkit/upload-media-from-url`,
+  `npcink-abilities-toolkit/set-post-featured-image`,
+  `npcink-abilities-toolkit/optimize-media-asset`,
   `npcink-abilities-toolkit/replace-media-file`,
   `npcink-abilities-toolkit/restore-media-backup`,
   `npcink-abilities-toolkit/adopt-cloud-media-derivative`,
   `npcink-abilities-toolkit/rename-media-file`,
   `npcink-abilities-toolkit/delete-media-permanently`,
-  `npcink-abilities-toolkit/reply-comment`, `npcink-abilities-toolkit/trash-comment`, and
+  `npcink-abilities-toolkit/reply-comment`,
+  `npcink-abilities-toolkit/trash-comment`, and
   `npcink-abilities-toolkit/approve-comment`.
 
-The generic proposal approval proxying must remain disabled unless a future decision
+Standalone proposal approve/reject routes are not registered; calling those
+paths returns the standard WordPress REST `rest_no_route` 404. Generic
+proposal approval proxying must remain disabled unless a future decision
 explicitly changes the product boundary. The current productized user action is
 `POST /proposals/{proposal_id}/approve-and-execute`, reserved for WordPress
 administrator sessions; signed clients use human Core approval followed by

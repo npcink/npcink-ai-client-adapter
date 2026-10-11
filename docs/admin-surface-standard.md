@@ -64,7 +64,7 @@ Do not put developer diagnostics on the default admin page. Keep these in
 - `POST /run-read-ability` examples for underlying ability ids;
 - proposal route examples;
 - AI Request Logs correlation smoke details;
-- disabled approval/rejection stub explanation;
+- unregistered standalone approve/reject route explanation;
 - failure code mapping;
 - verbose handoff prompt and local AI client session text.
 

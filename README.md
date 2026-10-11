@@ -247,8 +247,9 @@ For deep plugin conflict troubleshooting, call
 }
 ```
 
-When the operator explicitly asks to inspect logs, use `recent-error-log-tail` or
-send the equivalent input:
+When the operator explicitly asks to inspect logs, call
+`POST /run-read-ability` with
+`npcink-abilities-toolkit/wp-ops-diagnostics-detail` and this input:
 
 ```json
 {

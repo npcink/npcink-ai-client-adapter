@@ -61,8 +61,9 @@ known, also pass `hero_media_attachment_id` so Toolkit can bind
 4. Poll `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}`.
 5. Execute only after approval with
    `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`.
-6. Read the created post through
-   `GET /wp-json/npcink-openclaw-adapter/v1/post-blocks?post_id={post_id}`.
+6. Read the created post through `POST /run-read-ability` with
+   `ability_id=npcink-abilities-toolkit/get-post-blocks` and
+   `input={"post_id":<post_id>}`.
 
 ## Responsive Verification
 

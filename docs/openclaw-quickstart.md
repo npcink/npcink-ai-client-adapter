@@ -16,7 +16,6 @@ a thin channel layer:
   WordPress administrator sessions only);
 - `core_proxy_execute=false`;
 - `approval_surface=npcink_governance_core_admin`;
-- `core_proxy_execute=false`;
 - `commit_execution=false`.
 
 For the acceptance checklist that productized clients should run
@@ -280,66 +279,36 @@ curl -sS --user "1:<openclaw-secret-field-value>" \
 For reviewed article draft planning, follow `docs/recipes/openclaw-article-draft-plan-recipe.md`. The entrypoint ability is
 `npcink-toolbox/build-article-write-plan`; the final governed write remains
 `npcink-abilities-toolkit/create-draft` after Core approval and commit preflight. See
-[`openclaw-article-draft-plan-recipe.md`](openclaw-article-draft-plan-recipe.md).
+[`openclaw-article-draft-plan-recipe.md`](recipes/openclaw-article-draft-plan-recipe.md).
 
 For reviewed 2-5 article draft batches, follow `docs/recipes/openclaw-article-batch-draft-plan-recipe.md`. The entrypoint ability is
 `npcink-toolbox/build-article-batch-write-plan`; Core creates one batch
 proposal, and the final governed writes remain draft-only
 `npcink-abilities-toolkit/create-draft` actions after Core approval and commit preflight. See
-[`openclaw-article-batch-draft-plan-recipe.md`](openclaw-article-batch-draft-plan-recipe.md).
+[`openclaw-article-batch-draft-plan-recipe.md`](recipes/openclaw-article-batch-draft-plan-recipe.md).
 
-Troubleshooting diagnostics:
+Troubleshooting diagnostics go through `POST /run-read-ability` with Toolkit
+diagnostic abilities. Adapter does not expose fixed diagnostics shortcut
+routes such as `active-plugins-detail`, `plugin-conflict-diagnostics`,
+`recent-error-log`, or `recent-error-log-tail`; calling those paths returns
+the standard WordPress REST `rest_no_route` 404.
 
-```bash
-curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/active-plugins-detail"
-```
-
-The default diagnostics input requests active plugins, update rows, must-use
-plugins, dropins, and log severity summaries, but it does not request inactive
-plugin rows:
-
-```json
-{
-  "include_log_contents": false,
-  "include_active_plugins": true,
-  "include_inactive_plugins": false,
-  "include_plugin_updates": true,
-  "include_must_use_plugins": true,
-  "include_dropins": true,
-  "max_plugins_per_group": 100
-}
-```
-
-For plugin conflict troubleshooting, explicitly request inactive plugin rows:
+The default diagnostics detail input requests active plugins, update rows,
+must-use plugins, dropins, and log severity summaries, but it does not request
+inactive plugin rows:
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/plugin-conflict-diagnostics"
+  -H "Content-Type: application/json" \
+  -d '{"ability_id":"npcink-abilities-toolkit/wp-ops-diagnostics-detail","input":{"include_log_contents":false,"include_active_plugins":true,"include_inactive_plugins":false,"include_plugin_updates":true,"include_must_use_plugins":true,"include_dropins":true,"max_plugins_per_group":100}}' \
+  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
-That route sends `include_inactive_plugins=true` and
-`max_plugins_per_group=200`.
+For deep plugin conflict troubleshooting, send the same ability with
+`include_inactive_plugins=true` and `max_plugins_per_group=200`.
 
-```bash
-curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/recent-error-log"
-```
-
-`recent-error-log` uses `include_log_contents=false`. Treat log contents as
-not explicitly requested, not missing. Use `error_log.summary.fatal_count`,
-`error_log.summary.error_count`, `error_log.summary.warning_count`,
-`error_log.summary.deprecated_count`, `error_log.summary.notice_count`, and
-`error_log.summary.by_severity` for severity display without fetching content.
-When the user explicitly asks to inspect logs, request the bounded redacted
-tail:
-
-```bash
-curl -sS --user "1:<openclaw-secret-field-value>" \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/recent-error-log-tail"
-```
-
-That route sends:
+When the operator explicitly asks to inspect logs, request the bounded redacted
+tail with this input:
 
 ```json
 {
@@ -352,13 +321,12 @@ That route sends:
 
 Display `error_log.tail_entries` and `contents` only when
 `contents_included=true`. The `contents` array is compatibility redline text.
+When `include_log_contents=false`, log contents are not explicitly requested, not missing. Use `error_log.summary.fatal_count`,
+`error_log.summary.error_count`, `error_log.summary.warning_count`,
+`error_log.summary.deprecated_count`, `error_log.summary.notice_count`, and
+`error_log.summary.by_severity` for severity display without fetching content.
 
-```bash
-curl -sS --user "1:<openclaw-secret-field-value>" \
-  -H "Content-Type: application/json" \
-  -d '{"ability_id":"npcink-abilities-toolkit/wp-ops-diagnostics-detail","input":{"include_active_plugins":false,"include_inactive_plugins":false,"include_plugin_updates":false,"include_must_use_plugins":false,"include_dropins":false,"include_log_contents":false}}' \
-  "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
-```
+For a quick overview only:
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
@@ -367,7 +335,7 @@ curl -sS --user "1:<openclaw-secret-field-value>" \
   "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
 
-All P0/P1/P2 diagnostics detail shortcuts call
+All P0/P1/P2 diagnostics detail reads call
 `npcink-abilities-toolkit/wp-ops-diagnostics-detail`. Do not use
 `wp-diagnostics-summary` to decide whether plugin details, user permissions, or
 log details are missing. Default inactive plugin rows are not missing; they are
@@ -414,8 +382,8 @@ curl -sS --user "1:<openclaw-secret-field-value>" \
 If a route returns `npcink_openclaw_adapter_proposal_required`, stop and use the
 proposal flow instead of trying to execute the ability directly.
 
-Diagnostics shortcuts are aliases over `npcink-abilities-toolkit` direct-read
-abilities. Adapter does not read arbitrary files, inspect database tables
+Diagnostics reads are Toolkit direct-read abilities executed through
+`POST /run-read-ability`; Adapter exposes no fixed diagnostics shortcut routes. Adapter does not read arbitrary files, inspect database tables
 directly, or own capability policy. It does own a bounded read envelope and
 read-result redaction layer for rows where Core reports
 `direct_read_sensitive` or `redaction_required=true`; those responses include
@@ -475,16 +443,30 @@ curl -sS --user "1:<openclaw-secret-field-value>" \
    succeeds through Adapter, Adapter caches the one-time Core handoff for the
    next Adapter execute call. Dry-run-only verification stops at Adapter commit-preflight; do not call execute when the operator only asked for proposal/preflight validation. Do not call Core commit-preflight directly from OpenClaw.
 9. For approved proposal execution, only `npcink-abilities-toolkit/trash-post`,
-   `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`,
-   `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/set-post-slug`,
-   `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`,
-   `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/optimize-media-asset`,
+   `npcink-abilities-toolkit/create-draft`,
+   `npcink-abilities-toolkit/update-post`,
+   `npcink-abilities-toolkit/patch-post-content`,
+   `npcink-abilities-toolkit/update-post-blocks`,
+   `npcink-abilities-toolkit/update-template-blocks`,
+   `npcink-abilities-toolkit/upsert-template-blocks`,
+   `npcink-abilities-toolkit/update-template-part-blocks`,
+   `npcink-abilities-toolkit/patch-setting-value`,
+   `npcink-abilities-toolkit/set-post-seo-meta`,
+   `npcink-abilities-toolkit/adopt-article-audio`,
+   `npcink-abilities-toolkit/set-post-slug`,
+   `npcink-abilities-toolkit/set-post-terms`,
+   `npcink-abilities-toolkit/delete-term`,
+   `npcink-abilities-toolkit/update-media-details`,
+   `npcink-abilities-toolkit/upload-media-from-url`,
+   `npcink-abilities-toolkit/set-post-featured-image`,
+   `npcink-abilities-toolkit/optimize-media-asset`,
    `npcink-abilities-toolkit/replace-media-file`,
    `npcink-abilities-toolkit/restore-media-backup`,
    `npcink-abilities-toolkit/adopt-cloud-media-derivative`,
    `npcink-abilities-toolkit/rename-media-file`,
    `npcink-abilities-toolkit/delete-media-permanently`,
-   `npcink-abilities-toolkit/reply-comment`, `npcink-abilities-toolkit/trash-comment`, and
+   `npcink-abilities-toolkit/reply-comment`,
+   `npcink-abilities-toolkit/trash-comment`, and
    `npcink-abilities-toolkit/approve-comment` are currently supported. The
    preferred operator path is one Adapter unified action from a WordPress
    administrator session (cookie, Application Password, or basic auth):
@@ -570,28 +552,26 @@ Request Logs and search the same `proposal_id` or `correlation_id`; if the
 provider column is blank, use the Adapter context fields for the explicit
 `ai_provider` and `ai_model` recorded by the downstream provider integration.
 
-Approval and rejection endpoints are visible only as generic approval proxy routes:
+Standalone approve/reject routes are not registered:
 
 ```text
 POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve
 POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/reject
 ```
 
-They return HTTP 403 with
-`code=npcink_openclaw_adapter_execute_profile_unsupported`,
-`core_proxy_execute=false`, and
-`approval_surface=npcink_governance_core_admin`. Use
+Calling either path returns the standard WordPress REST `rest_no_route` 404
+because Adapter registers no route for it. Adapter does not forward standalone
+approve/reject decisions to Core; approval decisions belong to
+`approval_surface=npcink_governance_core_admin`, which covers human approval
+in the Core admin and the administrator-session unified
+`approve-and-execute` action. Use
 `POST /proposals/{proposal_id}/approve-and-execute` from a WordPress
-administrator session for the Adapter unified user action, Npcink Governance
-Core admin for split approval decisions, then
-`POST /proposals/{proposal_id}/execute`. Adapter does
-not forward the standalone stub calls to Core and OpenClaw does not get generic
-approval power.
+administrator session for the Adapter unified user action, or a human approval
+in the Core admin followed by `POST /proposals/{proposal_id}/execute`.
+OpenClaw does not get generic approval power.
 
 Failure code handling:
 
-- `npcink_openclaw_adapter_execute_profile_unsupported`: approve through the
-  Core admin (or the administrator-session unified action), then execute.
 - `npcink_openclaw_adapter_approve_requires_admin_session`: a signed client
   tried the unified action; wait for human approval in the Core admin, then
   call `POST /proposals/{proposal_id}/execute`.

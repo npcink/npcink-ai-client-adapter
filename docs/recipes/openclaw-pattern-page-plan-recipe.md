@@ -77,8 +77,9 @@ reusing one monolithic template.
 5. Poll `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}`.
 6. Execute only after approval with
    `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`.
-7. Read the created page through
-   `GET /wp-json/npcink-openclaw-adapter/v1/post-blocks?post_id={post_id}`.
+7. Read the created page through `POST /run-read-ability` with
+   `ability_id=npcink-abilities-toolkit/get-post-blocks` and
+   `input={"post_id":<post_id>}`.
 
 ## Responsive Verification
 

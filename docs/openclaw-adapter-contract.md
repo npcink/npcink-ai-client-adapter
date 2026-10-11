@@ -176,7 +176,7 @@ default response code is
 OpenClaw creates the request through Adapter `POST /read-requests`, waits for
 Core approval, and then calls `POST /run-read-ability` with the same `ability_id`,
 same `input`, and `read_request_id`. Adapter calls Core
-`/read-requests/{request_id}/read-preflight` immediately before executing the
+`/npcink-governance-core/v1/read-requests/{request_id}/read-preflight` immediately before executing the
 read, verifies `read_authorization_granted=true`,
 `core_authorization_truth=npcink_governance_core`, `ability_id`,
 `approved_input_hash`, expiry, and `commit_execution=false` /
@@ -684,15 +684,18 @@ POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve-and-exe
 ```
 
 For a pending `npcink-abilities-toolkit/trash-post`, `npcink-abilities-toolkit/create-draft`,
-`npcink-abilities-toolkit/update-post`, `npcink-abilities-toolkit/set-post-seo-meta`,
-`npcink-abilities-toolkit/set-post-slug`, `npcink-abilities-toolkit/set-post-terms`,
-`npcink-abilities-toolkit/delete-term`, `npcink-abilities-toolkit/update-media-details`,
-`npcink-abilities-toolkit/patch-post-content`,
+`npcink-abilities-toolkit/update-post`, `npcink-abilities-toolkit/patch-post-content`,
 `npcink-abilities-toolkit/update-post-blocks`,
 `npcink-abilities-toolkit/update-template-blocks`,
 `npcink-abilities-toolkit/upsert-template-blocks`,
 `npcink-abilities-toolkit/update-template-part-blocks`,
 `npcink-abilities-toolkit/patch-setting-value`,
+`npcink-abilities-toolkit/set-post-seo-meta`,
+`npcink-abilities-toolkit/adopt-article-audio`,
+`npcink-abilities-toolkit/set-post-slug`, `npcink-abilities-toolkit/set-post-terms`,
+`npcink-abilities-toolkit/delete-term`, `npcink-abilities-toolkit/update-media-details`,
+`npcink-abilities-toolkit/upload-media-from-url`,
+`npcink-abilities-toolkit/set-post-featured-image`,
 `npcink-abilities-toolkit/optimize-media-asset`,
 `npcink-abilities-toolkit/replace-media-file`,
 `npcink-abilities-toolkit/restore-media-backup`,
@@ -775,17 +778,20 @@ The current supported profiles is intentionally narrow:
 - `npcink-abilities-toolkit/trash-post`
 - `npcink-abilities-toolkit/create-draft`
 - `npcink-abilities-toolkit/update-post`
-- `npcink-abilities-toolkit/set-post-seo-meta`
-- `npcink-abilities-toolkit/set-post-slug`
-- `npcink-abilities-toolkit/set-post-terms`
-- `npcink-abilities-toolkit/delete-term`
-- `npcink-abilities-toolkit/update-media-details`
 - `npcink-abilities-toolkit/patch-post-content`
 - `npcink-abilities-toolkit/update-post-blocks`
 - `npcink-abilities-toolkit/update-template-blocks`
 - `npcink-abilities-toolkit/upsert-template-blocks`
 - `npcink-abilities-toolkit/update-template-part-blocks`
 - `npcink-abilities-toolkit/patch-setting-value`
+- `npcink-abilities-toolkit/set-post-seo-meta`
+- `npcink-abilities-toolkit/adopt-article-audio`
+- `npcink-abilities-toolkit/set-post-slug`
+- `npcink-abilities-toolkit/set-post-terms`
+- `npcink-abilities-toolkit/delete-term`
+- `npcink-abilities-toolkit/update-media-details`
+- `npcink-abilities-toolkit/upload-media-from-url`
+- `npcink-abilities-toolkit/set-post-featured-image`
 - `npcink-abilities-toolkit/optimize-media-asset`
 - `npcink-abilities-toolkit/replace-media-file`
 - `npcink-abilities-toolkit/restore-media-backup`
@@ -1275,12 +1281,21 @@ OpenClaw must treat Core as the only proposal and approval truth:
    `not_declared`.
 8. Adapter stops unless the ability is
    supported for Adapter execution, currently `npcink-abilities-toolkit/trash-post`,
-   `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`,
-   `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/set-post-slug`,
-   `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`,
-   `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/patch-post-content`,
+   `npcink-abilities-toolkit/create-draft`,
+   `npcink-abilities-toolkit/update-post`,
+   `npcink-abilities-toolkit/patch-post-content`,
    `npcink-abilities-toolkit/update-post-blocks`,
+   `npcink-abilities-toolkit/update-template-blocks`,
+   `npcink-abilities-toolkit/upsert-template-blocks`,
+   `npcink-abilities-toolkit/update-template-part-blocks`,
    `npcink-abilities-toolkit/patch-setting-value`,
+   `npcink-abilities-toolkit/set-post-seo-meta`,
+   `npcink-abilities-toolkit/adopt-article-audio`,
+   `npcink-abilities-toolkit/set-post-slug`,
+   `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`,
+   `npcink-abilities-toolkit/update-media-details`,
+   `npcink-abilities-toolkit/upload-media-from-url`,
+   `npcink-abilities-toolkit/set-post-featured-image`,
    `npcink-abilities-toolkit/optimize-media-asset`,
    `npcink-abilities-toolkit/replace-media-file`, `npcink-abilities-toolkit/restore-media-backup`,
    `npcink-abilities-toolkit/adopt-cloud-media-derivative`,
@@ -1357,7 +1372,8 @@ Adapter behavior notes:
   `retry_after_seconds` onto its relayed error `retry_after` data and emits a
   standard `Retry-After` header on the adapter list-proxy responses (terminal
   handlers only; internal flows keep branching on the error).
-- `GET /contract` additionally accepts the opt-in `contract:read` app scope.
+- Core `GET /contract` additionally accepts the opt-in `contract:read` app
+  scope.
   When the current caller is not an administrator and a Core app token is
   configured, the adapter dependency-contract check retries through the
   app-token dispatcher, so external consumers get dependency contracts when
