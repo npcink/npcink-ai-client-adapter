@@ -2,8 +2,9 @@
 /**
  * Guards consumer-facing documentation against REST route-surface drift.
  *
- * Parses every register_rest_route() call under includes/ into normalized
- * method + path patterns, then verifies that:
+ * Parses every register_rest_route() call in includes/Rest/Controller.php
+ * (the single registration point for this plugin) into normalized method +
+ * path patterns, then verifies that:
  *
  * 1. every Adapter route mentioned in README.md, readme.txt, or docs/*.md
  *    (docs/archive/ snapshots excluded) resolves to a registered route,
@@ -50,20 +51,20 @@ function npcink_adapter_route_drift_read( string $path ): string {
 }
 
 /**
- * Maps a WP_REST_Server method constant to an HTTP method name.
+ * Maps a WP_REST_Server method constant to its HTTP method names.
  *
  * @param string $constant Method constant name such as READABLE.
- * @return string HTTP method such as GET, or '' when unknown.
+ * @return array<int,string> HTTP methods such as array( 'GET' ), or an empty array when unknown.
  */
-function npcink_adapter_route_drift_method( string $constant ): string {
+function npcink_adapter_route_drift_method( string $constant ): array {
 	$map = array(
-		'READABLE'  => 'GET',
-		'CREATABLE' => 'POST',
-		'DELETABLE' => 'DELETE',
-		'EDITABLE'  => 'POST',
+		'READABLE'  => array( 'GET' ),
+		'CREATABLE' => array( 'POST' ),
+		'DELETABLE' => array( 'DELETE' ),
+		'EDITABLE'  => array( 'PUT', 'PATCH' ),
 	);
 
-	return isset( $map[ $constant ] ) ? $map[ $constant ] : '';
+	return isset( $map[ $constant ] ) ? $map[ $constant ] : array();
 }
 
 /**
@@ -93,12 +94,14 @@ function npcink_adapter_route_drift_registered( string $controller ): array {
 
 		$verbs = array();
 		foreach ( $constant_matches[1] as $constant ) {
-			$http_verb = npcink_adapter_route_drift_method( $constant );
-			if ( '' === $http_verb ) {
+			$http_verbs = npcink_adapter_route_drift_method( $constant );
+			if ( array() === $http_verbs ) {
 				npcink_adapter_route_drift_fail( 'Unknown WP_REST_Server method constant ' . $constant . ' for registered route: ' . $path_match[1] );
 				continue;
 			}
-			$verbs[ $http_verb ] = true;
+			foreach ( $http_verbs as $http_verb ) {
+				$verbs[ $http_verb ] = true;
+			}
 		}
 
 		if ( array() === $verbs ) {
@@ -242,10 +245,10 @@ foreach ( array( 'help_route_groups', 'help_route_purpose' ) as $help_method ) {
 		npcink_adapter_route_drift_fail( 'includes/Rest/Controller.php: missing ' . $help_method . '(); the help catalog cannot be gated.' );
 		continue;
 	}
-	$end           = strpos( $controller_contents, "\n\tprivate function", $start + 10 );
-	$end_public    = strpos( $controller_contents, "\n\tpublic function", $start + 10 );
-	$candidates    = array_filter( array( $end, $end_public ), 'is_int' );
-	$help_catalog .= substr( $controller_contents, $start, ( $candidates ? min( $candidates ) : strlen( $controller_contents ) ) - $start );
+	// The next method declaration at any indentation closes the slice, so
+	// reformatting (tabs to spaces) cannot silently swallow the whole file.
+	$end           = ( preg_match( '#\n\s+(?:private|public|protected)\s+function#', $controller_contents, $boundary_match, 0, $start + 10 ) ) ? strpos( $controller_contents, $boundary_match[0], $start + 10 ) : false;
+	$help_catalog .= substr( $controller_contents, $start, ( false === $end ? strlen( $controller_contents ) : $end ) - $start );
 }
 
 if ( preg_match_all( "#'(GET|POST|DELETE)\\s+(/[A-Za-z0-9_{}./-]+)'#", $help_catalog, $label_matches, PREG_SET_ORDER ) ) {
@@ -307,10 +310,12 @@ foreach ( $doc_files as $doc_file ) {
 			}
 		}
 
-		if ( preg_match_all( '#(?:GET|POST|PUT|PATCH|DELETE) (/[\w{}./-]+)#', $line, $method_matches, PREG_SET_ORDER ) ) {
+		if ( preg_match_all( '#(?<![A-Za-z])(?:GET|POST|PUT|PATCH|DELETE) (/[\w{}./-]+)#', $line, $method_matches, PREG_SET_ORDER ) ) {
 			foreach ( $method_matches as $method_match ) {
 				// "METHOD /path" mentions are unambiguous route references,
 				// even when the path's first segment is not registered yet.
+				// The lookbehind stops words like BUDGET / TARGET from being
+				// read as method names.
 				$mentions[] = array( strtok( $method_match[0], ' ' ), $method_match[1], true );
 			}
 		}
@@ -322,8 +327,11 @@ foreach ( $doc_files as $doc_file ) {
 		}
 
 		foreach ( $mentions as $mention ) {
-			$method   = (string) $mention[0];
-			$path     = npcink_adapter_route_drift_strip_namespace( $mention[1], $namespace );
+			$method = (string) $mention[0];
+			// Sentence punctuation at the end of an unquoted mention ("GET
+			// /proposals.") must not become part of the path.
+			$path     = rtrim( $mention[1], '.,;):' );
+			$path     = npcink_adapter_route_drift_strip_namespace( $path, $namespace );
 			$strict   = (bool) $mention[2];
 			$segments = npcink_adapter_route_drift_doc_segments( $path );
 
