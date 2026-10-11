@@ -999,21 +999,23 @@ through a new boundary decision instead of adding Adapter-owned tables.
 
 ## Approval Disabled Stub Contract
 
-The adapter exposes these routes only as generic approval proxy routes:
+Standalone approve/reject proxy routes are disabled by not being registered:
 
 ```text
 POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve
 POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/reject
 ```
 
-Default response:
+Calling either path returns the standard WordPress REST `rest_no_route` 404;
+Adapter registers no handler for it. The boundary posture the former stub
+response advertised is carried by `/health` fields and the unified action
+descriptor instead:
 
 ```json
 {
-  "code": "npcink_openclaw_adapter_execute_profile_unsupported",
-  "message": "Use POST /proposals/{proposal_id}/approve-and-execute from a WordPress administrator session for the Adapter unified user action, use Npcink Governance Core admin for split approval decisions, then POST /proposals/{proposal_id}/execute.",
-  "approval_proxy_enabled": false,
   "approval_surface": "npcink_governance_core_admin",
+  "core_proxy_execute": false,
+  "commit_execution": false,
   "unified_action_route": "POST /proposals/{proposal_id}/approve-and-execute",
   "unified_action_authorization": "wordpress_admin_session_only"
 }
@@ -1030,8 +1032,8 @@ session. Signed clients never hold approval authority: a human approves in the
 Core admin and the same signed client then calls
 `POST /proposals/{proposal_id}/execute`. Adapter must not expose a generic
 approve/reject proxy without a separate explicit trusted-host policy and
-ADR-backed feature. The generic approval proxy routes and top-level health
-contract preserve `approval_surface=npcink_governance_core_admin` to make the
+ADR-backed feature. The top-level health
+contract preserves `approval_surface=npcink_governance_core_admin` to make the
 standalone proxy boundary explicit.
 
 ## First Product Routes
@@ -1157,8 +1159,6 @@ Governance:
 - `GET /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}`
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals`
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/from-plan`
-- `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/approve`
-- `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/reject`
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/commit-preflight`
 - `POST /wp-json/npcink-openclaw-adapter/v1/execute-approved-proposal`
 - `POST /wp-json/npcink-openclaw-adapter/v1/proposals/{proposal_id}/execute`
@@ -1166,7 +1166,9 @@ Governance:
 
 ## Security
 
-All routes require `manage_options` through WordPress REST authentication.
+All routes require `manage_options` through WordPress REST authentication,
+except the device-pairing start/poll routes, which only create or query a
+pending pairing that a WordPress administrator must approve.
 OpenClaw should connect with a dedicated administrator Application Password for
 the local PoC. Narrower adapter identity and scope can be added after the first
 product flow is proven.
