@@ -235,27 +235,19 @@ foreach ( $registered as $patterns ) {
 	}
 }
 
-// Gate 1: the hand-maintained "METHOD /path" catalog labels inside the two
-// help builder methods must stay registered.
+// Gate 1: every hand-maintained "METHOD /path" string literal anywhere in
+// Controller.php (the GET /help catalog, supported-guidance strings, and
+// next_step texts) must resolve to a registered Adapter route. Literals with
+// trailing prose ("POST /run-read-ability with read_request_id") are matched
+// on their path portion. Dynamically concatenated routes are not static
+// text and cannot be gated here.
 $controller_contents = npcink_adapter_route_drift_read( $controller );
-$help_catalog        = '';
-foreach ( array( 'help_route_groups', 'help_route_purpose' ) as $help_method ) {
-	$start = strpos( $controller_contents, 'private function ' . $help_method );
-	if ( false === $start ) {
-		npcink_adapter_route_drift_fail( 'includes/Rest/Controller.php: missing ' . $help_method . '(); the help catalog cannot be gated.' );
-		continue;
-	}
-	// The next method declaration at any indentation closes the slice, so
-	// reformatting (tabs to spaces) cannot silently swallow the whole file.
-	$end           = ( preg_match( '#\n\s+(?:private|public|protected)\s+function#', $controller_contents, $boundary_match, 0, $start + 10 ) ) ? strpos( $controller_contents, $boundary_match[0], $start + 10 ) : false;
-	$help_catalog .= substr( $controller_contents, $start, ( false === $end ? strlen( $controller_contents ) : $end ) - $start );
-}
 
-if ( preg_match_all( "#'(GET|POST|DELETE)\\s+(/[A-Za-z0-9_{}./-]+)'#", $help_catalog, $label_matches, PREG_SET_ORDER ) ) {
+if ( preg_match_all( '#(?<![A-Za-z])(GET|POST|PUT|PATCH|DELETE)\s+(/[A-Za-z0-9_{}./-]+)#', $controller_contents, $label_matches, PREG_SET_ORDER ) ) {
 	$seen_labels = array();
 	foreach ( $label_matches as $label ) {
 		$method    = $label[1];
-		$path      = trim( $label[2], '/' );
+		$path      = trim( rtrim( $label[2], '.,;):' ), '/' );
 		$cache_key = $method . ' /' . $path;
 
 		if ( isset( $seen_labels[ $cache_key ] ) ) {
@@ -263,29 +255,41 @@ if ( preg_match_all( "#'(GET|POST|DELETE)\\s+(/[A-Za-z0-9_{}./-]+)'#", $help_cat
 		}
 		$seen_labels[ $cache_key ] = true;
 
-		$segments = npcink_adapter_route_drift_doc_segments( $label[2] );
+		// Foreign REST namespaces referenced from guidance strings are not
+		// Adapter route labels.
+		$trimmed_label_path = ltrim( $path, '/' );
+		if ( 0 === strpos( $trimmed_label_path, 'wp-json/' ) || 0 === strpos( $trimmed_label_path, 'npcink-governance-core/' ) || 0 === strpos( $trimmed_label_path, 'wp-abilities/' ) || 0 === strpos( $trimmed_label_path, 'wp/v2/' ) ) {
+			continue;
+		}
+
+		$segments = npcink_adapter_route_drift_doc_segments( '/' . $path );
 
 		if ( ! isset( $registered[ $method ] ) || ! npcink_adapter_route_drift_matches_any( $segments, $registered[ $method ] ) ) {
-			npcink_adapter_route_drift_fail( 'includes/Rest/Controller.php: GET /help catalog label `' . $cache_key . '` does not match a registered route.' );
+			npcink_adapter_route_drift_fail( 'includes/Rest/Controller.php: route label `' . $cache_key . '` does not match a registered route.' );
 		}
 	}
 }
 
 // Gate 2: consumer docs must not reference unregistered routes.
 $doc_files = array( $root . '/README.md', $root . '/readme.txt' );
-$docs_dir  = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/docs', FilesystemIterator::SKIP_DOTS ) );
-foreach ( $docs_dir as $doc_file ) {
-	$path_name = $doc_file->getPathname();
-	if ( '.md' !== substr( $path_name, -3 ) ) {
-		continue;
+try {
+	$docs_dir = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/docs', FilesystemIterator::SKIP_DOTS ) );
+	foreach ( $docs_dir as $doc_file ) {
+		$path_name = $doc_file->getPathname();
+		if ( '.md' !== substr( $path_name, -3 ) ) {
+			continue;
+		}
+		if ( false !== strpos( $path_name, '/archive/' ) ) {
+			continue;
+		}
+		$doc_files[] = $path_name;
 	}
-	if ( false !== strpos( $path_name, '/archive/' ) ) {
-		continue;
-	}
-	$doc_files[] = $path_name;
+} catch ( Exception $iteration_error ) {
+	fwrite( STDERR, '[fail] Could not iterate docs/: ' . $iteration_error->getMessage() . PHP_EOL );
+	exit( 1 );
 }
 
-$absent_cues = '#(?:no Adapter-owned|not\s+(?:being\s+)?registered|unregistered|does not expose|do not expose|must not expose|no standalone|rest_no_route|were removed|has been removed|shortcut routes such as|stale|Core\s+`)#i';
+$absent_cues = '#(?:no Adapter-owned|not\s+(?:being\s+)?registered|unregistered|does not expose|do not expose|must not expose|no standalone|rest_no_route|were removed|has been removed|shortcut routes such as|Remove stale|Core\s+`)#i';
 
 foreach ( $doc_files as $doc_file ) {
 	$relative = str_replace( $root . '/', '', $doc_file );
