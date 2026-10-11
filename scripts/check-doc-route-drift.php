@@ -318,7 +318,11 @@ try {
 	exit( 1 );
 }
 
-$absent_cues = '#(?:no Adapter-owned|not\s+(?:being\s+)?registered|unregistered|does not expose|do not expose|must not expose|no standalone|rest_no_route|were removed|has been removed|shortcut routes such as|Remove stale|Core\s+`)#i';
+// "Core `GET /x`" marks a Core-owned route mention; plain prose like
+// Core `bounds` is not an absence cue.
+$absent_cues = '#(?:no Adapter-owned|not\s+(?:being\s+)?registered|unregistered|does not expose|do not expose|must not expose|no standalone|rest_no_route|were removed|has been removed|shortcut routes such as|Remove stale|Core\s+`(?:GET|POST|PUT|PATCH|DELETE)\s)#i';
+
+sort( $doc_files );
 
 /**
  * Returns true when a line itself carries a strict Adapter route mention.
