@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Npcink AI Client Adapter 0.4.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-"
 "adapter\n"
-"POT-Creation-Date: 2026-10-12T02:38:30+00:00\n"
+"POT-Creation-Date: 2026-10-12T02:44:56+00:00\n"
 "PO-Revision-Date: 2026-09-04 19:05+0800\n"
 "Last-Translator: Npcink <dev@npcink.local>\n"
 "Language-Team: Chinese (China) <zh_CN@li.org>\n"
@@ -397,27 +397,27 @@ msgid ""
 "Password."
 msgstr "请确认您理解此备用方式会创建 WordPress 应用密码。"
 
-#: includes/Admin/Connection_Page.php:589
+#: includes/Admin/Connection_Page.php:591
 msgid "Dependency contracts need attention."
 msgstr "依赖契约需要处理。"
 
 #. translators: %s: dependency label.
-#: includes/Admin/Connection_Page.php:612
+#: includes/Admin/Connection_Page.php:614
 #, php-format
 msgid "%s is not reachable for a contract check."
 msgstr "%s 无法访问，无法进行契约检查。"
 
-#. translators: 1: dependency label, 2: detected version, 3: required version.
-#: includes/Admin/Connection_Page.php:619
+#. translators: 1: detected version, 2: required version.
+#: includes/Admin/Connection_Page.php:621
 #, php-format
-msgid "version %2$s is older than the required %3$s."
-msgstr "版本 %2$s 低于所需的 %3$s。"
+msgid "version %1$s is older than the required %2$s."
+msgstr "版本 %1$s 低于所需的 %2$s。"
 
-#. translators: 1: dependency label, 2: detected contract version, 3: required contract version.
-#: includes/Admin/Connection_Page.php:628
+#. translators: 1: detected contract version, 2: required contract version.
+#: includes/Admin/Connection_Page.php:629
 #, php-format
-msgid "contract version %2$s is older than the required %3$s."
-msgstr "契约版本 %2$s 低于所需的 %3$s。"
+msgid "contract version %1$s is older than the required %2$s."
+msgstr "契约版本 %1$s 低于所需的 %2$s。"
 
 #. translators: %s: dependency label.
 #: includes/Admin/Connection_Page.php:636
@@ -691,19 +691,19 @@ msgstr "撤销授权"
 msgid "Settings"
 msgstr "设置"
 
-#: includes/Plugin.php:227
+#: includes/Plugin.php:234
 msgid "Npcink AI Client Adapter cannot serve AI clients yet."
 msgstr "Npcink AI Client Adapter 尚无法为 AI 客户端提供服务。"
 
 #. translators: %s: comma-separated dependency labels.
-#: includes/Plugin.php:232
+#: includes/Plugin.php:239
 #, php-format
 msgid ""
 "Required suite components are missing: %s. Adapter routes fail closed until "
 "they are installed and active."
 msgstr "缺少必需的套件组件：%s。在安装并启用它们之前，适配器路由保持关闭。"
 
-#: includes/Plugin.php:237
+#: includes/Plugin.php:244
 msgid "Open the Adapter page"
 msgstr "打开适配器页面"
 

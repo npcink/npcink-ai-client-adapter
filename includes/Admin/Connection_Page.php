@@ -534,7 +534,9 @@ final class Connection_Page {
 		}
 
 		// Remember the created password so uninstall can revoke Adapter-created
-		// fallback credentials instead of leaving live REST access behind.
+		// fallback credentials instead of leaving live REST access behind. The
+		// ledger is append-only and must never be truncated: uninstall
+		// completeness depends on every recorded uuid still being present.
 		$created_item = isset( $created[1] ) && is_array( $created[1] ) ? $created[1] : array();
 		$created_uuid = isset( $created_item['uuid'] ) ? sanitize_text_field( (string) $created_item['uuid'] ) : '';
 		if ( '' !== $created_uuid ) {
@@ -544,7 +546,7 @@ final class Connection_Page {
 				'user_id' => (int) $user_id,
 				'uuid'    => $created_uuid,
 			);
-			update_option( 'npcink_openclaw_adapter_fallback_app_passwords', array_slice( array_values( $recorded ), -50 ), false );
+			update_option( 'npcink_openclaw_adapter_fallback_app_passwords', array_values( $recorded ), false );
 		}
 
 		status_header( 200 );
@@ -615,18 +617,16 @@ final class Connection_Page {
 		$issues = array();
 		if ( empty( $contract['plugin_version_supported'] ) ) {
 			$issues[] = sprintf(
-				/* translators: 1: dependency label, 2: detected version, 3: required version. */
-				__( 'version %2$s is older than the required %3$s.', 'npcink-ai-client-adapter' ),
-				$label,
+				/* translators: 1: detected version, 2: required version. */
+				__( 'version %1$s is older than the required %2$s.', 'npcink-ai-client-adapter' ),
 				(string) ( $contract['plugin_version'] ?? '' ),
 				(string) ( $contract['minimum_plugin_version'] ?? '' )
 			);
 		}
 		if ( empty( $contract['contract_version_supported'] ) ) {
 			$issues[] = sprintf(
-				/* translators: 1: dependency label, 2: detected contract version, 3: required contract version. */
-				__( 'contract version %2$s is older than the required %3$s.', 'npcink-ai-client-adapter' ),
-				$label,
+				/* translators: 1: detected contract version, 2: required contract version. */
+				__( 'contract version %1$s is older than the required %2$s.', 'npcink-ai-client-adapter' ),
 				(string) ( $contract['contract_version'] ?? '' ),
 				(string) ( $contract['minimum_contract_version'] ?? '' )
 			);

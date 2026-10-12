@@ -151,10 +151,12 @@ final class Plugin {
 	 * "why did my client stop working" question without leaving wp-admin.
 	 *
 	 * A client stuck in a retry loop must not turn into one option write per
-	 * request: an identical failure (same method, route, status, and code) is
-	 * skipped when the newest record matches and is under 60 seconds old.
-	 * Concurrent failures may race the read-modify-write cycle and lose
-	 * records; losing diagnostics rows is accepted, they are advisory only.
+	 * request: a failure identical to any of the newest records (same method,
+	 * route, status, and code, within 60 seconds) is skipped. The window scan
+	 * covers the last five records so a client alternating between failing
+	 * routes still throttles. Concurrent failures may race the
+	 * read-modify-write cycle and lose records; losing diagnostics rows is
+	 * accepted, they are advisory only.
 	 *
 	 * @param array<string,mixed> $payload Sanitized dispatch payload.
 	 * @return void
@@ -174,17 +176,22 @@ final class Plugin {
 		}
 		$errors = array_values( $errors );
 
-		$newest = array_slice( $errors, -1 );
-		$newest = isset( $newest[0] ) && is_array( $newest[0] ) ? $newest[0] : array();
-		if (
-			'' !== (string) ( $newest['time'] ?? '' )
-			&& (string) ( $newest['method'] ?? '' ) === $record['method']
-			&& (string) ( $newest['route'] ?? '' ) === $record['route']
-			&& absint( $newest['status'] ?? 0 ) === $record['status']
-			&& (string) ( $newest['code'] ?? '' ) === $record['code']
-			&& ( time() - strtotime( (string) $newest['time'] ) ) < 60
-		) {
-			return;
+		foreach ( array_slice( $errors, -5 ) as $recent ) {
+			if ( ! is_array( $recent ) ) {
+				continue;
+			}
+
+			$recent_time = strtotime( (string) ( $recent['time'] ?? '' ) );
+			if (
+				false !== $recent_time
+				&& ( time() - $recent_time ) < 60
+				&& (string) ( $recent['method'] ?? '' ) === $record['method']
+				&& (string) ( $recent['route'] ?? '' ) === $record['route']
+				&& absint( $recent['status'] ?? 0 ) === $record['status']
+				&& (string) ( $recent['code'] ?? '' ) === $record['code']
+			) {
+				return;
+			}
 		}
 
 		$errors[] = $record;
