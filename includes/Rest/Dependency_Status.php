@@ -241,12 +241,14 @@ final class Dependency_Status {
 
 		$items = array();
 		foreach ( self::DEPENDENCY_KEYS as $key ) {
+			// Shared label/availability values merge last so per-dependency
+			// metadata can never silently override them.
 			$items[ $key ] = array_merge(
+				isset( $metadata[ $key ] ) && is_array( $metadata[ $key ] ) ? $metadata[ $key ] : array(),
 				array(
 					'label'     => self::dependency_label( $key ),
 					'available' => (bool) ( $availability[ $key ] ?? false ),
-				),
-				isset( $metadata[ $key ] ) && is_array( $metadata[ $key ] ) ? $metadata[ $key ] : array()
+				)
 			);
 		}
 

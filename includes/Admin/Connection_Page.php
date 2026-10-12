@@ -619,20 +619,32 @@ final class Connection_Page {
 
 		$issues = array();
 		if ( empty( $contract['plugin_version_supported'] ) ) {
-			$issues[] = sprintf(
-				/* translators: 1: detected version, 2: required version. */
-				__( 'version %1$s is older than the required %2$s.', 'npcink-ai-client-adapter' ),
-				(string) ( $contract['plugin_version'] ?? '' ),
-				(string) ( $contract['minimum_plugin_version'] ?? '' )
-			);
+			$detected_version = (string) ( $contract['plugin_version'] ?? '' );
+			if ( '' === $detected_version ) {
+				/* translators: %s: required version. */
+				$issues[] = sprintf( __( 'does not report a plugin version; the required version is %s.', 'npcink-ai-client-adapter' ), (string) ( $contract['minimum_plugin_version'] ?? '' ) );
+			} else {
+				$issues[] = sprintf(
+					/* translators: 1: detected version, 2: required version. */
+					__( 'version %1$s is older than the required %2$s.', 'npcink-ai-client-adapter' ),
+					$detected_version,
+					(string) ( $contract['minimum_plugin_version'] ?? '' )
+				);
+			}
 		}
 		if ( empty( $contract['contract_version_supported'] ) ) {
-			$issues[] = sprintf(
-				/* translators: 1: detected contract version, 2: required contract version. */
-				__( 'contract version %1$s is older than the required %2$s.', 'npcink-ai-client-adapter' ),
-				(string) ( $contract['contract_version'] ?? '' ),
-				(string) ( $contract['minimum_contract_version'] ?? '' )
-			);
+			$detected_contract = (string) ( $contract['contract_version'] ?? '' );
+			if ( '' === $detected_contract ) {
+				/* translators: %s: required contract version. */
+				$issues[] = sprintf( __( 'does not report a contract version; the required contract version is %s.', 'npcink-ai-client-adapter' ), (string) ( $contract['minimum_contract_version'] ?? '' ) );
+			} else {
+				$issues[] = sprintf(
+					/* translators: 1: detected contract version, 2: required contract version. */
+					__( 'contract version %1$s is older than the required %2$s.', 'npcink-ai-client-adapter' ),
+					$detected_contract,
+					(string) ( $contract['minimum_contract_version'] ?? '' )
+				);
+			}
 		}
 		if ( empty( $contract['schema_supported'] ) ) {
 			/* translators: %s: dependency label. */
@@ -662,7 +674,9 @@ final class Connection_Page {
 	 */
 	private function render_recent_client_errors(): void {
 		$errors = get_option( 'npcink_openclaw_adapter_recent_client_errors', array() );
-		$errors = is_array( $errors ) ? array_slice( array_values( $errors ), -10 ) : array();
+		// The display window matches the writer's buffer size so every
+		// buffered record is reachable.
+		$errors = is_array( $errors ) ? array_slice( array_values( $errors ), -15 ) : array();
 		?>
 		<details class="maa-inline-disclosure maa-recent-errors">
 			<summary>
