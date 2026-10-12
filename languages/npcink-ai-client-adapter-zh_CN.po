@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Npcink AI Client Adapter 0.4.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-"
 "adapter\n"
-"POT-Creation-Date: 2026-10-12T03:15:42+00:00\n"
+"POT-Creation-Date: 2026-10-12T03:22:51+00:00\n"
 "PO-Revision-Date: 2026-09-04 19:05+0800\n"
 "Last-Translator: Npcink <dev@npcink.local>\n"
 "Language-Team: Chinese (China) <zh_CN@li.org>\n"
@@ -687,23 +687,23 @@ msgstr "撤销此设备？撤销后它必须重新配对才能连接。"
 msgid "Revoke authorization"
 msgstr "撤销授权"
 
-#: includes/Plugin.php:60
+#: includes/Plugin.php:62
 msgid "Settings"
 msgstr "设置"
 
-#: includes/Plugin.php:264
+#: includes/Plugin.php:284
 msgid "Npcink AI Client Adapter cannot serve AI clients yet."
 msgstr "Npcink AI Client Adapter 尚无法为 AI 客户端提供服务。"
 
 #. translators: %s: comma-separated dependency labels.
-#: includes/Plugin.php:269
+#: includes/Plugin.php:289
 #, php-format
 msgid ""
 "Required suite components are missing: %s. Adapter routes fail closed until "
 "they are installed and active."
 msgstr "缺少必需的套件组件：%s。在安装并启用它们之前，适配器路由保持关闭。"
 
-#: includes/Plugin.php:274
+#: includes/Plugin.php:294
 msgid "Open the Adapter page"
 msgstr "打开适配器页面"
 
@@ -1039,14 +1039,14 @@ msgstr ""
 "不要通过数据库、文件系统、日志、自定义脚本或直接 WordPress 内部调用绕过 "
 "Adapter。"
 
-#: includes/Rest/Dependency_Status.php:165
+#: includes/Rest/Dependency_Status.php:183
 msgid ""
 "Npcink Governance Core is required before Adapter can read capabilities, "
 "create proposals, or run commit preflight."
 msgstr ""
 "Adapter 读取能力、创建提案或运行提交预检前，需要 Npcink Governance Core。"
 
-#: includes/Rest/Dependency_Status.php:178
+#: includes/Rest/Dependency_Status.php:196
 msgid ""
 "WordPress Abilities API is required before Adapter can execute read "
 "abilities or approved write abilities."

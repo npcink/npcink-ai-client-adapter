@@ -26,6 +26,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Dependency_Status {
 
 	/**
+	 * Canonical dependency keys, in status() order.
+	 *
+	 * Every keyed surface in this class (availability probes, labels, and
+	 * contract checks) derives from these constants, so adding or renaming a
+	 * dependency touches the definition once.
+	 *
+	 * @var array<int,string>
+	 */
+	const DEPENDENCY_KEYS = array( 'npcink-governance-core', 'wordpress-abilities-api', 'npcink-abilities-toolkit' );
+
+	/**
+	 * The subset of dependencies whose runtime contracts Adapter checks.
+	 *
+	 * @var array<int,string>
+	 */
+	const CONTRACT_KEYS = array( 'npcink-governance-core', 'npcink-abilities-toolkit' );
+
+	/**
 	 * Upstream dispatch service for live route availability.
 	 *
 	 * @var Upstream_Dispatch
@@ -116,7 +134,7 @@ final class Dependency_Status {
 	 * @return array<int,string> Contract-checked dependency keys.
 	 */
 	public static function contract_dependency_keys(): array {
-		return array( 'npcink-governance-core', 'npcink-abilities-toolkit' );
+		return self::CONTRACT_KEYS;
 	}
 
 	/**
@@ -195,33 +213,44 @@ final class Dependency_Status {
 	 */
 	public function status(): array {
 		$availability = self::dependency_availability();
-		$items        = array(
+		// Per-dependency metadata; label and availability come from the
+		// shared helpers so key strings and probes stay single-source.
+		/**
+		 * @var array<string,array<string,mixed>> $metadata
+		 */
+		$metadata = array(
 			'npcink-governance-core'   => array(
-				'label'        => self::dependency_label( 'npcink-governance-core' ),
 				'slug'         => 'npcink-governance-core',
 				'slug_status'  => 'planned',
 				'required_for' => array( 'capabilities', 'proposals', 'commit_preflight', 'approved_execution' ),
-				'available'    => (bool) ( $availability['npcink-governance-core'] ?? false ),
 				'detector'     => 'rest_route:/npcink-governance-core/v1/capabilities',
 			),
 			'wordpress-abilities-api'  => array(
-				'label'        => self::dependency_label( 'wordpress-abilities-api' ),
 				'slug'         => 'wordpress-core',
 				'slug_status'  => 'platform',
 				'required_for' => array( 'read_ability_execution', 'approved_execution' ),
-				'available'    => (bool) ( $availability['wordpress-abilities-api'] ?? false ),
 				'detector'     => 'rest_route:/wp-abilities/v1/abilities',
 			),
 			'npcink-abilities-toolkit' => array(
-				'label'        => self::dependency_label( 'npcink-abilities-toolkit' ),
 				'slug'         => 'npcink-abilities-toolkit',
 				'slug_status'  => 'wordpress_org_declared',
 				'required_for' => array( 'reference_abilities', 'execution_profiles' ),
-				'available'    => (bool) ( $availability['npcink-abilities-toolkit'] ?? false ),
 				'detector'     => 'function:npcink_abilities_toolkit_get_registered',
 			),
 		);
-		$missing      = array();
+
+		$items = array();
+		foreach ( self::DEPENDENCY_KEYS as $key ) {
+			$items[ $key ] = array_merge(
+				array(
+					'label'     => self::dependency_label( $key ),
+					'available' => (bool) ( $availability[ $key ] ?? false ),
+				),
+				isset( $metadata[ $key ] ) && is_array( $metadata[ $key ] ) ? $metadata[ $key ] : array()
+			);
+		}
+
+		$missing = array();
 		foreach ( $items as $key => $item ) {
 			if ( empty( $item['available'] ) ) {
 				$missing[] = $key;

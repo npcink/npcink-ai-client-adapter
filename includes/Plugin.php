@@ -35,6 +35,8 @@ final class Plugin {
 		add_filter( 'plugin_action_links_' . plugin_basename( NPCINK_OPENCLAW_ADAPTER_FILE ), array( $this, 'filter_plugin_action_links' ) );
 		add_action( 'admin_menu', array( $this, 'register_admin_page' ), 20 );
 		add_action( 'admin_notices', array( $this, 'render_dependency_notice' ) );
+		add_action( 'activated_plugin', array( $this, 'purge_dependency_notice_cache' ) );
+		add_action( 'deactivated_plugin', array( $this, 'purge_dependency_notice_cache' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_create_openclaw_password', array( $this, 'handle_create_openclaw_password' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_pairing_decision', array( $this, 'handle_pairing_decision' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_revoke_client_key', array( $this, 'handle_revoke_client_key' ) );
@@ -239,7 +241,16 @@ final class Plugin {
 			return;
 		}
 
-		$missing = Rest\Dependency_Status::missing_dependency_keys();
+		// The route-registry probe boots the REST server once per state
+		// change, not per admin page view: the result is cached for one
+		// minute and the cache is purged on plugin activation or
+		// deactivation, so the notice tracks suite changes immediately.
+		$cache_key = 'npcink_openclaw_adapter_dependency_notice_v1';
+		$missing   = get_transient( $cache_key );
+		if ( ! is_array( $missing ) ) {
+			$missing = Rest\Dependency_Status::missing_dependency_keys();
+			set_transient( $cache_key, $missing, 60 );
+		}
 		if ( array() === $missing ) {
 			return;
 		}
@@ -251,10 +262,19 @@ final class Plugin {
 
 		$settings_url = menu_page_url( 'npcink-ai-client-adapter', false );
 		if ( '' === $settings_url ) {
-			// Fallback when admin_menu has not registered the page yet: with
-			// the Npcink suite the page hangs under the admin.php parent menu,
-			// otherwise it lives under Settings.
-			$settings_url = function_exists( 'npcink_abilities_toolkit_get_registered' )
+			// Fallback when admin_menu has not registered the page yet. The
+			// parent choice mirrors Connection_Page's own menu registration:
+			// the page hangs under the admin.php Npcink parent when any
+			// Npcink plugin registered it, otherwise under Settings.
+			$has_parent = false;
+			global $menu;
+			foreach ( (array) $menu as $item ) {
+				if ( isset( $item[2] ) && 'npcink-ai' === $item[2] ) {
+					$has_parent = true;
+					break;
+				}
+			}
+			$settings_url = $has_parent
 				? admin_url( 'admin.php?page=npcink-ai-client-adapter' )
 				: admin_url( 'options-general.php?page=npcink-ai-client-adapter' );
 		}
@@ -275,6 +295,16 @@ final class Plugin {
 			</p>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Purges the cached dependency-notice probe so suite changes surface
+	 * immediately instead of after the cache TTL.
+	 *
+	 * @return void
+	 */
+	public function purge_dependency_notice_cache(): void {
+		delete_transient( 'npcink_openclaw_adapter_dependency_notice_v1' );
 	}
 
 	/**
