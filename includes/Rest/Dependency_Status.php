@@ -56,25 +56,39 @@ final class Dependency_Status {
 	}
 
 	/**
+	 * Returns live availability per dependency key without building the service stack.
+	 *
+	 * Single source of truth for the detector probes: the instance-based
+	 * status() and the static admin-notice helper both read this map, so a
+	 * detector change cannot diverge between the two.
+	 *
+	 * @return array<string,bool> Availability keyed by dependency key.
+	 */
+	public static function dependency_availability(): array {
+		$routes = function_exists( 'rest_get_server' ) ? rest_get_server()->get_routes() : array();
+
+		return array(
+			'npcink-governance-core'   => isset( $routes['/npcink-governance-core/v1/capabilities'] ),
+			'wordpress-abilities-api'  => isset( $routes['/wp-abilities/v1/abilities'] ),
+			'npcink-abilities-toolkit' => function_exists( 'npcink_abilities_toolkit_get_registered' ),
+		);
+	}
+
+	/**
 	 * Returns the missing dependency keys without building the service stack.
 	 *
 	 * Cheap enough for admin-page notices: the checks are in-memory route
-	 * registry lookups plus a function_exists probe, mirroring status().
+	 * registry lookups plus a function_exists probe.
 	 *
 	 * @return array<int,string> Missing dependency keys.
 	 */
 	public static function missing_dependency_keys(): array {
-		$missing = array();
-		$routes  = function_exists( 'rest_get_server' ) ? rest_get_server()->get_routes() : array();
-
-		if ( ! isset( $routes['/npcink-governance-core/v1/capabilities'] ) ) {
-			$missing[] = 'npcink-governance-core';
-		}
-		if ( ! isset( $routes['/wp-abilities/v1/abilities'] ) ) {
-			$missing[] = 'wordpress-abilities-api';
-		}
-		if ( ! function_exists( 'npcink_abilities_toolkit_get_registered' ) ) {
-			$missing[] = 'npcink-abilities-toolkit';
+		$availability = self::dependency_availability();
+		$missing      = array();
+		foreach ( $availability as $key => $available ) {
+			if ( ! $available ) {
+				$missing[] = (string) $key;
+			}
 		}
 
 		return $missing;
@@ -179,13 +193,14 @@ final class Dependency_Status {
 	 * @return array{items:array<string,array<string,mixed>>,missing:array<int,string>}
 	 */
 	public function status(): array {
-		$items   = array(
+		$availability = self::dependency_availability();
+		$items        = array(
 			'npcink-governance-core'   => array(
 				'label'        => 'Npcink Governance Core',
 				'slug'         => 'npcink-governance-core',
 				'slug_status'  => 'planned',
 				'required_for' => array( 'capabilities', 'proposals', 'commit_preflight', 'approved_execution' ),
-				'available'    => $this->upstream_dispatch->rest_route_available( '/npcink-governance-core/v1/capabilities' ),
+				'available'    => (bool) ( $availability['npcink-governance-core'] ?? false ),
 				'detector'     => 'rest_route:/npcink-governance-core/v1/capabilities',
 			),
 			'wordpress-abilities-api'  => array(
@@ -193,7 +208,7 @@ final class Dependency_Status {
 				'slug'         => 'wordpress-core',
 				'slug_status'  => 'platform',
 				'required_for' => array( 'read_ability_execution', 'approved_execution' ),
-				'available'    => $this->upstream_dispatch->rest_route_available( '/wp-abilities/v1/abilities' ),
+				'available'    => (bool) ( $availability['wordpress-abilities-api'] ?? false ),
 				'detector'     => 'rest_route:/wp-abilities/v1/abilities',
 			),
 			'npcink-abilities-toolkit' => array(
@@ -201,11 +216,11 @@ final class Dependency_Status {
 				'slug'         => 'npcink-abilities-toolkit',
 				'slug_status'  => 'wordpress_org_declared',
 				'required_for' => array( 'reference_abilities', 'execution_profiles' ),
-				'available'    => function_exists( 'npcink_abilities_toolkit_get_registered' ),
+				'available'    => (bool) ( $availability['npcink-abilities-toolkit'] ?? false ),
 				'detector'     => 'function:npcink_abilities_toolkit_get_registered',
 			),
 		);
-		$missing = array();
+		$missing      = array();
 		foreach ( $items as $key => $item ) {
 			if ( empty( $item['available'] ) ) {
 				$missing[] = $key;

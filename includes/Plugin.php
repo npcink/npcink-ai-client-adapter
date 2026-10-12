@@ -154,7 +154,10 @@ final class Plugin {
 	 * request: a failure identical to any of the newest records (same method,
 	 * route, status, and code, within 60 seconds) is skipped. The window scan
 	 * covers the last five records so a client alternating between failing
-	 * routes still throttles. Concurrent failures may race the
+	 * routes still throttles. A global cap adds a second layer: once five
+	 * records land within 60 seconds, further failures in that window are
+	 * skipped, so even an anonymous caller cycling distinct route tuples
+	 * cannot amplify option writes. Concurrent failures may race the
 	 * read-modify-write cycle and lose records; losing diagnostics rows is
 	 * accepted, they are advisory only.
 	 *
@@ -178,22 +181,33 @@ final class Plugin {
 		}
 		$errors = array_values( $errors );
 
+		$recent_window = 0;
 		foreach ( array_slice( $errors, -5 ) as $recent ) {
 			if ( ! is_array( $recent ) ) {
 				continue;
 			}
 
 			$recent_time = strtotime( (string) ( $recent['time'] ?? '' ) );
+			if ( false === $recent_time || ( time() - $recent_time ) >= 60 ) {
+				continue;
+			}
+
+			++$recent_window;
+
 			if (
-				false !== $recent_time
-				&& ( time() - $recent_time ) < 60
-				&& (string) ( $recent['method'] ?? '' ) === $record['method']
+				(string) ( $recent['method'] ?? '' ) === $record['method']
 				&& (string) ( $recent['route'] ?? '' ) === $record['route']
 				&& absint( $recent['status'] ?? 0 ) === $record['status']
 				&& (string) ( $recent['code'] ?? '' ) === $record['code']
 			) {
 				return;
 			}
+		}
+
+		// Global window cap: at most five recorded failures per minute, so
+		// even a caller cycling distinct route tuples cannot amplify writes.
+		if ( $recent_window >= 5 ) {
+			return;
 		}
 
 		$errors[] = $record;
