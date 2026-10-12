@@ -2420,7 +2420,7 @@ maa_adapter_assert( false !== strpos( $controller, 'npcink_openclaw_adapter_rece
 maa_adapter_assert( false !== strpos( $controller, 'missing_dependency_keys' ), 'Dependency status exposes the cheap missing-dependency probe used by admin notices.' );
 maa_adapter_assert( false !== strpos( $connection_page, 'render_recent_client_errors' ), 'Connection page renders the bounded recent client errors disclosure.' );
 maa_adapter_assert( false !== strpos( $connection_page, 'render_contract_mismatch_notice' ), 'Connection page explains dependency contract mismatches.' );
-maa_adapter_assert( false !== strpos( $connection_page, 'npcink_openclaw_adapter_fallback_app_passwords' ), 'Connection page records fallback Application Passwords for uninstall revocation.' );
+maa_adapter_assert( false !== strpos( $connection_page, 'npcink_openclaw_adapter_fallback_app_password_' ), 'Connection page records fallback Application Passwords for uninstall revocation.' );
 maa_adapter_assert( false !== strpos( $controller, "strcasecmp( (string) \$name, \$total_header )" ), 'Upstream dispatch relays upstream X-WP-Total pagination headers.' );
 foreach (
 	array(

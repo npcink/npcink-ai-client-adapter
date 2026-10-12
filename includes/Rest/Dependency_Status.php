@@ -97,6 +97,15 @@ final class Dependency_Status {
 	}
 
 	/**
+	 * Returns the dependency keys whose runtime contracts Adapter checks.
+	 *
+	 * @return array<int,string> Contract-checked dependency keys.
+	 */
+	public static function contract_dependency_keys(): array {
+		return array( 'npcink-governance-core', 'npcink-abilities-toolkit' );
+	}
+
+	/**
 	 * Sanitizes a list of strings.
 	 *
 	 * @param array<mixed> $values Values.

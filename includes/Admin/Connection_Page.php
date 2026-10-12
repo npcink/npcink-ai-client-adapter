@@ -8,6 +8,7 @@
 namespace Npcink\OpenClawAdapter\Admin;
 
 use Npcink\OpenClawAdapter\Rest\Controller;
+use Npcink\OpenClawAdapter\Rest\Dependency_Status;
 use WP_Error;
 use WP_REST_Request;
 
@@ -534,19 +535,21 @@ final class Connection_Page {
 		}
 
 		// Remember the created password so uninstall can revoke Adapter-created
-		// fallback credentials instead of leaving live REST access behind. The
-		// ledger is append-only and must never be truncated: uninstall
-		// completeness depends on every recorded uuid still being present.
+		// fallback credentials instead of leaving live REST access behind. Each
+		// credential gets its own uniquely keyed option row: no shared
+		// read-modify-write cycle, so concurrent creations cannot lose entries
+		// and uninstall completeness does not depend on a counter.
 		$created_item = isset( $created[1] ) && is_array( $created[1] ) ? $created[1] : array();
 		$created_uuid = isset( $created_item['uuid'] ) ? sanitize_text_field( (string) $created_item['uuid'] ) : '';
 		if ( '' !== $created_uuid ) {
-			$recorded   = get_option( 'npcink_openclaw_adapter_fallback_app_passwords', array() );
-			$recorded   = is_array( $recorded ) ? $recorded : array();
-			$recorded[] = array(
-				'user_id' => (int) $user_id,
-				'uuid'    => $created_uuid,
+			update_option(
+				'npcink_openclaw_adapter_fallback_app_password_' . md5( $user_id . ':' . $created_uuid ),
+				array(
+					'user_id' => (int) $user_id,
+					'uuid'    => $created_uuid,
+				),
+				false
 			);
-			update_option( 'npcink_openclaw_adapter_fallback_app_passwords', array_values( $recorded ), false );
 		}
 
 		status_header( 200 );
@@ -574,7 +577,7 @@ final class Connection_Page {
 		$contracts = isset( $health['dependency_contracts'] ) && is_array( $health['dependency_contracts'] ) ? $health['dependency_contracts'] : array();
 
 		$rows = array();
-		foreach ( array( 'npcink-governance-core', 'npcink-abilities-toolkit' ) as $dependency ) {
+		foreach ( Dependency_Status::contract_dependency_keys() as $dependency ) {
 			$contract = isset( $contracts[ $dependency ] ) && is_array( $contracts[ $dependency ] ) ? $contracts[ $dependency ] : array();
 			$issue    = $this->contract_issue_summary( $dependency, $contract );
 			if ( '' !== $issue ) {
@@ -607,7 +610,7 @@ final class Connection_Page {
 			return '';
 		}
 
-		$label = 'npcink-governance-core' === $dependency ? 'Npcink Governance Core' : 'Npcink Abilities Toolkit';
+		$label = Dependency_Status::dependency_label( $dependency );
 
 		if ( empty( $contract['available'] ) ) {
 			/* translators: %s: dependency label. */

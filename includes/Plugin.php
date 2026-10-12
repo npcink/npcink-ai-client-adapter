@@ -162,12 +162,14 @@ final class Plugin {
 	 * @return void
 	 */
 	private function record_recent_client_error( array $payload ): void {
+		// Length caps keep one attacker-controlled unmatched route from
+		// filling the bounded buffer with megabytes of junk.
 		$record = array(
 			'time'   => gmdate( 'c' ),
-			'method' => (string) ( $payload['method'] ?? '' ),
-			'route'  => (string) ( $payload['route'] ?? '' ),
+			'method' => mb_substr( (string) ( $payload['method'] ?? '' ), 0, 16 ),
+			'route'  => mb_substr( (string) ( $payload['route'] ?? '' ), 0, 200 ),
 			'status' => absint( $payload['status_code'] ?? 0 ),
-			'code'   => (string) ( $payload['error_code'] ?? '' ),
+			'code'   => mb_substr( (string) ( $payload['error_code'] ?? '' ), 0, 100 ),
 		);
 
 		$errors = get_option( 'npcink_openclaw_adapter_recent_client_errors', array() );
@@ -226,7 +228,12 @@ final class Plugin {
 
 		$settings_url = menu_page_url( 'npcink-ai-client-adapter', false );
 		if ( '' === $settings_url ) {
-			$settings_url = admin_url( 'options-general.php?page=npcink-ai-client-adapter' );
+			// Fallback when admin_menu has not registered the page yet: with
+			// the Npcink suite the page hangs under the admin.php parent menu,
+			// otherwise it lives under Settings.
+			$settings_url = function_exists( 'npcink_abilities_toolkit_get_registered' )
+				? admin_url( 'admin.php?page=npcink-ai-client-adapter' )
+				: admin_url( 'options-general.php?page=npcink-ai-client-adapter' );
 		}
 		?>
 		<div class="notice notice-error">
