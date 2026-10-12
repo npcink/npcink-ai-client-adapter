@@ -386,6 +386,11 @@ The page default view shows:
 - a `Connection readiness` checklist covering suite dependencies, paired
   client keys, and signed-request verification (connection scope only;
   proposal and approval state stay in Core);
+- a dependency contract notice naming which suite component is too old when
+  plugins are active but contract minimums fail;
+- a collapsed `Recent client errors` disclosure with bounded
+  connection-scope diagnostics (time, route, status, error code); Core
+  Governance Audit remains the governance log;
 - a read-only boundary hygiene notice when paired keys exist alongside
   active administrator Application Passwords;
 - a simple Application Password connection for clients with a dedicated
@@ -852,7 +857,8 @@ Proposal-required write flow:
 3. Core stores the proposal and WordPress approval state.
 4. OpenClaw polls `GET /proposals/{proposal_id}` through the adapter until Core
    returns an approved or rejected status. `GET /proposals?limit=...` is
-   available for list views.
+   available for list views; Core's collection pagination totals are relayed
+   as `X-WP-Total`/`X-WP-TotalPages` response headers.
 5. A human approves the proposal in the Core admin (or a WordPress
    administrator session uses the unified
    `POST /proposals/{proposal_id}/approve-and-execute` action). Core remains
