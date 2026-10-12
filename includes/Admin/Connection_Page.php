@@ -575,9 +575,15 @@ final class Connection_Page {
 		}
 
 		$contracts = isset( $health['dependency_contracts'] ) && is_array( $health['dependency_contracts'] ) ? $health['dependency_contracts'] : array();
+		$missing   = isset( $health['missing_dependencies'] ) && is_array( $health['missing_dependencies'] ) ? $health['missing_dependencies'] : array();
 
 		$rows = array();
 		foreach ( Dependency_Status::contract_dependency_keys() as $dependency ) {
+			// Entirely missing plugins are covered by the missing-plugins
+			// warning above; this notice explains version mismatches only.
+			if ( in_array( $dependency, $missing, true ) ) {
+				continue;
+			}
 			$contract = isset( $contracts[ $dependency ] ) && is_array( $contracts[ $dependency ] ) ? $contracts[ $dependency ] : array();
 			$issue    = $this->contract_issue_summary( $dependency, $contract );
 			if ( '' !== $issue ) {

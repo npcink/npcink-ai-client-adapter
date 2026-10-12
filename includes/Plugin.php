@@ -37,6 +37,7 @@ final class Plugin {
 		add_action( 'admin_notices', array( $this, 'render_dependency_notice' ) );
 		add_action( 'activated_plugin', array( $this, 'purge_dependency_notice_cache' ) );
 		add_action( 'deactivated_plugin', array( $this, 'purge_dependency_notice_cache' ) );
+		add_action( 'wp_delete_application_password', array( $this, 'drop_revoked_fallback_password_row' ), 10, 2 );
 		add_action( 'admin_post_npcink_openclaw_adapter_create_openclaw_password', array( $this, 'handle_create_openclaw_password' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_pairing_decision', array( $this, 'handle_pairing_decision' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_revoke_client_key', array( $this, 'handle_revoke_client_key' ) );
@@ -305,6 +306,24 @@ final class Plugin {
 	 */
 	public function purge_dependency_notice_cache(): void {
 		delete_transient( 'npcink_openclaw_adapter_dependency_notice_v1' );
+	}
+
+	/**
+	 * Drops the uninstall tracking row when a tracked fallback credential is
+	 * revoked through normal operation (profile UI or REST), so rows do not
+	 * accumulate for passwords that no longer exist.
+	 *
+	 * @param int   $user_id Application password owner.
+	 * @param array $item    Deleted application password item.
+	 * @return void
+	 */
+	public function drop_revoked_fallback_password_row( int $user_id, array $item ): void {
+		$uuid = isset( $item['uuid'] ) ? sanitize_text_field( (string) $item['uuid'] ) : '';
+		if ( '' === $uuid ) {
+			return;
+		}
+
+		delete_option( 'npcink_openclaw_adapter_fallback_app_password_' . md5( $user_id . ':' . $uuid ) );
 	}
 
 	/**
