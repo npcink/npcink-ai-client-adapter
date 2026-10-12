@@ -102,6 +102,26 @@ Approved response:
 
 Rejected or expired pairings do not return private material.
 
+### `GET /wp-json/npcink-openclaw-adapter/v1/connection/key-pairs`
+
+Lists the paired client keys visible to the current caller. Requires an
+administrator session or a paired signed client.
+
+### `DELETE /wp-json/npcink-openclaw-adapter/v1/connection/key-pairs/{key_id}`
+
+Revokes one client key. Requires a WordPress administrator session:
+
+- anonymous callers receive the structured `401
+  npcink_openclaw_adapter_authentication_required`;
+- authenticated non-administrator accounts receive the structured `403
+  npcink_openclaw_adapter_privilege_required` with `reason` and `next_step`
+  (never WordPress core's bare `rest_forbidden`);
+- a malformed `key_id` (expected shape `mk_[A-Za-z0-9_-]+`) receives `400
+  npcink_openclaw_adapter_invalid_path_id` naming the field and expected
+  shape;
+- revoking a key that belongs to another user receives `404` without
+  revealing whether the key exists.
+
 ## Admin Approval
 
 The WordPress admin route is:

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-07T15:45:29+00:00\n"
+"POT-Creation-Date: 2026-10-11T15:09:58+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: npcink-ai-client-adapter\n"
@@ -528,236 +528,278 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: includes/Rest/Controller.php:777
+#: includes/Rest/Controller.php:790
 msgid "This WordPress account cannot use the Adapter channel. Adapter routes require an administrator session or a paired signed client."
 msgstr ""
 
-#: includes/Rest/Controller.php:781
+#: includes/Rest/Controller.php:794
 msgid "Use an administrator account, or pair a signed client key through POST /connect/device/start."
 msgstr ""
 
-#: includes/Rest/Controller.php:833
-#: includes/Rest/Controller.php:3079
+#: includes/Rest/Controller.php:840
+msgid "This route requires a WordPress administrator session. Administrator-only Adapter routes are not available to this account."
+msgstr ""
+
+#: includes/Rest/Controller.php:844
+msgid "Use an administrator account for administrator-only Adapter routes."
+msgstr ""
+
+#. translators: 1: field name such as proposal_id, 2: expected id shape.
+#: includes/Rest/Controller.php:870
+#, php-format
+msgid "The %1$s path value is not a valid Adapter identifier; expected %2$s."
+msgstr ""
+
+#: includes/Rest/Controller.php:908
+#: includes/Rest/Controller.php:3274
 msgid "The unified approve-and-execute action requires a WordPress administrator session. Signed AI clients must wait for human approval in the Npcink Governance Core admin, then call POST /proposals/{proposal_id}/execute."
 msgstr ""
 
-#: includes/Rest/Controller.php:880
+#: includes/Rest/Controller.php:957
 msgid "Ed25519 device pairing requires the PHP sodium extension."
 msgstr ""
 
-#: includes/Rest/Controller.php:896
+#: includes/Rest/Controller.php:973
 msgid "Device pairing requires client metadata and a base64url Ed25519 public key."
 msgstr ""
 
-#: includes/Rest/Controller.php:980
+#: includes/Rest/Controller.php:1057
 msgid "Device pairing is expired or invalid."
 msgstr ""
 
-#: includes/Rest/Controller.php:990
+#: includes/Rest/Controller.php:1067
 msgid "Device pairing was rejected."
 msgstr ""
 
-#: includes/Rest/Controller.php:1003
+#: includes/Rest/Controller.php:1080
 msgid "Device pairing is still pending approval."
 msgstr ""
 
-#: includes/Rest/Controller.php:1375
+#: includes/Rest/Controller.php:1456
 msgid "A JSON request body is required."
 msgstr ""
 
-#: includes/Rest/Controller.php:1396
+#: includes/Rest/Controller.php:1477
 msgid "Adapter request body is too large."
 msgstr ""
 
-#: includes/Rest/Controller.php:2159
+#: includes/Rest/Controller.php:2262
 msgid "Core proposal detail response is invalid."
 msgstr ""
 
 #. translators: 1: attachment id, 2: media format.
-#: includes/Rest/Controller.php:2592
+#: includes/Rest/Controller.php:2695
 #, php-format
 msgid "Replace attachment %1$d with the reviewed %2$s derivative."
 msgstr ""
 
-#: includes/Rest/Controller.php:2594
+#: includes/Rest/Controller.php:2697
 msgid "optimized"
 msgstr ""
 
 #. translators: 1: before size, 2: after size.
-#: includes/Rest/Controller.php:2603
+#: includes/Rest/Controller.php:2706
 #, php-format
 msgid "Dimensions: %1$s -> %2$s."
 msgstr ""
 
-#: includes/Rest/Controller.php:2604
-#: includes/Rest/Controller.php:2605
+#: includes/Rest/Controller.php:2707
+#: includes/Rest/Controller.php:2708
 msgid "unknown"
 msgstr ""
 
 #. translators: %s: file name.
-#: includes/Rest/Controller.php:2613
+#: includes/Rest/Controller.php:2716
 #, php-format
 msgid "Local file name: %s."
 msgstr ""
 
 #. translators: 1: post count, 2: actual replacement count, 3: rule count.
-#: includes/Rest/Controller.php:2623
+#: includes/Rest/Controller.php:2726
 #, php-format
 msgid "Repair post-content media references in %1$d post(s): %2$d actual replacement(s) from %3$d reviewed rule(s)."
 msgstr ""
 
-#: includes/Rest/Controller.php:2631
+#: includes/Rest/Controller.php:2734
 msgid "Update reviewed media title, alt text, caption, description, or attribution metadata in the same approval."
 msgstr ""
 
-#: includes/Rest/Controller.php:2633
+#: includes/Rest/Controller.php:2736
 msgid "Keep a local backup so the media file and post references can be rolled back after approval."
 msgstr ""
 
-#: includes/Rest/Controller.php:2890
+#: includes/Rest/Controller.php:2993
 msgid "This planning ability is not implemented by the adapter plan-to-proposal bridge."
 msgstr ""
 
-#: includes/Rest/Controller.php:2997
-#: includes/Rest/Controller.php:3069
+#: includes/Rest/Controller.php:3072
+msgid "Commit preflight relay skipped reference-addressed verification reads; the post-execution readback may degrade under read-authorization-requiring deployments."
+msgstr ""
+
+#: includes/Rest/Controller.php:3090
+msgid "Commit preflight relay could not derive verification reads; the post-execution readback may degrade under read-authorization-requiring deployments."
+msgstr ""
+
+#: includes/Rest/Controller.php:3180
+#: includes/Rest/Controller.php:3258
 msgid "proposal_id is required."
 msgstr ""
 
-#: includes/Rest/Controller.php:3120
+#: includes/Rest/Controller.php:3315
 msgid "Approved by Npcink AI Client Adapter approve-and-execute."
 msgstr ""
 
-#: includes/Rest/Controller.php:3140
+#: includes/Rest/Controller.php:3335
 msgid "Core did not return an approved proposal state."
 msgstr ""
 
-#: includes/Rest/Controller.php:3156
+#: includes/Rest/Controller.php:3351
 msgid "This proposal cannot be approved and executed from its current status."
 msgstr ""
 
-#: includes/Rest/Controller.php:3321
+#: includes/Rest/Controller.php:3516
 msgid "Core proposal response is invalid."
 msgstr ""
 
-#: includes/Rest/Controller.php:3362
+#: includes/Rest/Controller.php:3557
 msgid "Proposal input must use either post_id or write_actions, not both."
 msgstr ""
 
-#: includes/Rest/Controller.php:3374
+#: includes/Rest/Controller.php:3569
 msgid "Proposal write_actions exceeds the adapter execution limit."
 msgstr ""
 
-#: includes/Rest/Controller.php:3389
+#: includes/Rest/Controller.php:3584
 #: includes/Rest/Proposal_Review.php:122
 msgid "Each write_actions item must be an object."
 msgstr ""
 
-#: includes/Rest/Controller.php:3402
+#: includes/Rest/Controller.php:3597
 msgid "Each write_actions item must include target_ability_id."
 msgstr ""
 
-#: includes/Rest/Controller.php:3433
+#: includes/Rest/Controller.php:3628
 #: includes/Rest/Proposal_Review.php:147
 msgid "Each write_actions item must have a unique action_id."
 msgstr ""
 
-#: includes/Rest/Controller.php:3458
+#: includes/Rest/Controller.php:3653
 msgid "Each executable write action must require Core approval."
 msgstr ""
 
-#: includes/Rest/Controller.php:3470
+#: includes/Rest/Controller.php:3665
 msgid "Write actions must keep core_proxy_execute=false before Adapter execution."
 msgstr ""
 
-#: includes/Rest/Controller.php:3482
+#: includes/Rest/Controller.php:3677
 msgid "Write actions must keep commit_execution=false before Adapter execution."
 msgstr ""
 
-#: includes/Rest/Controller.php:3495
+#: includes/Rest/Controller.php:3690
 msgid "Write action still requires reviewed input before execution."
 msgstr ""
 
-#: includes/Rest/Controller.php:3509
+#: includes/Rest/Controller.php:3704
 msgid "Write action is not marked ready for execution."
 msgstr ""
 
-#: includes/Rest/Controller.php:3635
+#: includes/Rest/Controller.php:3830
 msgid "The Core media ALT guard does not match the approved ALT-only input."
 msgstr ""
 
-#: includes/Rest/Controller.php:3824
+#: includes/Rest/Controller.php:3964
+msgid "A minted verification read grant was dropped because it carried no usable request id."
+msgstr ""
+
+#: includes/Rest/Controller.php:3986
+msgid "A minted verification read grant was dropped because it carried no usable slug addressing."
+msgstr ""
+
+#: includes/Rest/Controller.php:4009
+msgid "No minted verification read grant matched this readback; it runs without execution-attached authorization."
+msgstr ""
+
+#: includes/Rest/Controller.php:4109
 msgid "Core commit preflight response is invalid."
 msgstr ""
 
-#: includes/Rest/Controller.php:3835
+#: includes/Rest/Controller.php:4120
 msgid "Core commit preflight did not authorize approval commit."
 msgstr ""
 
-#: includes/Rest/Controller.php:3848
+#: includes/Rest/Controller.php:4133
 msgid "Core commit preflight must not execute final writes."
 msgstr ""
 
-#: includes/Rest/Controller.php:3860
+#: includes/Rest/Controller.php:4145
 msgid "Core commit preflight did not mark the proposal item executable."
 msgstr ""
 
-#: includes/Rest/Controller.php:3874
+#: includes/Rest/Controller.php:4159
 msgid "Core commit preflight did not return a correlation id."
 msgstr ""
 
-#: includes/Rest/Controller.php:4327
+#: includes/Rest/Controller.php:4201
+msgid "Execution found readback-paired actions without minted verification read grants; the post-execution readback may degrade under read-authorization-requiring deployments."
+msgstr ""
+
+#: includes/Rest/Controller.php:4657
 msgid "Provider implementation posture is not accepted for Adapter final execution."
 msgstr ""
 
-#: includes/Rest/Controller.php:4353
+#: includes/Rest/Controller.php:4683
 msgid "Provider implementation posture write defaults are not accepted for Adapter final execution."
 msgstr ""
 
-#: includes/Rest/Controller.php:4370
+#: includes/Rest/Controller.php:4700
 msgid "Provider implementation posture declares ownership that Adapter must not execute through."
 msgstr ""
 
-#: includes/Rest/Controller.php:4421
+#: includes/Rest/Controller.php:4751
 msgid "Core implementation posture evidence does not match capability discovery."
 msgstr ""
 
-#: includes/Rest/Controller.php:4807
+#: includes/Rest/Controller.php:5552
 msgid "This ability is not direct-read. Create a Core proposal instead."
 msgstr ""
 
-#: includes/Rest/Controller.php:4820
+#: includes/Rest/Controller.php:5565
 msgid "Core guidance unexpectedly allows proxy or commit execution."
 msgstr ""
 
-#: includes/Rest/Controller.php:4963
+#: includes/Rest/Controller.php:5571
+msgid "Reload Core capabilities; if Core keeps allowing proxy or commit execution, align the Core boundary before retrying reads through Adapter."
+msgstr ""
+
+#: includes/Rest/Controller.php:5714
 msgid "Core read preflight did not return a read authorization context."
 msgstr ""
 
-#: includes/Rest/Controller.php:4979
+#: includes/Rest/Controller.php:5730
 msgid "Core read authorization context does not match the supplied approved input hash."
 msgstr ""
 
-#: includes/Rest/Controller.php:5004
+#: includes/Rest/Controller.php:5755
 msgid "Core requires explicit read authorization before Adapter may return this sensitive read result."
 msgstr ""
 
-#: includes/Rest/Controller.php:5015
+#: includes/Rest/Controller.php:5766
 msgid "Create or approve the sensitive read request in Npcink Governance Core."
 msgstr ""
 
-#: includes/Rest/Controller.php:5016
+#: includes/Rest/Controller.php:5767
 msgid "Retry only after Core exposes a bounded read authorization context for this ability and input."
 msgstr ""
 
-#: includes/Rest/Controller.php:5017
+#: includes/Rest/Controller.php:5768
 msgid "Do not bypass Adapter through the database, filesystem, logs, custom scripts, or direct WordPress internals."
 msgstr ""
 
-#: includes/Rest/Dependency_Status.php:93
+#: includes/Rest/Dependency_Status.php:100
 msgid "Npcink Governance Core is required before Adapter can read capabilities, create proposals, or run commit preflight."
 msgstr ""
 
-#: includes/Rest/Dependency_Status.php:106
+#: includes/Rest/Dependency_Status.php:113
 msgid "WordPress Abilities API is required before Adapter can execute read abilities or approved write abilities."
 msgstr ""
 
@@ -1244,43 +1286,43 @@ msgstr ""
 msgid "Core commit preflight did not authorize execution."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:569
+#: includes/Rest/Proposal_Review.php:574
 msgid "Core already issued the one-time execution handoff, and the 409 response echoes its correlation id and expiry for recovery."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:571
+#: includes/Rest/Proposal_Review.php:576
 msgid "Core has already issued the one-time execution handoff. This Core version does not echo the handoff identifiers, so Adapter cannot recover it."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:576
+#: includes/Rest/Proposal_Review.php:581
 msgid "Show Core preflight blockers to the operator."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:577
+#: includes/Rest/Proposal_Review.php:582
 msgid "Revise the proposal input or source plan, then create a new proposal."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:578
+#: includes/Rest/Proposal_Review.php:583
 msgid "Do not retry approve-and-execute until Core preflight can pass."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:582
+#: includes/Rest/Proposal_Review.php:587
 msgid "Create a new proposal for the same intended write."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:583
+#: includes/Rest/Proposal_Review.php:588
 msgid "After approval, call Adapter execute or approve-and-execute; do not call Core commit-preflight directly."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:584
+#: includes/Rest/Proposal_Review.php:589
 msgid "Use Adapter commit-preflight only as an advanced diagnostic step and follow it immediately with Adapter execute."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:589
+#: includes/Rest/Proposal_Review.php:594
 msgid "If the original execution response was lost, finish the flow with the echoed correlation id instead of creating a new proposal."
 msgstr ""
 
-#: includes/Rest/Proposal_Review.php:597
+#: includes/Rest/Proposal_Review.php:602
 msgid "Core commit preflight blocked execution. Adapter did not run the write ability."
 msgstr ""
 
@@ -1382,7 +1424,7 @@ msgid "Too many device pairing polls. Try again shortly."
 msgstr ""
 
 #: includes/Rest/Upstream_Dispatch.php:161
-#: includes/Rest/Upstream_Dispatch.php:264
+#: includes/Rest/Upstream_Dispatch.php:278
 msgid "The upstream WordPress REST request failed."
 msgstr ""
 
@@ -1390,10 +1432,10 @@ msgstr ""
 msgid "This Core app token has expired: ask the WordPress administrator to rotate it, then update NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN."
 msgstr ""
 
-#: includes/Rest/Upstream_Dispatch.php:362
+#: includes/Rest/Upstream_Dispatch.php:376
 msgid "Core capabilities response is invalid."
 msgstr ""
 
-#: includes/Rest/Upstream_Dispatch.php:403
+#: includes/Rest/Upstream_Dispatch.php:417
 msgid "The requested ability is not discoverable through Core."
 msgstr ""

@@ -412,7 +412,7 @@ final class Controller {
 
 		register_rest_route(
 			self::NAMESPACE,
-			'/connection/key-pairs/(?P<key_id>mk_[A-Za-z0-9_-]+)',
+			'/connection/key-pairs/(?P<key_id>[A-Za-z0-9_-]+)',
 			array(
 				array(
 					'methods'             => WP_REST_Server::DELETABLE,
@@ -537,7 +537,7 @@ final class Controller {
 
 		register_rest_route(
 			self::NAMESPACE,
-			'/read-requests/(?P<request_id>[A-Za-z0-9_-]+)',
+			'/read-requests/(?P<request_id>[^/]+)',
 			array(
 				array(
 					'methods'             => WP_REST_Server::READABLE,
@@ -664,7 +664,7 @@ final class Controller {
 
 		register_rest_route(
 			self::NAMESPACE,
-			'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/execute',
+			'/proposals/(?P<proposal_id>[^/]+)/execute',
 			array(
 				array(
 					'methods'             => WP_REST_Server::CREATABLE,
@@ -683,7 +683,7 @@ final class Controller {
 
 		register_rest_route(
 			self::NAMESPACE,
-			'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/media-optimization-readiness',
+			'/proposals/(?P<proposal_id>[^/]+)/media-optimization-readiness',
 			array(
 				array(
 					'methods'             => WP_REST_Server::READABLE,
@@ -702,7 +702,7 @@ final class Controller {
 
 		register_rest_route(
 			self::NAMESPACE,
-			'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/approve-and-execute',
+			'/proposals/(?P<proposal_id>[^/]+)/approve-and-execute',
 			array(
 				array(
 					'methods'             => WP_REST_Server::CREATABLE,
@@ -726,7 +726,7 @@ final class Controller {
 
 			register_rest_route(
 				self::NAMESPACE,
-				'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)',
+				'/proposals/(?P<proposal_id>[^/]+)',
 				array(
 					array(
 						'methods'             => WP_REST_Server::READABLE,
@@ -745,7 +745,7 @@ final class Controller {
 
 			register_rest_route(
 				self::NAMESPACE,
-				'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/commit-preflight',
+				'/proposals/(?P<proposal_id>[^/]+)/commit-preflight',
 				array(
 					array(
 						'methods'             => WP_REST_Server::CREATABLE,
@@ -810,13 +810,75 @@ final class Controller {
 
 
 	/**
-	 * Authorizes manual administrator-only diagnostics.
+	 * Authorizes manual administrator-only diagnostics and key management.
+	 *
+	 * Returns the same structured error envelope as the other Adapter
+	 * permission callbacks so callers always receive actionable reason and
+	 * next_step data instead of WordPress core's generic rest_forbidden.
 	 *
 	 * @param WP_REST_Request|null $request Request.
-	 * @return bool
+	 * @return bool|WP_Error
 	 */
-	public function can_use_admin_session( ?WP_REST_Request $request = null ): bool {
-		return current_user_can( 'manage_options' );
+	public function can_use_admin_session( ?WP_REST_Request $request = null ) {
+		return current_user_can( 'manage_options' ) ? true : $this->admin_session_required_error();
+	}
+
+	/**
+	 * Builds the structured error for a non-administrator caller on an
+	 * administrator-only Adapter route.
+	 *
+	 * @return WP_Error 401 for anonymous callers, 403 for authenticated
+	 *                  WordPress accounts without manage_options.
+	 */
+	private function admin_session_required_error(): WP_Error {
+		if ( ! is_user_logged_in() ) {
+			return $this->adapter_authentication_required_error();
+		}
+
+		return new WP_Error(
+			'npcink_openclaw_adapter_privilege_required',
+			__( 'This route requires a WordPress administrator session. Administrator-only Adapter routes are not available to this account.', 'npcink-ai-client-adapter' ),
+			array(
+				'status'    => 403,
+				'reason'    => 'wordpress_account_lacks_manage_options',
+				'next_step' => __( 'Use an administrator account for administrator-only Adapter routes.', 'npcink-ai-client-adapter' ),
+			)
+		);
+	}
+
+	/**
+	 * Validates a single-segment id path parameter so malformed ids receive a
+	 * 400 naming the field and the expected shape instead of WordPress core's
+	 * generic rest_no_route 404.
+	 *
+	 * @param string $field Parameter name such as proposal_id or key_id.
+	 * @param string $value Raw parameter value.
+	 * @return WP_Error|null Null when valid, otherwise the 400 error.
+	 */
+	private function invalid_path_id( string $field, string $value ) {
+		$expected = 'key_id' === $field ? '/^mk_[A-Za-z0-9_-]+$/' : '/^[A-Za-z0-9_-]+$/';
+		if ( '' !== $value && preg_match( $expected, $value ) ) {
+			return null;
+		}
+
+		$shape = 'key_id' === $field ? 'mk_[A-Za-z0-9_-]+' : '[A-Za-z0-9_-]+';
+
+		return new WP_Error(
+			'npcink_openclaw_adapter_invalid_path_id',
+			sprintf(
+				/* translators: 1: field name such as proposal_id, 2: expected id shape. */
+				__( 'The %1$s path value is not a valid Adapter identifier; expected %2$s.', 'npcink-ai-client-adapter' ),
+				$field,
+				$shape
+			),
+			array(
+				'status'   => 400,
+				'field'    => $field,
+				// Bounded echo of the rejected value for client-side debugging.
+				'value'    => mb_substr( $value, 0, 64 ),
+				'expected' => $shape,
+			)
+		);
 	}
 
 	/**
@@ -855,7 +917,9 @@ final class Controller {
 			);
 		}
 
-		return false;
+		// Anonymous or non-administrator WordPress sessions get the same
+		// structured envelope as every other Adapter permission callback.
+		return $this->admin_session_required_error();
 	}
 
 	/**
@@ -1060,7 +1124,11 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function revoke_client_key( WP_REST_Request $request ) {
-		$key_id = sanitize_text_field( (string) $request['key_id'] );
+		$key_id     = sanitize_text_field( (string) $request['key_id'] );
+		$invalid_id = $this->invalid_path_id( 'key_id', $key_id );
+		if ( is_wp_error( $invalid_id ) ) {
+			return $invalid_id;
+		}
 		$result = $this->revoke_client_key_by_id( $key_id, get_current_user_id() );
 		if ( is_wp_error( $result ) ) {
 			return $result;
@@ -1462,12 +1530,16 @@ final class Controller {
 				),
 			),
 			'urls'                        => array(
-				'health'       => rest_url( self::NAMESPACE . '/health' ),
-				'help'         => rest_url( self::NAMESPACE . '/help' ),
-				'capabilities' => rest_url( self::NAMESPACE . '/capabilities' ),
-				'device_start' => rest_url( self::NAMESPACE . '/connect/device/start' ),
-				'device_poll'  => rest_url( self::NAMESPACE . '/connect/device/poll' ),
-				'key_pairs'    => rest_url( self::NAMESPACE . '/connection/key-pairs' ),
+				'health'        => rest_url( self::NAMESPACE . '/health' ),
+				'help'          => rest_url( self::NAMESPACE . '/help' ),
+				'capabilities'  => rest_url( self::NAMESPACE . '/capabilities' ),
+				'device_start'  => rest_url( self::NAMESPACE . '/connect/device/start' ),
+				'device_poll'   => rest_url( self::NAMESPACE . '/connect/device/poll' ),
+				'key_pairs'     => rest_url( self::NAMESPACE . '/connection/key-pairs' ),
+				'run_read'      => rest_url( self::NAMESPACE . '/run-read-ability' ),
+				'proposals'     => rest_url( self::NAMESPACE . '/proposals' ),
+				'proposal_item' => rest_url( self::NAMESPACE . '/proposals/{proposal_id}' ),
+				'execute'       => rest_url( self::NAMESPACE . '/proposals/{proposal_id}/execute' ),
 			),
 			'capabilities'                => array(
 				'read'  => array(
@@ -1763,9 +1835,11 @@ final class Controller {
 				'namespace'                           => self::NAMESPACE,
 				'base_url'                            => rest_url( self::NAMESPACE ),
 				'auth'                                => array(
-					'type'       => 'wordpress_rest_application_password',
-					'capability' => 'manage_options',
-					'header'     => 'Authorization: Basic base64(username:application_password)',
+					'preferred'     => 'key_pair_device_pairing',
+					'fallback'      => 'wordpress_rest_application_password',
+					'capability'    => 'manage_options',
+					'pairing_route' => 'POST /' . self::NAMESPACE . '/connect/device/start',
+					'header'        => 'Authorization: Basic base64(username:application_password)',
 				),
 				'routes'                              => $this->help_routes_flat( $route_groups ),
 				'route_groups'                        => $route_groups,
@@ -2111,6 +2185,10 @@ final class Controller {
 	 */
 	public function get_read_request( WP_REST_Request $request ) {
 		$request_id = sanitize_text_field( (string) $request->get_param( 'request_id' ) );
+		$invalid_id = $this->invalid_path_id( 'request_id', $request_id );
+		if ( is_wp_error( $invalid_id ) ) {
+			return $invalid_id;
+		}
 		return $this->dispatch_upstream( 'GET', '/npcink-governance-core/v1/read-requests/' . rawurlencode( $request_id ) );
 	}
 
@@ -2144,6 +2222,10 @@ final class Controller {
 	 */
 	public function get_proposal( WP_REST_Request $request ) {
 		$proposal_id = (string) $request->get_param( 'proposal_id' );
+		$invalid_id  = $this->invalid_path_id( 'proposal_id', $proposal_id );
+		if ( is_wp_error( $invalid_id ) ) {
+			return $invalid_id;
+		}
 
 		$response = $this->dispatch_upstream( 'GET', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) );
 		if ( $response instanceof WP_REST_Response ) {
@@ -2164,7 +2246,11 @@ final class Controller {
 	 */
 	public function get_proposal_media_optimization_readiness( WP_REST_Request $request ) {
 		$proposal_id = (string) $request->get_param( 'proposal_id' );
-		$response    = $this->dispatch_upstream( 'GET', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) );
+		$invalid_id  = $this->invalid_path_id( 'proposal_id', $proposal_id );
+		if ( is_wp_error( $invalid_id ) ) {
+			return $invalid_id;
+		}
+		$response = $this->dispatch_upstream( 'GET', '/npcink-governance-core/v1/proposals/' . rawurlencode( $proposal_id ) );
 		if ( is_wp_error( $response ) ) {
 			return $response;
 		}
@@ -2957,8 +3043,12 @@ final class Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function commit_preflight( WP_REST_Request $request ) {
-		$started               = microtime( true );
-		$proposal_id           = (string) $request->get_param( 'proposal_id' );
+		$started     = microtime( true );
+		$proposal_id = (string) $request->get_param( 'proposal_id' );
+		$invalid_id  = $this->invalid_path_id( 'proposal_id', $proposal_id );
+		if ( is_wp_error( $invalid_id ) ) {
+			return $invalid_id;
+		}
 		$relay_proposal        = $this->get_core_proposal_data( $proposal_id );
 		$relay_params          = array();
 		$relay_reads_derived   = false;
@@ -3094,6 +3184,12 @@ final class Controller {
 			return $error;
 		}
 
+		$invalid_id = $this->invalid_path_id( 'proposal_id', $proposal_id );
+		if ( is_wp_error( $invalid_id ) ) {
+			$this->emit_operation_event( 'adapter.proposal.execute', $started, $invalid_id, $event_context );
+			return $invalid_id;
+		}
+
 		$proposal = $this->get_core_proposal_data( $proposal_id );
 		if ( is_wp_error( $proposal ) ) {
 			$this->emit_operation_event( 'adapter.proposal.execute', $started, $proposal, $event_context );
@@ -3103,7 +3199,7 @@ final class Controller {
 		$execution = $this->execute_core_approved_proposal( $request, $proposal_id, $proposal );
 		if ( is_wp_error( $execution ) ) {
 			$this->emit_operation_event( 'adapter.proposal.execute', $started, $execution, $event_context );
-			return $execution;
+			return $this->maybe_retry_after_response( $execution );
 		}
 
 		$this->emit_operation_event(
@@ -3164,6 +3260,12 @@ final class Controller {
 			);
 			$this->emit_operation_event( 'adapter.proposal.execute', $started, $error, $event_context );
 			return $error;
+		}
+
+		$invalid_id = $this->invalid_path_id( 'proposal_id', $proposal_id );
+		if ( is_wp_error( $invalid_id ) ) {
+			$this->emit_operation_event( 'adapter.proposal.execute', $started, $invalid_id, $event_context );
+			return $invalid_id;
 		}
 
 		if ( $this->current_signed_authenticated ) {
@@ -3262,7 +3364,7 @@ final class Controller {
 		$execution = $this->execute_core_approved_proposal( $request, $proposal_id, $proposal );
 		if ( is_wp_error( $execution ) ) {
 			$this->emit_operation_event( 'adapter.proposal.execute', $started, $execution, $event_context );
-			return $execution;
+			return $this->maybe_retry_after_response( $execution );
 		}
 
 		$this->emit_operation_event(
@@ -5461,7 +5563,13 @@ final class Controller {
 			$error = new WP_Error(
 				'npcink_openclaw_adapter_invalid_core_guidance',
 				__( 'Core guidance unexpectedly allows proxy or commit execution.', 'npcink-ai-client-adapter' ),
-				array( 'status' => 500 )
+				array(
+					'status'    => 502,
+					// Bad-gateway class: untrusted upstream guidance data, like
+					// the invalid_core_proposal/invalid_core_preflight 502s.
+					'reason'    => 'core_capability_guidance_violated_adapter_boundary',
+					'next_step' => __( 'Reload Core capabilities; if Core keeps allowing proxy or commit execution, align the Core boundary before retrying reads through Adapter.', 'npcink-ai-client-adapter' ),
+				)
 			);
 			$this->emit_operation_event( 'adapter.ability.run_read', $started, $error, array( 'ability_id' => $ability_id ) );
 			return $error;
@@ -5873,6 +5981,25 @@ final class Controller {
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Wraps retry-carrying errors (execution lock contention, rate limits) in
+	 * a response with the standard Retry-After header; other errors pass
+	 * through unchanged.
+	 *
+	 * @param WP_Error $error Error returned by an execution flow.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	private function maybe_retry_after_response( WP_Error $error ) {
+		$data        = $error->get_error_data();
+		$retry_after = is_array( $data ) ? absint( $data['retry_after'] ?? 0 ) : 0;
+
+		if ( $retry_after > 0 ) {
+			return $this->rest_response_with_retry_after( $error );
+		}
+
+		return $error;
 	}
 
 

@@ -671,7 +671,7 @@ foreach (
 		'raw_query_params',
 		'/run-read-ability',
 		'/read-requests',
-		'/read-requests/(?P<request_id>[A-Za-z0-9_-]+)',
+		'/read-requests/(?P<request_id>[^/]+)',
 		"'/read-preflight'",
 		'read_authorization_params',
 		'core_read_authorization_preflight',
@@ -903,8 +903,8 @@ foreach (
 			'execute_approved_proposal_route',
 			'approve_and_execute_proposal_route',
 			'/execute-approved-proposal',
-			'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/execute',
-			'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/approve-and-execute',
+			'/proposals/(?P<proposal_id>[^/]+)/execute',
+			'/proposals/(?P<proposal_id>[^/]+)/approve-and-execute',
 			'approved_proposal_execution_routes',
 			'approved_proposal_execution',
 			'unified_approve_and_execute',
@@ -1372,9 +1372,19 @@ maa_adapter_assert( false === strpos( $controller, "'/proposals/(?P<proposal_id>
 maa_adapter_assert( false === strpos( $controller, "'POST /proposals/{proposal_id}/approve' =>" ), 'Help purpose map does not include standalone approve route.' );
 maa_adapter_assert( false === strpos( $controller, "'POST /proposals/{proposal_id}/reject' =>" ), 'Help purpose map does not include standalone reject route.' );
 	maa_adapter_assert( false === strpos( $controller, "'/ai-provider-log-correlation-smoke'" ), 'Controller does not register provider log correlation smoke route.' );
-$key_revoke_route = substr( $controller, (int) strpos( $controller, "'/connection/key-pairs/(?P<key_id>mk_[A-Za-z0-9_-]+)'" ), 360 );
+$key_revoke_route = substr( $controller, (int) strpos( $controller, "'/connection/key-pairs/(?P<key_id>[A-Za-z0-9_-]+)'" ), 360 );
 maa_adapter_assert( false !== strpos( $key_revoke_route, "array( \$this, 'can_use_admin_session' )" ), 'Client key revoke route requires administrator session auth.' );
 maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_use_adapter' )" ), 'Client key revoke route is not available through signed adapter clients.' );
+maa_adapter_assert( false !== strpos( $controller, "invalid_path_id( 'key_id'" ), 'Malformed key ids get a field-named 400 instead of rest_no_route.' );
+maa_adapter_assert( false !== strpos( $controller, "invalid_path_id( 'proposal_id'" ), 'Malformed proposal ids get a field-named 400 instead of rest_no_route.' );
+maa_adapter_assert( false !== strpos( $controller, "invalid_path_id( 'request_id'" ), 'Malformed read-request ids get a field-named 400 instead of rest_no_route.' );
+maa_adapter_assert( false !== strpos( $controller, 'npcink_openclaw_adapter_invalid_path_id' ), 'Malformed path ids expose one stable structured error code.' );
+maa_adapter_assert( false !== strpos( $controller, 'maybe_retry_after_response' ), 'Execution lock contention responses carry the standard Retry-After header.' );
+maa_adapter_assert( substr_count( $controller, 'maybe_retry_after_response( $execution )' ) >= 2, 'Both execute paths wrap retry-carrying errors.' );
+maa_adapter_assert( false === strpos( substr( $controller, (int) strpos( $controller, 'npcink_openclaw_adapter_invalid_core_guidance' ), 320 ), "'status' => 500" ), 'Invalid Core guidance is a 502 bad-gateway class failure, not a 500.' );
+maa_adapter_assert( false !== strpos( $controller, "'preferred'     => 'key_pair_device_pairing'" ), 'GET /help advertises key-pair device pairing as the preferred auth mode.' );
+maa_adapter_assert( false !== strpos( $controller, "'run_read'      => rest_url( self::NAMESPACE . '/run-read-ability' )" ), 'Connection manifest urls cover the read execution route.' );
+maa_adapter_assert( false !== strpos( $controller, 'admin_session_required_error' ), 'Administrator-only routes return the structured privilege envelope instead of bare rest_forbidden.' );
 	$signed_verify = substr( $signing_auth, (int) strpos( $signing_auth, 'public function verify' ), 6400 );
 	maa_adapter_assert( false !== strpos( $signed_verify, 'should_update_key_last_used' ), 'Signed request auth throttles last-used option writes.' );
 	maa_adapter_assert( false !== strpos( $signed_verify, 'claim_signature_nonce( $key_id, $nonce )' ), 'Signed request auth atomically claims a nonce only after signature verification.' );
@@ -1477,7 +1487,7 @@ maa_adapter_assert( false === strpos( $key_revoke_route, "array( \$this, 'can_us
 	maa_adapter_assert( false !== strpos( $execute_scope_routes, "'/commit-preflight'" ), 'Client key execute scope covers commit-preflight handoff consumption.' );
 	maa_adapter_assert( false === strpos( $execute_scope_routes, "'/approve-and-execute'" ), 'Client key execute scope no longer covers approve-and-execute.' );
 	maa_adapter_assert( false !== strpos( $client_key_scope, "strpos( \$route, '/approve-and-execute' )" ), 'Client key scope gate hard-denies the unified approve-and-execute route for every signed key scope.' );
-	$unified_route_registration = substr( $controller, (int) strpos( $controller, "'/proposals/(?P<proposal_id>[A-Za-z0-9_-]+)/approve-and-execute'" ), 900 );
+	$unified_route_registration = substr( $controller, (int) strpos( $controller, "'/proposals/(?P<proposal_id>[^/]+)/approve-and-execute'" ), 900 );
 	maa_adapter_assert( false !== strpos( $unified_route_registration, 'can_use_unified_approve_and_execute' ), 'Unified approve-and-execute route registers the admin-session permission callback.' );
 	maa_adapter_assert( 2 <= substr_count( $controller, 'npcink_openclaw_adapter_approve_requires_admin_session' ), 'Admin-session requirement is enforced at both the permission gate and the route handler.' );
 	maa_adapter_assert( false === strpos( $controller, 'npcink_openclaw_adapter_unified_action' ), 'Unified approve-and-execute no longer advertises an adapter-owned approval surface.' );
