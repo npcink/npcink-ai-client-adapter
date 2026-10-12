@@ -10,6 +10,40 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 }
 
 /**
+ * Revokes WordPress Application Passwords created through the Adapter fallback.
+ *
+ * Only credentials created by this plugin's fallback flow are revoked; other
+ * Application Passwords on the site are untouched.
+ *
+ * @return void
+ */
+function npcink_openclaw_adapter_revoke_fallback_app_passwords(): void {
+	if ( ! class_exists( 'WP_Application_Passwords' ) ) {
+		return;
+	}
+
+	$recorded = get_option( 'npcink_openclaw_adapter_fallback_app_passwords', array() );
+	if ( ! is_array( $recorded ) ) {
+		return;
+	}
+
+	foreach ( $recorded as $entry ) {
+		if ( ! is_array( $entry ) ) {
+			continue;
+		}
+		$user_id = isset( $entry['user_id'] ) ? absint( $entry['user_id'] ) : 0;
+		$uuid    = isset( $entry['uuid'] ) ? sanitize_text_field( (string) $entry['uuid'] ) : '';
+		if ( 0 === $user_id || '' === $uuid ) {
+			continue;
+		}
+
+		// Already-deleted passwords and removed users fail silently here; the
+		// plugin is being uninstalled, so nothing depends on the outcome.
+		\WP_Application_Passwords::delete_application_password( $user_id, $uuid );
+	}
+}
+
+/**
  * Deletes Adapter-owned options and transient rows for the current site.
  *
  * Core proposal, approval, preflight, and audit records are intentionally not
@@ -19,6 +53,8 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
  */
 function npcink_openclaw_adapter_uninstall_current_site(): void {
 	global $wpdb;
+
+	npcink_openclaw_adapter_revoke_fallback_app_passwords();
 
 	foreach (
 		array(

@@ -34,6 +34,7 @@ final class Plugin {
 		add_filter( 'rest_request_after_callbacks', array( $this, 'emit_adapter_dispatch_event' ), 10, 3 );
 		add_filter( 'plugin_action_links_' . plugin_basename( NPCINK_OPENCLAW_ADAPTER_FILE ), array( $this, 'filter_plugin_action_links' ) );
 		add_action( 'admin_menu', array( $this, 'register_admin_page' ), 20 );
+		add_action( 'admin_notices', array( $this, 'render_dependency_notice' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_create_openclaw_password', array( $this, 'handle_create_openclaw_password' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_pairing_decision', array( $this, 'handle_pairing_decision' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_revoke_client_key', array( $this, 'handle_revoke_client_key' ) );
@@ -133,12 +134,89 @@ final class Plugin {
 		if ( $is_error ) {
 			$payload['error_code']    = $this->adapter_dispatch_error_code( $response );
 			$payload['status_detail'] = 'http_' . $status_code;
+			$this->record_recent_client_error( $payload );
 		}
 		$payload['event_id'] = $this->adapter_dispatch_event_id( $event_kind, $payload );
 
 		Observability::emit( $event_kind, $payload );
 
 		return $response;
+	}
+
+	/**
+	 * Records one bounded Adapter channel failure for the admin surface.
+	 *
+	 * The buffer is diagnostics-only, non-authoritative, and never replaces
+	 * Core governance audit or AI Request Logs; it answers the site owner's
+	 * "why did my client stop working" question without leaving wp-admin.
+	 *
+	 * @param array<string,mixed> $payload Sanitized dispatch payload.
+	 * @return void
+	 */
+	private function record_recent_client_error( array $payload ): void {
+		$record = array(
+			'time'   => gmdate( 'c' ),
+			'method' => (string) ( $payload['method'] ?? '' ),
+			'route'  => (string) ( $payload['route'] ?? '' ),
+			'status' => absint( $payload['status_code'] ?? 0 ),
+			'code'   => (string) ( $payload['error_code'] ?? '' ),
+		);
+
+		$errors = get_option( 'npcink_openclaw_adapter_recent_client_errors', array() );
+		if ( ! is_array( $errors ) ) {
+			$errors = array();
+		}
+		$errors[] = $record;
+
+		update_option( 'npcink_openclaw_adapter_recent_client_errors', array_slice( array_values( $errors ), -15 ), false );
+	}
+
+	/**
+	 * Renders the site-wide missing-dependency notice for administrators.
+	 *
+	 * The notice is the activation-agnostic companion of the Adapter page's
+	 * readiness checklist: without it, a site owner who activates Adapter
+	 * while the suite plugins are missing sees no dashboard-level signal
+	 * until they open the Adapter page.
+	 *
+	 * @return void
+	 */
+	public function render_dependency_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$missing = Rest\Dependency_Status::missing_dependency_keys();
+		if ( array() === $missing ) {
+			return;
+		}
+
+		$labels = array();
+		foreach ( $missing as $key ) {
+			$labels[] = Rest\Dependency_Status::dependency_label( $key );
+		}
+
+		$settings_url = menu_page_url( 'npcink-ai-client-adapter', false );
+		if ( '' === $settings_url ) {
+			$settings_url = admin_url( 'options-general.php?page=npcink-ai-client-adapter' );
+		}
+		?>
+		<div class="notice notice-error">
+			<p>
+				<strong><?php echo esc_html__( 'Npcink AI Client Adapter cannot serve AI clients yet.', 'npcink-ai-client-adapter' ); ?></strong>
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: %s: comma-separated dependency labels. */
+						__( 'Required suite components are missing: %s. Adapter routes fail closed until they are installed and active.', 'npcink-ai-client-adapter' ),
+						implode( ', ', $labels )
+					)
+				);
+				?>
+				<a href="<?php echo esc_url( $settings_url ); ?>"><?php echo esc_html__( 'Open the Adapter page', 'npcink-ai-client-adapter' ); ?></a>
+			</p>
+		</div>
+		<?php
 	}
 
 	/**

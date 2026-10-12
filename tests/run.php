@@ -2407,12 +2407,21 @@ foreach (
 		'npcink_openclaw_adapter_execution_records',
 		'npcink_openclaw_adapter_preflight_handoffs',
 		'npcink_openclaw_adapter_uninstall_current_site',
+		'npcink_openclaw_adapter_revoke_fallback_app_passwords',
+		'WP_Application_Passwords::delete_application_password',
 		'get_sites',
 	) as $required
 ) {
 	maa_adapter_assert( false !== strpos( $uninstall, $required ), 'uninstall cleanup contains required text: ' . $required );
 }
 maa_adapter_assert( false === strpos( $uninstall, 'npcink_governance_core' ), 'uninstall cleanup does not delete Core-owned state.' );
+maa_adapter_assert( false !== strpos( $controller, 'render_dependency_notice' ), 'Plugin renders the site-wide missing-dependency admin notice.' );
+maa_adapter_assert( false !== strpos( $controller, 'npcink_openclaw_adapter_recent_client_errors' ), 'Plugin records bounded recent client errors.' );
+maa_adapter_assert( false !== strpos( $controller, 'missing_dependency_keys' ), 'Dependency status exposes the cheap missing-dependency probe used by admin notices.' );
+maa_adapter_assert( false !== strpos( $connection_page, 'render_recent_client_errors' ), 'Connection page renders the bounded recent client errors disclosure.' );
+maa_adapter_assert( false !== strpos( $connection_page, 'render_contract_mismatch_notice' ), 'Connection page explains dependency contract mismatches.' );
+maa_adapter_assert( false !== strpos( $connection_page, 'npcink_openclaw_adapter_fallback_app_passwords' ), 'Connection page records fallback Application Passwords for uninstall revocation.' );
+maa_adapter_assert( false !== strpos( $controller, "strcasecmp( (string) \$name, \$total_header )" ), 'Upstream dispatch relays upstream X-WP-Total pagination headers.' );
 foreach (
 	array(
 		'WP_PATH',

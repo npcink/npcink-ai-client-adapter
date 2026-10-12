@@ -56,6 +56,47 @@ final class Dependency_Status {
 	}
 
 	/**
+	 * Returns the missing dependency keys without building the service stack.
+	 *
+	 * Cheap enough for admin-page notices: the checks are in-memory route
+	 * registry lookups plus a function_exists probe, mirroring status().
+	 *
+	 * @return array<int,string> Missing dependency keys.
+	 */
+	public static function missing_dependency_keys(): array {
+		$missing = array();
+		$routes  = function_exists( 'rest_get_server' ) ? rest_get_server()->get_routes() : array();
+
+		if ( ! isset( $routes['/npcink-governance-core/v1/capabilities'] ) ) {
+			$missing[] = 'npcink-governance-core';
+		}
+		if ( ! isset( $routes['/wp-abilities/v1/abilities'] ) ) {
+			$missing[] = 'wordpress-abilities-api';
+		}
+		if ( ! function_exists( 'npcink_abilities_toolkit_get_registered' ) ) {
+			$missing[] = 'npcink-abilities-toolkit';
+		}
+
+		return $missing;
+	}
+
+	/**
+	 * Maps a dependency key to its operator-facing label.
+	 *
+	 * @param string $key Dependency key such as npcink-governance-core.
+	 * @return string Human-readable label.
+	 */
+	public static function dependency_label( string $key ): string {
+		$labels = array(
+			'npcink-governance-core'   => 'Npcink Governance Core',
+			'wordpress-abilities-api'  => 'WordPress Abilities API',
+			'npcink-abilities-toolkit' => 'Npcink Abilities Toolkit',
+		);
+
+		return isset( $labels[ $key ] ) ? $labels[ $key ] : $key;
+	}
+
+	/**
 	 * Sanitizes a list of strings.
 	 *
 	 * @param array<mixed> $values Values.
