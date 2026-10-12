@@ -158,7 +158,8 @@ final class Dependency_Status {
 	 * @return WP_Error|null
 	 */
 	public function missing_for_route( string $route ): ?WP_Error {
-		if ( 0 === strpos( $route, '/npcink-governance-core/v1/' ) && ! $this->upstream_dispatch->rest_route_available( '/npcink-governance-core/v1/capabilities' ) ) {
+		$availability = self::dependency_availability();
+		if ( 0 === strpos( $route, '/npcink-governance-core/v1/' ) && ! (bool) ( $availability['npcink-governance-core'] ?? false ) ) {
 			return new WP_Error(
 				'npcink_openclaw_adapter_missing_dependency',
 				__( 'Npcink Governance Core is required before Adapter can read capabilities, create proposals, or run commit preflight.', 'npcink-ai-client-adapter' ),
@@ -171,7 +172,7 @@ final class Dependency_Status {
 			);
 		}
 
-		if ( 0 === strpos( $route, '/wp-abilities/v1/' ) && ! $this->upstream_dispatch->rest_route_available( '/wp-abilities/v1/abilities' ) ) {
+		if ( 0 === strpos( $route, '/wp-abilities/v1/' ) && ! (bool) ( $availability['wordpress-abilities-api'] ?? false ) ) {
 			return new WP_Error(
 				'npcink_openclaw_adapter_missing_dependency',
 				__( 'WordPress Abilities API is required before Adapter can execute read abilities or approved write abilities.', 'npcink-ai-client-adapter' ),
@@ -196,7 +197,7 @@ final class Dependency_Status {
 		$availability = self::dependency_availability();
 		$items        = array(
 			'npcink-governance-core'   => array(
-				'label'        => 'Npcink Governance Core',
+				'label'        => self::dependency_label( 'npcink-governance-core' ),
 				'slug'         => 'npcink-governance-core',
 				'slug_status'  => 'planned',
 				'required_for' => array( 'capabilities', 'proposals', 'commit_preflight', 'approved_execution' ),
@@ -204,7 +205,7 @@ final class Dependency_Status {
 				'detector'     => 'rest_route:/npcink-governance-core/v1/capabilities',
 			),
 			'wordpress-abilities-api'  => array(
-				'label'        => 'WordPress Abilities API',
+				'label'        => self::dependency_label( 'wordpress-abilities-api' ),
 				'slug'         => 'wordpress-core',
 				'slug_status'  => 'platform',
 				'required_for' => array( 'read_ability_execution', 'approved_execution' ),
@@ -212,7 +213,7 @@ final class Dependency_Status {
 				'detector'     => 'rest_route:/wp-abilities/v1/abilities',
 			),
 			'npcink-abilities-toolkit' => array(
-				'label'        => 'Npcink Abilities Toolkit',
+				'label'        => self::dependency_label( 'npcink-abilities-toolkit' ),
 				'slug'         => 'npcink-abilities-toolkit',
 				'slug_status'  => 'wordpress_org_declared',
 				'required_for' => array( 'reference_abilities', 'execution_profiles' ),

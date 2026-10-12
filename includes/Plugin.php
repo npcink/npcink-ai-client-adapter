@@ -216,17 +216,26 @@ final class Plugin {
 	}
 
 	/**
-	 * Renders the site-wide missing-dependency notice for administrators.
+	 * Renders the missing-dependency notice for administrators.
 	 *
 	 * The notice is the activation-agnostic companion of the Adapter page's
 	 * readiness checklist: without it, a site owner who activates Adapter
 	 * while the suite plugins are missing sees no dashboard-level signal
-	 * until they open the Adapter page.
+	 * until they open the Adapter page. It renders only on the screens where
+	 * the owner can act (plugins, dashboard, and the Adapter page), so the
+	 * route-registry probe does not initialize the REST server on every
+	 * admin screen.
 	 *
 	 * @return void
 	 */
 	public function render_dependency_notice(): void {
 		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$screen    = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$screen_id = is_object( $screen ) ? (string) $screen->id : '';
+		if ( ! in_array( $screen_id, array( 'plugins', 'plugins-network', 'dashboard', 'dashboard-network', 'npcink-ai_page_npcink-ai-client-adapter', 'settings_page_npcink-ai-client-adapter' ), true ) ) {
 			return;
 		}
 
