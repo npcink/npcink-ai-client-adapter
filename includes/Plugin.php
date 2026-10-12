@@ -150,6 +150,12 @@ final class Plugin {
 	 * Core governance audit or AI Request Logs; it answers the site owner's
 	 * "why did my client stop working" question without leaving wp-admin.
 	 *
+	 * A client stuck in a retry loop must not turn into one option write per
+	 * request: an identical failure (same method, route, status, and code) is
+	 * skipped when the newest record matches and is under 60 seconds old.
+	 * Concurrent failures may race the read-modify-write cycle and lose
+	 * records; losing diagnostics rows is accepted, they are advisory only.
+	 *
 	 * @param array<string,mixed> $payload Sanitized dispatch payload.
 	 * @return void
 	 */
@@ -166,9 +172,24 @@ final class Plugin {
 		if ( ! is_array( $errors ) ) {
 			$errors = array();
 		}
+		$errors = array_values( $errors );
+
+		$newest = array_slice( $errors, -1 );
+		$newest = isset( $newest[0] ) && is_array( $newest[0] ) ? $newest[0] : array();
+		if (
+			'' !== (string) ( $newest['time'] ?? '' )
+			&& (string) ( $newest['method'] ?? '' ) === $record['method']
+			&& (string) ( $newest['route'] ?? '' ) === $record['route']
+			&& absint( $newest['status'] ?? 0 ) === $record['status']
+			&& (string) ( $newest['code'] ?? '' ) === $record['code']
+			&& ( time() - strtotime( (string) $newest['time'] ) ) < 60
+		) {
+			return;
+		}
+
 		$errors[] = $record;
 
-		update_option( 'npcink_openclaw_adapter_recent_client_errors', array_slice( array_values( $errors ), -15 ), false );
+		update_option( 'npcink_openclaw_adapter_recent_client_errors', array_slice( $errors, -15 ), false );
 	}
 
 	/**

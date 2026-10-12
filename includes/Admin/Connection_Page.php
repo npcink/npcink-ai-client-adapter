@@ -633,11 +633,11 @@ final class Connection_Page {
 		}
 		if ( empty( $contract['schema_supported'] ) ) {
 			/* translators: %s: dependency label. */
-			$issues[] = sprintf( __( 'exposes an unsupported schema version.', 'npcink-ai-client-adapter' ), $label );
+			$issues[] = sprintf( __( '%s exposes an unsupported schema version.', 'npcink-ai-client-adapter' ), $label );
 		}
 		if ( empty( $contract['contract_semantics_supported'] ) ) {
 			/* translators: %s: dependency label. */
-			$issues[] = sprintf( __( 'does not support the required boundary semantics.', 'npcink-ai-client-adapter' ), $label );
+			$issues[] = sprintf( __( '%s does not support the required boundary semantics.', 'npcink-ai-client-adapter' ), $label );
 		}
 
 		if ( array() === $issues ) {

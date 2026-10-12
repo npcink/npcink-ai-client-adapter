@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Npcink AI Client Adapter 0.4.1\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-"
 "adapter\n"
-"POT-Creation-Date: 2026-10-12T02:30:43+00:00\n"
+"POT-Creation-Date: 2026-10-12T02:38:30+00:00\n"
 "PO-Revision-Date: 2026-09-04 19:05+0800\n"
 "Last-Translator: Npcink <dev@npcink.local>\n"
 "Language-Team: Chinese (China) <zh_CN@li.org>\n"
@@ -421,13 +421,15 @@ msgstr "契约版本 %2$s 低于所需的 %3$s。"
 
 #. translators: %s: dependency label.
 #: includes/Admin/Connection_Page.php:636
-msgid "exposes an unsupported schema version."
-msgstr "暴露了不受支持的 schema 版本。"
+#, php-format
+msgid "%s exposes an unsupported schema version."
+msgstr "%s 暴露了不受支持的 schema 版本。"
 
 #. translators: %s: dependency label.
 #: includes/Admin/Connection_Page.php:640
-msgid "does not support the required boundary semantics."
-msgstr "不支持所需的边界语义。"
+#, php-format
+msgid "%s does not support the required boundary semantics."
+msgstr "%s 不支持所需的边界语义。"
 
 #. translators: %s: dependency label.
 #: includes/Admin/Connection_Page.php:648
@@ -469,8 +471,8 @@ msgid ""
 "Bounded diagnostics from the Adapter channel only. Core Governance Audit "
 "remains the governance log; AI Request Logs remain the provider request log."
 msgstr ""
-"仅包含适配器通道的有界诊断信息。Core Governance Audit 仍是治理日志；AI Request Logs "
-"仍是提供方请求日志。"
+"仅包含适配器通道的有界诊断信息。Core Governance Audit 仍是治理日志；AI "
+"Request Logs 仍是提供方请求日志。"
 
 #: includes/Admin/Connection_Page.php:734
 msgid "Unavailable"
@@ -689,19 +691,19 @@ msgstr "撤销授权"
 msgid "Settings"
 msgstr "设置"
 
-#: includes/Plugin.php:206
+#: includes/Plugin.php:227
 msgid "Npcink AI Client Adapter cannot serve AI clients yet."
 msgstr "Npcink AI Client Adapter 尚无法为 AI 客户端提供服务。"
 
 #. translators: %s: comma-separated dependency labels.
-#: includes/Plugin.php:211
+#: includes/Plugin.php:232
 #, php-format
 msgid ""
 "Required suite components are missing: %s. Adapter routes fail closed until "
 "they are installed and active."
 msgstr "缺少必需的套件组件：%s。在安装并启用它们之前，适配器路由保持关闭。"
 
-#: includes/Plugin.php:216
+#: includes/Plugin.php:237
 msgid "Open the Adapter page"
 msgstr "打开适配器页面"
 

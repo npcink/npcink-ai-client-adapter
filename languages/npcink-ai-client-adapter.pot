@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-12T02:30:43+00:00\n"
+"POT-Creation-Date: 2026-10-12T02:38:30+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: npcink-ai-client-adapter\n"
@@ -359,12 +359,14 @@ msgstr ""
 
 #. translators: %s: dependency label.
 #: includes/Admin/Connection_Page.php:636
-msgid "exposes an unsupported schema version."
+#, php-format
+msgid "%s exposes an unsupported schema version."
 msgstr ""
 
 #. translators: %s: dependency label.
 #: includes/Admin/Connection_Page.php:640
-msgid "does not support the required boundary semantics."
+#, php-format
+msgid "%s does not support the required boundary semantics."
 msgstr ""
 
 #. translators: %s: dependency label.
@@ -599,17 +601,17 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: includes/Plugin.php:206
+#: includes/Plugin.php:227
 msgid "Npcink AI Client Adapter cannot serve AI clients yet."
 msgstr ""
 
 #. translators: %s: comma-separated dependency labels.
-#: includes/Plugin.php:211
+#: includes/Plugin.php:232
 #, php-format
 msgid "Required suite components are missing: %s. Adapter routes fail closed until they are installed and active."
 msgstr ""
 
-#: includes/Plugin.php:216
+#: includes/Plugin.php:237
 msgid "Open the Adapter page"
 msgstr ""
 
