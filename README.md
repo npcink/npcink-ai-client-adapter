@@ -894,7 +894,7 @@ Proposal-required write flow:
 	   `npcink-abilities-toolkit/restore-media-backup`,
 	   `npcink-abilities-toolkit/adopt-cloud-media-derivative`,
 	   `npcink-abilities-toolkit/rename-media-file`,
-	   `npcink-abilities-toolkit/delete-media-permanently`, `npcink-abilities-toolkit/reply-comment`,
+	   `npcink-abilities-toolkit/delete-media-permanently`, `npcink-abilities-toolkit/delete-attachment`, `npcink-abilities-toolkit/reply-comment`,
    `npcink-abilities-toolkit/trash-comment`, or `npcink-abilities-toolkit/approve-comment` through
    `POST /proposals/{proposal_id}/execute` or
    `POST /execute-approved-proposal`.
