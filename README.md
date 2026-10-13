@@ -1209,3 +1209,18 @@ readback reports no failed block reads, image markup has non-empty `src` and
 Gutenberg-native spacing. Set `MAA_ADAPTER_KEEP_VISUAL_ACCEPTANCE_FIXTURES=1`
 with `MAA_ADAPTER_VISUAL_ACCEPTANCE_OUT=/path/to/manifest.json` when a retained
 fixture is needed for browser viewport review.
+
+The plan bridge also accepts `npcink-abilities-toolkit/build-flagged-media-removal-plan`:
+one manual-only Core batch with exactly one governed attachment deletion and
+bounded operator-reviewed exact URL patches. Toolkit owns branch evidence,
+retained backup manifests and deleted-attachment restoration. The existing
+`restore-media-backup` execution profile forwards the original deleted id and
+`flagged_delete_*` backup id; Toolkit requires administrator/upload authority,
+refuses occupied file targets and returns a newly created attachment id.
+
+Flagged-media integration acceptance (disposable attachments only):
+`WP_PATH=/path/to/site WP_CLI=/path/to/wp composer accept:flagged-media`.
+This signs Adapter requests, verifies both manual-approval branches, and restores
+a deleted governed attachment through the existing restore execution profile.
+Core, Toolkit, and Adapter must load the intended checkout revisions. The fixture
+removes its own keys, records, attachments, and backups on exit.
