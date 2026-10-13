@@ -596,4 +596,16 @@ write, but provider-log acceptance correctly failed. The site only registered
 AI Request Log. The generic Ollama probe also failed because Ollama was not
 registered. Both runs removed their marker-scoped MU loader and draft. A
 positive signed-fixture result requires a configured SDK provider whose real
-HTTP requests are recorded by the AI plugin logging integration.
+HTTP requests are recorded by the AI plugin logging integration. The later M4
+Ollama run passed after fixing the write-dispatch log context; see
+[the M4 acceptance evidence](archive/2026-10-13-m4-provider-log-acceptance.md).
+
+### Approved write provider context lifetime
+
+Provider calls made during an approved write receive the proposal, preflight
+correlation, and Adapter request identifiers through the existing AI plugin log
+context filter. Runtime authorization stays private: only operation identifiers
+are projected into logs, including nested Core proposal and correlation IDs.
+Success, upstream errors, and exceptions all remove the write log filter and
+restore the previous runtime context. `composer smoke:wp` checks those three
+paths without making provider calls or writing content.

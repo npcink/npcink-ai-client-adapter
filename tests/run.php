@@ -448,6 +448,12 @@ maa_adapter_assert( false !== strpos( $controller, 'new Execution_Input_Validato
 maa_adapter_assert( false === strpos( $controller, 'private function validate_execute_action_input(' ), 'Controller no longer owns execution input validation implementation.' );
 maa_adapter_assert( false === strpos( $controller, 'private function resolve_output_references(' ), 'Controller no longer owns output reference resolution implementation.' );
 maa_adapter_assert( false !== strpos( $execution_action_runner, 'final class Execution_Action_Runner' ), 'Execution action runner exists.' );
+$write_dispatch_start = strpos( $controller, '$this->execution_action_runner   = new Execution_Action_Runner(' );
+$write_dispatch_end   = strpos( $controller, 'Returns Adapter-owned execution profiles' );
+$write_dispatch       = false !== $write_dispatch_start && false !== $write_dispatch_end ? substr( $controller, $write_dispatch_start, $write_dispatch_end - $write_dispatch_start ) : '';
+maa_adapter_assert( false !== strpos( $write_dispatch, '$this->with_ai_request_log_context(' ) && false !== strpos( $write_dispatch, 'array_intersect_key(' ), 'Approved action dispatch projects identifiers into scoped AI log context.' );
+maa_adapter_assert( false !== strpos( maa_adapter_read( $root . '/tests/smoke-wp.sh' ), 'write-provider-log-context-wp.php' ), 'WordPress smoke exercises write log context lifetime.' );
+
 maa_adapter_assert( false !== strpos( $controller, 'new Execution_Action_Runner(' ), 'Controller injects controlled execution seams into the action runner.' );
 maa_adapter_assert( false === strpos( $controller, 'private function execute_normalized_action(' ), 'Controller no longer owns normalized action execution.' );
 maa_adapter_assert( false === strpos( $controller, 'private function execution_profile_id_for_ability(' ), 'Controller no longer owns execution profile id normalization.' );

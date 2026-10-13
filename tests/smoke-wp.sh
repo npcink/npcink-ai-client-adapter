@@ -93,5 +93,6 @@ fi
 if [[ "${MAA_ADAPTER_SMOKE_FLAGGED_MEDIA:-}" == "1" ]]; then
 	run_wp eval-file "$ROOT_DIR/tests/flagged-media-acceptance.php"
 else
+	run_wp ${smoke_args[@]+"${smoke_args[@]}"} eval-file "$ROOT_DIR/tests/write-provider-log-context-wp.php"
 	run_wp ${smoke_args[@]+"${smoke_args[@]}"} eval-file "$ROOT_DIR/tests/smoke-wp.php"
 fi
