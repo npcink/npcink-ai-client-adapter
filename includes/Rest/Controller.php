@@ -198,7 +198,19 @@ final class Controller {
 		$this->execution_action_runner   = new Execution_Action_Runner(
 			self::execution_profiles(),
 			function ( array $context, string $method, string $route, array $params, bool $query_params, bool $json_body ) {
-				return $this->dispatch_upstream_with_runtime_context( $context, $method, $route, $params, $query_params, $json_body );
+				// Runtime authorization remains private; logs receive operation identifiers only.
+				$log_context                           = array_intersect_key(
+					$context,
+					array_flip( array( 'proposal_id', 'correlation_id', 'ability_id', 'post_id', 'adapter_request_id', 'adapter_route', 'governance_source' ) )
+				);
+				$log_context['npcink_governance_core'] = array_intersect_key( $log_context, array_flip( array( 'proposal_id', 'correlation_id' ) ) );
+
+				return $this->with_ai_request_log_context(
+					$log_context,
+					function () use ( $context, $method, $route, $params, $query_params, $json_body ) {
+						return $this->dispatch_upstream_with_runtime_context( $context, $method, $route, $params, $query_params, $json_body );
+					}
+				);
 			},
 			function ( string $ability_id, array $ability_input, array $ability_result, array $base_request_context ): array {
 				return $this->block_write_readback_verification( $ability_id, $ability_input, $ability_result, $base_request_context );
