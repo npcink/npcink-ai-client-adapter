@@ -2334,7 +2334,7 @@ foreach (
 		'Tested up to: 7.1',
 		'Requires PHP: 8.0',
 		'Requires Plugins: npcink-abilities-toolkit, npcink-governance-core',
-		'Stable tag: 0.4.2',
+		'Stable tag: 0.4.3',
 		'License: GPL-2.0-or-later',
 		'structured missing dependency error',
 		'machine-readable `client_policy`',
