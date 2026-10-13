@@ -84,4 +84,10 @@ if [[ "$(run_wp plugin status npcink-ai-client-adapter --field=status 2>/dev/nul
 	run_wp plugin activate npcink-ai-client-adapter >/dev/null
 fi
 
-run_wp eval-file "$ROOT_DIR/tests/smoke-wp.php"
+# The fixture suite uses administrator auth and creates its own scoped app key.
+# Do not spend a configured site's live Core app quota in this CLI process.
+smoke_args=()
+if [[ "${MAA_ADAPTER_SMOKE_USE_CONFIGURED_CORE_TOKEN:-}" != "1" ]]; then
+	smoke_args+=(--exec='if (!defined("NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN")) { define("NPCINK_OPENCLAW_ADAPTER_CORE_APP_TOKEN", ""); }')
+fi
+run_wp "${smoke_args[@]}" eval-file "$ROOT_DIR/tests/smoke-wp.php"

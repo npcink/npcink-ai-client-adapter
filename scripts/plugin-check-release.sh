@@ -12,7 +12,7 @@ if [[ -z "$WP_CLI_BIN" ]]; then
 fi
 
 WP_CLI_PHP_VALUE="${WP_CLI_PHP:-php}"
-SOCKET="${WP_DB_SOCKET:-}"
+SOCKET="${WP_CLI_MYSQL_SOCKET:-${WP_DB_SOCKET:-}}"
 php_args=( -d display_errors=0 -d error_reporting=8191 )
 if [[ -n "$SOCKET" ]]; then
 	php_args+=( -d "mysql.default_socket=$SOCKET" -d "mysqli.default_socket=$SOCKET" -d "pdo_mysql.default_socket=$SOCKET" )

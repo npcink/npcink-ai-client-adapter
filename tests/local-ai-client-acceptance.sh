@@ -26,6 +26,10 @@ trap cleanup EXIT
 
 public_input="$tmp_dir/public-read-input.json"
 public_output="$tmp_dir/public-read-output.json"
+capabilities_output="$tmp_dir/capabilities-output.json"
+health_output="$tmp_dir/health.json"
+manifest_output="$tmp_dir/manifest.json"
+help_output="$tmp_dir/help.json"
 printf '{}\n' > "$public_input"
 
 echo "[accept] checking CLI syntax"
@@ -35,13 +39,56 @@ echo "[accept] checking signed Adapter status for profile: $PROFILE"
 "${CLI[@]}" status "${COMMON_ARGS[@]}"
 
 echo "[accept] reading /health"
-"${CLI[@]}" request "${COMMON_ARGS[@]}" GET /health
+"${CLI[@]}" request "${COMMON_ARGS[@]}" GET /health >"$health_output"
 
 echo "[accept] reading /connection/manifest"
-"${CLI[@]}" request "${COMMON_ARGS[@]}" GET /connection/manifest
+"${CLI[@]}" request "${COMMON_ARGS[@]}" GET /connection/manifest >"$manifest_output"
 
 echo "[accept] reading /help"
-"${CLI[@]}" request "${COMMON_ARGS[@]}" GET /help
+"${CLI[@]}" request "${COMMON_ARGS[@]}" GET /help >"$help_output"
+
+"$NODE_BIN" - "$health_output" "$manifest_output" "$help_output" <<'NODE'
+const fs = require('node:fs');
+for (const file of process.argv.slice(2)) {
+  const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+  const contract = data.contract;
+  const policy = data.client_policy;
+  if (contract?.schema_version !== 'npcink_openclaw_adapter_contract.v1' ||
+      contract.core_proxy_execute !== false || contract.commit_execution !== false ||
+      policy?.client_posture !== 'adapter_only_fail_closed' ||
+      policy.write_flow?.signed_client_self_approval !== 'forbidden') {
+    console.error('[accept] Adapter contract or fail-closed client policy is invalid.');
+    process.exit(1);
+  }
+}
+const health = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+if (health.dependencies_ready !== true || health.dependency_contracts_ready !== true) {
+  console.error('[accept] Adapter dependencies or dependency contracts are not ready.');
+  process.exit(1);
+}
+console.log('[accept] health/help/manifest contracts, dependencies and governance boundary: ok');
+NODE
+
+echo "[accept] reading /capabilities"
+"${CLI[@]}" request "${COMMON_ARGS[@]}" GET /capabilities >"$capabilities_output"
+if ! "$NODE_BIN" - "$capabilities_output" "$PUBLIC_READ_ABILITY" <<'NODE'
+const fs = require('node:fs');
+const [file, expectedAbility] = process.argv.slice(2);
+const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+const items = Array.isArray(data.items) ? data.items : [];
+const found = items.some((item) => item && item.ability_id === expectedAbility);
+console.log(`[accept] Core capability catalog: count=${items.length}, expected=${expectedAbility}, found=${found ? 'yes' : 'no'}`);
+if (!found) {
+  console.error('[accept] The signed HTTP runtime does not expose the expected ability through Core.');
+  console.error('[accept] Check Toolkit package settings and REST lifecycle registration; compare the CLI and HTTP catalogs.');
+  console.error('[accept] If the ability is intentionally unavailable on this site, set MAA_ADAPTER_ACCEPTANCE_PUBLIC_READ_ABILITY to a ready Core ability id.');
+  process.exit(1);
+}
+NODE
+then
+
+  exit 1
+fi
 
 echo "[accept] probing default read ability: $PUBLIC_READ_ABILITY"
 if "${CLI[@]}" read-ability "${COMMON_ARGS[@]}" --ability-id="$PUBLIC_READ_ABILITY" --input-file="$public_input" >"$public_output" 2>&1; then
