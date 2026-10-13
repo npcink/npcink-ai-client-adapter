@@ -1152,6 +1152,16 @@ CLI profile:
 MAA_ADAPTER_ACCEPTANCE_PROFILE=local composer accept:local-ai-client
 ```
 
+Run the complete local development check, including deterministic gates,
+WordPress smoke (`limit=abc` validation), package-install smoke, signed client
+acceptance, and the non-destructive proposal fixture:
+
+```bash
+MAA_ADAPTER_ACCEPTANCE_PROFILE=local \
+MAA_ADAPTER_ACCEPTANCE_INSECURE_LOCAL_TLS=1 \
+composer accept:local-dev
+```
+
 Run the signed local AI client fixture acceptance pass:
 
 ```bash

@@ -118,6 +118,8 @@ function maa_adapter_smoke_rest( string $method, string $route, array $params = 
 			$request_data = is_array( $read_request['data'] ) ? $read_request['data'] : array();
 			$request_id   = sanitize_text_field( (string) ( $request_data['request_id'] ?? '' ) );
 			maa_adapter_smoke_assert( $read_request['status'] >= 200 && $read_request['status'] < 300 && '' !== $request_id, 'adapter smoke creates a Core read request when grant mode is enabled' );
+			$registry =& maa_adapter_smoke_fixture_registry();
+			$registry['read_request_ids'][] = $request_id;
 			$approved = maa_adapter_smoke_rest_result(
 				'POST',
 				'/npcink-governance-core/v1/read-requests/' . rawurlencode( $request_id ) . '/approve',
@@ -5201,12 +5203,10 @@ $delete_media_proposal = maa_adapter_smoke_rest(
 $delete_media_proposal_id = (string) ( $delete_media_proposal['proposal_id'] ?? '' );
 $maa_adapter_smoke_cleanup_proposal_ids[] = $delete_media_proposal_id;
 maa_adapter_smoke_assert( '' !== $delete_media_proposal_id, 'adapter creates delete-media-permanently proposal for approve-and-execute smoke' );
-$delete_media_execute = maa_adapter_smoke_rest( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $delete_media_proposal_id ) . '/approve-and-execute' );
-maa_adapter_smoke_assert( true === (bool) ( $delete_media_execute['success'] ?? false ), 'adapter approve-and-execute succeeds for pending delete-media-permanently proposal' );
-maa_adapter_smoke_assert( 'npcink-abilities-toolkit/delete-media-permanently' === (string) ( $delete_media_execute['ability_id'] ?? '' ), 'adapter approve-and-execute response carries delete-media-permanently ability id' );
-maa_adapter_smoke_assert( $delete_media_attachment_id === (int) ( $delete_media_execute['execution']['result']['attachment_id'] ?? 0 ), 'adapter delete-media-permanently execution result carries attachment id' );
-maa_adapter_smoke_assert( true === (bool) ( $delete_media_execute['execution']['result']['deleted'] ?? false ), 'adapter delete-media-permanently execution reports deletion' );
-maa_adapter_smoke_assert( null === get_post( $delete_media_attachment_id ), 'adapter approve-and-execute deletes media attachment permanently' );
+$delete_media_execute = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $delete_media_proposal_id ) . '/approve-and-execute' );
+maa_adapter_smoke_assert( 409 === (int) $delete_media_execute['status'], 'Core blocks media deletion without deletion branch evidence' );
+maa_adapter_smoke_assert( 'npcink_governance_core_flagged_media_branch_evidence_missing' === (string) ( $delete_media_execute['data']['code'] ?? '' ), 'Adapter preserves Core media deletion evidence error' );
+maa_adapter_smoke_assert( null !== get_post( $delete_media_attachment_id ), 'Core evidence refusal leaves the fixture attachment intact' );
 
 $empty_delete_media_proposal = maa_adapter_smoke_rest_result(
 	'POST',
