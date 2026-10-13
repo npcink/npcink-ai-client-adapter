@@ -6,6 +6,15 @@ This is the short acceptance entry point for local AI client integration. The
 full guide lives in
 [`../local-ai-client-acceptance.md`](../local-ai-client-acceptance.md).
 
+For the complete local development pass, use the aggregate command. It also
+runs the release-critical `limit=abc` smoke checks:
+
+```bash
+MAA_ADAPTER_ACCEPTANCE_PROFILE=local \
+MAA_ADAPTER_ACCEPTANCE_INSECURE_LOCAL_TLS=1 \
+composer accept:local-dev
+```
+
 ## Non-Destructive Default
 
 Run:

@@ -5,7 +5,7 @@ Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.0
 Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
-Stable tag: 0.4.1
+Stable tag: 0.4.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,7 +23,7 @@ Adapter is intentionally thin. It does not define abilities, store approval trut
 
 Adapter exposes a machine-readable `client_policy` on health, help, and the connection manifest so compatible clients can consume explicit route, output, sensitive-read, and write-flow boundaries. The local CLI also redacts profile paths, key ids, signing headers, tokens, passwords, and secrets from output, and its `mcp` subcommand runs a client-side stdio MCP server over the same signed profile with governed read, propose, preflight, and execute-after-human-approval tools only.
 
-Current governed execution support covers explicit Adapter profiles after Core approval and commit-preflight: `npcink-abilities-toolkit/trash-post`, `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`, `npcink-abilities-toolkit/patch-post-content`, `npcink-abilities-toolkit/update-post-blocks`, `npcink-abilities-toolkit/update-template-blocks`, `npcink-abilities-toolkit/upsert-template-blocks`, `npcink-abilities-toolkit/update-template-part-blocks`, `npcink-abilities-toolkit/patch-setting-value`, `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/adopt-article-audio`, `npcink-abilities-toolkit/set-post-slug`, `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`, `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/upload-media-from-url`, `npcink-abilities-toolkit/set-post-featured-image`, `npcink-abilities-toolkit/optimize-media-asset`, `npcink-abilities-toolkit/replace-media-file`, `npcink-abilities-toolkit/restore-media-backup`, `npcink-abilities-toolkit/adopt-cloud-media-derivative`, `npcink-abilities-toolkit/rename-media-file`, `npcink-abilities-toolkit/delete-media-permanently`, `npcink-abilities-toolkit/reply-comment`, `npcink-abilities-toolkit/trash-comment`, and `npcink-abilities-toolkit/approve-comment`.
+Current governed execution support covers explicit Adapter profiles after Core approval and commit-preflight: `npcink-abilities-toolkit/trash-post`, `npcink-abilities-toolkit/create-draft`, `npcink-abilities-toolkit/update-post`, `npcink-abilities-toolkit/patch-post-content`, `npcink-abilities-toolkit/update-post-blocks`, `npcink-abilities-toolkit/update-template-blocks`, `npcink-abilities-toolkit/upsert-template-blocks`, `npcink-abilities-toolkit/update-template-part-blocks`, `npcink-abilities-toolkit/patch-setting-value`, `npcink-abilities-toolkit/set-post-seo-meta`, `npcink-abilities-toolkit/adopt-article-audio`, `npcink-abilities-toolkit/set-post-slug`, `npcink-abilities-toolkit/set-post-terms`, `npcink-abilities-toolkit/delete-term`, `npcink-abilities-toolkit/update-media-details`, `npcink-abilities-toolkit/upload-media-from-url`, `npcink-abilities-toolkit/set-post-featured-image`, `npcink-abilities-toolkit/optimize-media-asset`, `npcink-abilities-toolkit/replace-media-file`, `npcink-abilities-toolkit/restore-media-backup`, `npcink-abilities-toolkit/adopt-cloud-media-derivative`, `npcink-abilities-toolkit/rename-media-file`, `npcink-abilities-toolkit/delete-media-permanently`, `npcink-abilities-toolkit/delete-attachment`, `npcink-abilities-toolkit/reply-comment`, `npcink-abilities-toolkit/trash-comment`, and `npcink-abilities-toolkit/approve-comment`.
 
 Key features:
 
@@ -81,6 +81,21 @@ Adapter health and help routes can report dependency status. Routes that require
 3. WordPress Application Password fallback connection flow for clients that use a dedicated secret field or credential vault.
 
 == Changelog ==
+
+= 0.4.3 =
+
+* Add an explicit post-Core execution profile for `npcink-abilities-toolkit/delete-attachment` on hosts providing that Toolkit ability; require deletion policy branch, operator reason, idempotency key, approval and commit preflight.
+* Add a complete local development acceptance command covering deterministic gates, WordPress fixtures, fresh package installation and restoration, and signed client contract checks; reject incomplete or skipped smoke passes.
+* Preserve the original plugin on package smoke prerequisite failures, restore network activation correctly, and accept the standard Local.app MySQL socket setting in Plugin Check.
+* Keep the 0.4.2 non-numeric `limit` rejection on both list routes and test media-deletion proposals without current Core branch evidence as fail-closed.
+
+= 0.4.2 =
+
+* Reject non-numeric `limit` query parameters on proposal and sensitive read-request list routes with the standard WordPress REST 400 error envelope instead of silently coercing them to `1`.
+* Unify consumer-facing REST error details and complete `/help` and connection-manifest discovery for the shipped route surface, including actionable administrator-session and malformed-id responses.
+* Synchronize consumer documentation with the 26 explicit post-Core execution profiles and add a route-drift release gate.
+* Surface missing dependencies, contract mismatches, and recent client errors in the Adapter admin page; clean up tracked fallback Application Password credentials on revocation and uninstall.
+* Mark the 0.4.0 administrator-session restriction for unified `approve-and-execute` as a breaking change for signed clients.
 
 = 0.4.1 =
 

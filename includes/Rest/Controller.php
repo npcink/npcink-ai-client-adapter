@@ -470,7 +470,7 @@ final class Controller {
 						'limit'  => array(
 							'type'              => 'integer',
 							'default'           => 50,
-							'sanitize_callback' => 'absint',
+							'sanitize_callback' => 'rest_parse_request_arg',
 						),
 						'offset' => array(
 							'type'              => 'integer',
@@ -566,7 +566,7 @@ final class Controller {
 						'limit'  => array(
 							'type'              => 'integer',
 							'default'           => 50,
-							'sanitize_callback' => 'absint',
+							'sanitize_callback' => 'rest_parse_request_arg',
 						),
 						'offset' => array(
 							'type'              => 'integer',

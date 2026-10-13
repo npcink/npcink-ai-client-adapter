@@ -118,6 +118,8 @@ function maa_adapter_smoke_rest( string $method, string $route, array $params = 
 			$request_data = is_array( $read_request['data'] ) ? $read_request['data'] : array();
 			$request_id   = sanitize_text_field( (string) ( $request_data['request_id'] ?? '' ) );
 			maa_adapter_smoke_assert( $read_request['status'] >= 200 && $read_request['status'] < 300 && '' !== $request_id, 'adapter smoke creates a Core read request when grant mode is enabled' );
+			$registry =& maa_adapter_smoke_fixture_registry();
+			$registry['read_request_ids'][] = $request_id;
 			$approved = maa_adapter_smoke_rest_result(
 				'POST',
 				'/npcink-governance-core/v1/read-requests/' . rawurlencode( $request_id ) . '/approve',
@@ -267,9 +269,9 @@ function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $lab
 		'core_plugin_min_version'              => '0.1.0',
 		'toolkit_contract_min_version'         => '1',
 		'toolkit_plugin_min_version'           => '0.5.3',
-		'execution_profile_registry_hash'      => 'sha256:808e535c14cecadc8985ea1a3bf78c652043a0c74765f035126785e35ca46e75',
-		'supported_execute_ability_ids_hash'   => 'sha256:dfa1e7d90d13c593a3c4a1fbbd104af3535e42f5fab03274f36099037ab6d97d',
-		'supported_plan_ability_ids_hash'      => 'sha256:3474b36bb21317614cdc3401681f18b9c41039716e26581c33395d3938ff4831',
+		'execution_profile_registry_hash'      => 'sha256:94b64af7340b48fae0ee3c51eb05b7fb6844e5519a10356b7240ae2bd518ae21',
+		'supported_execute_ability_ids_hash'   => 'sha256:1bd7df88f161066cb7c68d890224e37073bdb6a5c1bc2e9d5857d4c2d6e418f9',
+		'supported_plan_ability_ids_hash'      => 'sha256:f9beab23f14b0497bc768b50cb6ff28a16050f95716435334b4fb089e29f52f4',
 		'max_execution_actions'                => 200,
 		'core_proxy_execute'                   => false,
 		'commit_execution'                     => false,
@@ -1575,6 +1577,25 @@ maa_adapter_smoke_assert( 'npcink_abilities_toolkit_contract.v1' === (string) ( 
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['host_governed_writes'] ?? false ), 'adapter health detects Toolkit host-governed writes' );
 maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['commit_default'] ?? true ), 'adapter health detects Toolkit commit default disabled' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['workflow_projection_source_supported'] ?? false ), 'adapter health detects Toolkit workflow definition projection source' );
+
+$invalid_proposal_limit = maa_adapter_smoke_rest_result(
+	'GET',
+	'/npcink-openclaw-adapter/v1/proposals',
+	array( 'limit' => 'abc' )
+);
+maa_adapter_smoke_assert( 400 === (int) $invalid_proposal_limit['status'], 'adapter proposals reject non-numeric limit with HTTP 400' );
+maa_adapter_smoke_assert( 'rest_invalid_param' === (string) ( $invalid_proposal_limit['data']['code'] ?? '' ), 'adapter proposals use the standard invalid-param error code for non-numeric limit' );
+maa_adapter_smoke_assert( isset( $invalid_proposal_limit['data']['data']['params']['limit'] ), 'adapter proposals identify limit as the invalid parameter' );
+
+$invalid_read_request_limit = maa_adapter_smoke_rest_result(
+	'GET',
+	'/npcink-openclaw-adapter/v1/read-requests',
+	array( 'limit' => 'abc' )
+);
+maa_adapter_smoke_assert( 400 === (int) $invalid_read_request_limit['status'], 'adapter read requests reject non-numeric limit with HTTP 400' );
+maa_adapter_smoke_assert( 'rest_invalid_param' === (string) ( $invalid_read_request_limit['data']['code'] ?? '' ), 'adapter read requests use the standard invalid-param error code for non-numeric limit' );
+maa_adapter_smoke_assert( isset( $invalid_read_request_limit['data']['data']['params']['limit'] ), 'adapter read requests identify limit as the invalid parameter' );
+
 maa_adapter_smoke_assert( in_array( 'profile_path', (array) ( $health['client_policy']['forbidden_outputs'] ?? array() ), true ), 'adapter health policy forbids profile path output' );
 maa_adapter_smoke_assert( in_array( 'key_id', (array) ( $health['client_policy']['forbidden_outputs'] ?? array() ), true ), 'adapter health policy forbids key id output' );
 maa_adapter_smoke_assert( in_array( 'database_direct', (array) ( $health['client_policy']['forbidden_local_access'] ?? array() ), true ), 'adapter health policy forbids direct database access' );
@@ -5182,12 +5203,10 @@ $delete_media_proposal = maa_adapter_smoke_rest(
 $delete_media_proposal_id = (string) ( $delete_media_proposal['proposal_id'] ?? '' );
 $maa_adapter_smoke_cleanup_proposal_ids[] = $delete_media_proposal_id;
 maa_adapter_smoke_assert( '' !== $delete_media_proposal_id, 'adapter creates delete-media-permanently proposal for approve-and-execute smoke' );
-$delete_media_execute = maa_adapter_smoke_rest( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $delete_media_proposal_id ) . '/approve-and-execute' );
-maa_adapter_smoke_assert( true === (bool) ( $delete_media_execute['success'] ?? false ), 'adapter approve-and-execute succeeds for pending delete-media-permanently proposal' );
-maa_adapter_smoke_assert( 'npcink-abilities-toolkit/delete-media-permanently' === (string) ( $delete_media_execute['ability_id'] ?? '' ), 'adapter approve-and-execute response carries delete-media-permanently ability id' );
-maa_adapter_smoke_assert( $delete_media_attachment_id === (int) ( $delete_media_execute['execution']['result']['attachment_id'] ?? 0 ), 'adapter delete-media-permanently execution result carries attachment id' );
-maa_adapter_smoke_assert( true === (bool) ( $delete_media_execute['execution']['result']['deleted'] ?? false ), 'adapter delete-media-permanently execution reports deletion' );
-maa_adapter_smoke_assert( null === get_post( $delete_media_attachment_id ), 'adapter approve-and-execute deletes media attachment permanently' );
+$delete_media_execute = maa_adapter_smoke_rest_result( 'POST', '/npcink-openclaw-adapter/v1/proposals/' . rawurlencode( $delete_media_proposal_id ) . '/approve-and-execute' );
+maa_adapter_smoke_assert( 409 === (int) $delete_media_execute['status'], 'Core blocks media deletion without deletion branch evidence' );
+maa_adapter_smoke_assert( 'npcink_governance_core_flagged_media_branch_evidence_missing' === (string) ( $delete_media_execute['data']['code'] ?? '' ), 'Adapter preserves Core media deletion evidence error' );
+maa_adapter_smoke_assert( null !== get_post( $delete_media_attachment_id ), 'Core evidence refusal leaves the fixture attachment intact' );
 
 $empty_delete_media_proposal = maa_adapter_smoke_rest_result(
 	'POST',

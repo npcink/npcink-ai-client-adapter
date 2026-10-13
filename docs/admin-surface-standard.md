@@ -51,6 +51,24 @@ WordPress Application Passwords, the page shows a read-only boundary hygiene
 notice linking to the profile Application Passwords section; the page never
 reads or prints password values.
 
+### Dependency Notices
+
+When suite plugins are missing, Adapter renders a site-wide administrator
+notice naming the missing components and linking to the Adapter page; the
+page itself lists the missing plugins. When every plugin is active but a
+dependency contract check fails, the page explains which component is too old
+(plugin version, contract version, schema, or boundary semantics) instead of
+an empty "Needs dependencies" state.
+
+### Recent Client Errors
+
+The default view may include a collapsed `Recent client errors` disclosure.
+It shows only bounded connection-scope diagnostics from the Adapter channel:
+time, request method and route, HTTP status, and the adapter error code. It
+is diagnostics-only and non-authoritative; Core Governance Audit remains the
+governance log and AI Request Logs remain the provider request log. The page
+must not show proposal, approval, preflight, audit, or log content rows.
+
 ## Developer Reference
 
 Do not put developer diagnostics on the default admin page. Keep these in

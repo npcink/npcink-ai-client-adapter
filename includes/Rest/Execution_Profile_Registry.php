@@ -438,6 +438,36 @@ final class Execution_Profile_Registry {
 				),
 				'post_id_from_result'       => false,
 			),
+			'npcink-abilities-toolkit/delete-attachment'   => array(
+				'supported_input_fields'    => array( 'attachment_id', 'deletion_policy_branch', 'reason', 'idempotency_key', 'dry_run', 'commit' ),
+				'enum_fields'               => array(
+					'deletion_policy_branch' => array(
+						'allowed' => array( 'illegal_content_no_backup', 'governed_with_backup' ),
+						'code'    => 'npcink_openclaw_adapter_flagged_media_branch_invalid',
+						'message' => __( 'delete-attachment deletion_policy_branch must be illegal_content_no_backup or governed_with_backup.', 'npcink-ai-client-adapter' ),
+					),
+				),
+				'required_int_fields'       => array(
+					'attachment_id' => array(
+						'code'    => 'npcink_openclaw_adapter_attachment_id_required',
+						'message' => __( 'delete-attachment execution input must include attachment_id.', 'npcink-ai-client-adapter' ),
+					),
+				),
+				'required_text_fields'      => array(
+					'reason'          => array(
+						'code'    => 'npcink_openclaw_adapter_flagged_media_reason_required',
+						'message' => __( 'delete-attachment execution input must include an operator reason.', 'npcink-ai-client-adapter' ),
+					),
+					'idempotency_key' => array(
+						'code'    => 'npcink_openclaw_adapter_idempotency_key_required',
+						'message' => __( 'delete-attachment execution input must include idempotency_key.', 'npcink-ai-client-adapter' ),
+					),
+				),
+				'validate_attachment_input' => array(
+					'message' => __( 'delete-attachment execution input must target an existing attachment.', 'npcink-ai-client-adapter' ),
+				),
+				'post_id_from_result'       => false,
+			),
 			'npcink-abilities-toolkit/reply-comment'       => array(
 				'supported_input_fields' => array( 'comment_id', 'content', 'content_format', 'dry_run', 'commit', 'idempotency_key' ),
 				'enum_fields'            => array(

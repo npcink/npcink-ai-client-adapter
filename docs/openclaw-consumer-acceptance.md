@@ -558,3 +558,42 @@ OpenClaw consumer acceptance is complete when:
   mutations;
 - `commit_execution=false` remains true at preflight;
 - no new runtime ownership is added to Core, Adapter, or Abilities.
+
+## Signed Fixture Provider Log Gate
+
+The commit-enabled `accept:local-ai-client-fixture` now checks a real persisted
+AI Request Logs row against the signed draft execution's `proposal_id`,
+`correlation_id`, and `adapter_request_id`, including nested Core attribution.
+The cross-repo release runner already invokes this fixture, so it inherits the
+assertion without adding provider execution or log storage to Core.
+
+A temporary MU loader registers a test-only hook for the run's unique draft
+marker. While the approved Toolkit draft callback is running under Adapter
+context, the hook makes one SDK text request through the site's configured
+provider. The default local fixture uses Ollama `qwen3.5:0.8b`; override only the
+acceptance fixture with `MAA_ADAPTER_PROVIDER_LOG_PROVIDER` and
+`MAA_ADAPTER_PROVIDER_LOG_MODEL`. Provider keys remain in the site's AI stack.
+No synthetic request-log row or Adapter provider route is introduced.
+
+When the `ai` plugin is absent, the gate prints a warning and skips provider
+correlation. When it is active, disabled/unavailable logging, a failed provider
+request, a missing persisted row, or mismatched attribution fails acceptance.
+The fixture uses the AI plugin's public log reader and retains the normal AI
+Request Logs evidence. Its exit trap removes the exact temporary MU loader and
+its draft, including a draft created before an execution failure. Explicit
+`MAA_ADAPTER_FIXTURE_CLEANUP_POST=0` continues to retain the draft for inspection.
+
+For a scene-bound provider, the test-only probe may call the existing read-only
+`ai/title-generation` ability by setting
+`MAA_ADAPTER_PROVIDER_LOG_ABILITY=ai/title-generation`. Set
+`MAA_ADAPTER_PROVIDER_LOG_PROVIDER` and `MAA_ADAPTER_PROVIDER_LOG_MODEL` to the
+expected persisted log values. The provider/model assertion stays strict; this
+option does not create synthetic log rows or a production execution route.
+
+Local verification on 2026-10-13: the signed draft fixture completed its final
+write, but provider-log acceptance correctly failed. The site only registered
+`npcink-cloud`: its title-generation scene returned text without a persisted
+AI Request Log. The generic Ollama probe also failed because Ollama was not
+registered. Both runs removed their marker-scoped MU loader and draft. A
+positive signed-fixture result requires a configured SDK provider whose real
+HTTP requests are recorded by the AI plugin logging integration.

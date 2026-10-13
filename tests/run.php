@@ -355,7 +355,7 @@ function maa_adapter_removed_admin_connection_texts(): array {
 		'GET /help',
 		'GET /proposals/{proposal_id}',
 		'approve-and-execute',
-		'Adapter execution profiles currently support npcink-abilities-toolkit/trash-post, npcink-abilities-toolkit/create-draft, npcink-abilities-toolkit/update-post, npcink-abilities-toolkit/patch-post-content, npcink-abilities-toolkit/update-post-blocks, npcink-abilities-toolkit/update-template-blocks, npcink-abilities-toolkit/upsert-template-blocks, npcink-abilities-toolkit/update-template-part-blocks, npcink-abilities-toolkit/patch-setting-value, npcink-abilities-toolkit/set-post-seo-meta, npcink-abilities-toolkit/set-post-slug, npcink-abilities-toolkit/set-post-terms, npcink-abilities-toolkit/delete-term, npcink-abilities-toolkit/update-media-details, npcink-abilities-toolkit/upload-media-from-url, npcink-abilities-toolkit/set-post-featured-image, npcink-abilities-toolkit/optimize-media-asset, npcink-abilities-toolkit/replace-media-file, npcink-abilities-toolkit/restore-media-backup, npcink-abilities-toolkit/adopt-cloud-media-derivative, npcink-abilities-toolkit/rename-media-file, npcink-abilities-toolkit/delete-media-permanently, npcink-abilities-toolkit/reply-comment, npcink-abilities-toolkit/trash-comment, and npcink-abilities-toolkit/approve-comment',
+		'Adapter execution profiles currently support npcink-abilities-toolkit/trash-post, npcink-abilities-toolkit/create-draft, npcink-abilities-toolkit/update-post, npcink-abilities-toolkit/patch-post-content, npcink-abilities-toolkit/update-post-blocks, npcink-abilities-toolkit/update-template-blocks, npcink-abilities-toolkit/upsert-template-blocks, npcink-abilities-toolkit/update-template-part-blocks, npcink-abilities-toolkit/patch-setting-value, npcink-abilities-toolkit/set-post-seo-meta, npcink-abilities-toolkit/set-post-slug, npcink-abilities-toolkit/set-post-terms, npcink-abilities-toolkit/delete-term, npcink-abilities-toolkit/update-media-details, npcink-abilities-toolkit/upload-media-from-url, npcink-abilities-toolkit/set-post-featured-image, npcink-abilities-toolkit/optimize-media-asset, npcink-abilities-toolkit/replace-media-file, npcink-abilities-toolkit/restore-media-backup, npcink-abilities-toolkit/adopt-cloud-media-derivative, npcink-abilities-toolkit/rename-media-file, npcink-abilities-toolkit/delete-media-permanently, npcink-abilities-toolkit/delete-attachment, npcink-abilities-toolkit/reply-comment, npcink-abilities-toolkit/trash-comment, and npcink-abilities-toolkit/approve-comment',
 		'Adapter execute routes are final write paths and normalize ability input to dry_run=false and commit=true',
 		'for dry-run-only verification, stop at commit-preflight and do not call execute',
 		'Failure code handling',
@@ -456,6 +456,7 @@ foreach ( array( 'rest_do_request', 'register_rest_route', 'get_option', 'update
 	maa_adapter_assert( false === strpos( $execution_action_runner, $forbidden_runner_dependency ), 'Execution action runner excludes forbidden dependency: ' . $forbidden_runner_dependency );
 }
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'final class Supported_Plan_Abilities' ), 'Supported plan ability registry exists.' );
+maa_adapter_assert( false !== strpos( $supported_plan_abilities, "'npcink-abilities-toolkit/build-flagged-media-removal-plan' => true" ), 'Plan handoff explicitly supports the Toolkit flagged-media removal builder.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function ids' ), 'Supported plan ability exposes ids.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function contains' ), 'Supported plan ability exposes membership checks.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'npcink-abilities-toolkit/build-content-metadata-apply-plan' ), 'Supported plan ability registry accepts Toolkit content metadata apply plans.' );
@@ -463,6 +464,8 @@ maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'npcink-abiliti
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'final class Execution_Profile_Registry' ), 'Execution profile registry exists.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'public static function profiles' ), 'Execution profile registry exposes profiles.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink-abilities-toolkit/update-post-blocks' ), 'Execution profile registry keeps governed block writes supported.' );
+maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink-abilities-toolkit/delete-attachment' ), 'Execution profile registry opts into governed flagged-media deletion explicitly.' );
+maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink_openclaw_adapter_flagged_media_branch_invalid' ), 'Flagged-media execution profile bounds the deletion policy branch.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, "'site_readiness'" ), 'Execution profile registry declares conditional site readiness.' );
 maa_adapter_assert( false !== strpos( $execution_profile_registry, 'npcink_abilities_toolkit_patchable_setting_targets' ), 'Setting patch profile consumes the Toolkit host target allowlist contract.' );
 maa_adapter_assert( false !== strpos( $controller_contract, 'npcink_openclaw_adapter_execution_profile_readiness.v1' ), 'Adapter exposes conditional execution profile readiness metadata.' );
@@ -1501,6 +1504,7 @@ maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['atomicity']
 $plan_write_input_validation = substr( $controller_contract, (int) strpos( $controller_contract, 'public function validate_plan_write_actions' ), 3000 );
 maa_adapter_assert( false !== strpos( $plan_write_input_validation, "\$proposal_ready = array_key_exists( 'proposal_ready', \$raw_action )" ) && false !== strpos( $plan_write_input_validation, "\$requires_input = array_values( array_map( 'sanitize_key', (array) ( \$raw_action['requires_input'] ?? array() ) ) )" ) && false !== strpos( $plan_write_input_validation, "'npcink_openclaw_adapter_plan_action_input_invalid'" ), 'Adapter rejects malformed and requires-input plan actions before Core proposal forwarding.' );
 maa_adapter_assert( false !== strpos( $controller, 'min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint' ), 'Adapter list routes clamp caller supplied limits.' );
+maa_adapter_assert( 2 <= substr_count( $controller, "'sanitize_callback' => 'rest_parse_request_arg'" ), 'Adapter list limit arguments preserve WordPress integer validation before sanitization.' );
 maa_adapter_assert( false === strpos( $controller, 'HTTP_USER_AGENT' ), 'Public pairing rate limit is not weakened by caller-controlled user agents.' );
 maa_adapter_assert( false !== strpos( $controller, "approve_device_pairing( string \$user_code, string \$admin_label = '' )" ), 'Controller accepts an administrator label during device pairing approval.' );
 maa_adapter_assert( false !== strpos( $controller_contract, '$admin_label = $this->bounded_text_field( $admin_label, 80 );' ), 'Controller bounds administrator device labels before storage.' );
@@ -1655,7 +1659,7 @@ foreach (
 				'GET /help',
 				'GET /proposals/{proposal_id}',
 				'approve-and-execute',
-			'Adapter execution profiles currently support npcink-abilities-toolkit/trash-post, npcink-abilities-toolkit/create-draft, npcink-abilities-toolkit/update-post, npcink-abilities-toolkit/patch-post-content, npcink-abilities-toolkit/update-post-blocks, npcink-abilities-toolkit/update-template-blocks, npcink-abilities-toolkit/upsert-template-blocks, npcink-abilities-toolkit/update-template-part-blocks, npcink-abilities-toolkit/patch-setting-value, npcink-abilities-toolkit/set-post-seo-meta, npcink-abilities-toolkit/set-post-slug, npcink-abilities-toolkit/set-post-terms, npcink-abilities-toolkit/delete-term, npcink-abilities-toolkit/update-media-details, npcink-abilities-toolkit/upload-media-from-url, npcink-abilities-toolkit/set-post-featured-image, npcink-abilities-toolkit/optimize-media-asset, npcink-abilities-toolkit/replace-media-file, npcink-abilities-toolkit/restore-media-backup, npcink-abilities-toolkit/adopt-cloud-media-derivative, npcink-abilities-toolkit/rename-media-file, npcink-abilities-toolkit/delete-media-permanently, npcink-abilities-toolkit/reply-comment, npcink-abilities-toolkit/trash-comment, and npcink-abilities-toolkit/approve-comment',
+			'Adapter execution profiles currently support npcink-abilities-toolkit/trash-post, npcink-abilities-toolkit/create-draft, npcink-abilities-toolkit/update-post, npcink-abilities-toolkit/patch-post-content, npcink-abilities-toolkit/update-post-blocks, npcink-abilities-toolkit/update-template-blocks, npcink-abilities-toolkit/upsert-template-blocks, npcink-abilities-toolkit/update-template-part-blocks, npcink-abilities-toolkit/patch-setting-value, npcink-abilities-toolkit/set-post-seo-meta, npcink-abilities-toolkit/set-post-slug, npcink-abilities-toolkit/set-post-terms, npcink-abilities-toolkit/delete-term, npcink-abilities-toolkit/update-media-details, npcink-abilities-toolkit/upload-media-from-url, npcink-abilities-toolkit/set-post-featured-image, npcink-abilities-toolkit/optimize-media-asset, npcink-abilities-toolkit/replace-media-file, npcink-abilities-toolkit/restore-media-backup, npcink-abilities-toolkit/adopt-cloud-media-derivative, npcink-abilities-toolkit/rename-media-file, npcink-abilities-toolkit/delete-media-permanently, npcink-abilities-toolkit/delete-attachment, npcink-abilities-toolkit/reply-comment, npcink-abilities-toolkit/trash-comment, and npcink-abilities-toolkit/approve-comment',
 		'Adapter execute routes are final write paths and normalize ability input to dry_run=false and commit=true',
 		'for dry-run-only verification, stop at commit-preflight and do not call execute',
 		'Failure code handling',
@@ -2331,14 +2335,15 @@ foreach (
 		'Tested up to: 7.1',
 		'Requires PHP: 8.0',
 		'Requires Plugins: npcink-abilities-toolkit, npcink-governance-core',
-		'Stable tag: 0.4.1',
+		'Stable tag: 0.4.3',
 		'License: GPL-2.0-or-later',
 		'structured missing dependency error',
 		'machine-readable `client_policy`',
 		'local CLI also redacts profile paths',
 		'Npcink Governance Core remains the governance backend',
 		'npcink-abilities-toolkit/trash-post',
-		'= 0.4.1 =',
+		'= 0.4.2 =',
+		'Reject non-numeric `limit` query parameters',
 		'= 0.3.1 =',
 		'= 0.3.0 =',
 		'Add Adapter-declared Core and Abilities Toolkit compatibility floors to the machine-readable contract metadata',
@@ -2391,6 +2396,7 @@ foreach (
 		'"smoke:package-install": "bash tests/package-install-smoke.sh"',
 		'"accept:local-ai-client": "bash tests/local-ai-client-acceptance.sh"',
 		'"accept:local-ai-client-fixture": "bash tests/local-ai-client-fixture-acceptance.sh"',
+		'"accept:local-dev": "bash tests/local-dev-acceptance.sh"',
 		'"accept:openclaw-zhihu-atomics": "bash tests/openclaw-zhihu-atomics-acceptance.sh"',
 		'"visual:wp": "bash tests/visual-acceptance.sh"',
 		'"dev:article-template-visual": "bash tests/dev-article-template-visual.sh"',
@@ -2407,12 +2413,21 @@ foreach (
 		'npcink_openclaw_adapter_execution_records',
 		'npcink_openclaw_adapter_preflight_handoffs',
 		'npcink_openclaw_adapter_uninstall_current_site',
+		'npcink_openclaw_adapter_revoke_fallback_app_passwords',
+		'WP_Application_Passwords::delete_application_password',
 		'get_sites',
 	) as $required
 ) {
 	maa_adapter_assert( false !== strpos( $uninstall, $required ), 'uninstall cleanup contains required text: ' . $required );
 }
 maa_adapter_assert( false === strpos( $uninstall, 'npcink_governance_core' ), 'uninstall cleanup does not delete Core-owned state.' );
+maa_adapter_assert( false !== strpos( $controller, 'render_dependency_notice' ), 'Plugin renders the site-wide missing-dependency admin notice.' );
+maa_adapter_assert( false !== strpos( $controller, 'npcink_openclaw_adapter_recent_client_errors' ), 'Plugin records bounded recent client errors.' );
+maa_adapter_assert( false !== strpos( $controller, 'missing_dependency_keys' ), 'Dependency status exposes the cheap missing-dependency probe used by admin notices.' );
+maa_adapter_assert( false !== strpos( $connection_page, 'render_recent_client_errors' ), 'Connection page renders the bounded recent client errors disclosure.' );
+maa_adapter_assert( false !== strpos( $connection_page, 'render_contract_mismatch_notice' ), 'Connection page explains dependency contract mismatches.' );
+maa_adapter_assert( false !== strpos( $connection_page, 'npcink_openclaw_adapter_fallback_app_password_' ), 'Connection page records fallback Application Passwords for uninstall revocation.' );
+maa_adapter_assert( false !== strpos( $controller, "strcasecmp( (string) \$name, \$total_header )" ), 'Upstream dispatch relays upstream X-WP-Total pagination headers.' );
 foreach (
 	array(
 		'WP_PATH',
@@ -2490,6 +2505,8 @@ foreach (
 		'Local AI Client Acceptance',
 		'non-destructive',
 		'composer accept:local-ai-client',
+		'composer accept:local-dev',
+		'limit=abc',
 		'MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_ABILITY',
 		'MAA_ADAPTER_ACCEPTANCE_PREFLIGHT_PROPOSAL_ID',
 		'MAA_ADAPTER_ACCEPTANCE_ALLOW_COMMIT=1',
@@ -3439,8 +3456,8 @@ foreach (
 		'adapter rename-media-file commit changes media URL',
 		'adapter rename-media-file commit URL contains target file name',
 		'adapter creates delete-media-permanently proposal for approve-and-execute smoke',
-		'adapter approve-and-execute succeeds for pending delete-media-permanently proposal',
-		'adapter approve-and-execute deletes media attachment permanently',
+		'Core blocks media deletion without deletion branch evidence',
+		'Core evidence refusal leaves the fixture attachment intact',
 		'adapter proposal create rejects delete-media-permanently without attachment_id',
 		'adapter proposal create rejects delete-media-permanently for non-attachment post',
 		'adapter proposal create rejects reply-comment without content',

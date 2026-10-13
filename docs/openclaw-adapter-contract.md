@@ -971,7 +971,10 @@ GET /wp-json/npcink-governance-core/v1/proposals/{proposal_id}
 The adapter should preserve Core proposal list/detail fields, including
 `proposal_id`, `ability_id`, `status`, `title`, `summary`, `input`, `preview`,
 `caller`, `created_at`, `updated_at`, and detail `audit_timeline` when Core
-returns it. If a Core app token is used in a direct Core auth path or future
+returns it. The list proxies relay Core's collection pagination headers
+(`X-WP-Total`, `X-WP-TotalPages`) so clients can page proposal and read-request
+collections without guessing the collection end from short pages; the same
+totals remain available in Core's response body. If a Core app token is used in a direct Core auth path or future
 trusted handoff, that key must include `proposals:read`.
 
 The Adapter admin page may expose a focused `Proposal status` lookup that uses

@@ -6,6 +6,48 @@ This acceptance flow verifies that a local AI client enters WordPress through
 Npcink AI Client Adapter and stays inside the Adapter/Core governance boundary.
 The default command is intentionally non-destructive.
 
+## One-command Local Development Check
+
+Run the complete local development check before treating a working tree as
+ready for review:
+
+```bash
+MAA_ADAPTER_ACCEPTANCE_PROFILE=local \
+MAA_ADAPTER_ACCEPTANCE_INSECURE_LOCAL_TLS=1 \
+composer accept:local-dev
+```
+
+The command discovers the active Local.app MySQL socket from `WP_PATH` when
+available; ordinary TCP database settings require no socket override. Set
+`WP_CLI_MYSQL_SOCKET` explicitly when more than one local site matches or when
+the site uses a nonstandard socket.
+
+This command runs the deterministic test, PHPStan, coding-standard, i18n,
+WordPress.org, WordPress smoke, fresh package build, and package-install gates, then runs the
+signed client acceptance and the non-destructive proposal fixture acceptance.
+The WordPress smoke provisions temporary administrator-approved read grants
+by default so it runs the full fixture suite. A skipped smoke fails the aggregate
+check. The WordPress fixture suite uses administrator authentication and
+its own scoped test app token; it isolates the configured Core app token in
+the WP-CLI process so repeated runs do not consume the live client quota. Set
+`MAA_ADAPTER_SMOKE_USE_CONFIGURED_CORE_TOKEN=1` only for an intentional live
+token integration check. Signed HTTPS acceptance still uses the real connection.
+The package installer restores the original plugin afterward. Set
+`MAA_ADAPTER_PACKAGE_SMOKE_ZIP` only to test an explicit external package.
+The WordPress smoke includes the release-critical `limit=abc` checks for both
+`/proposals` and `/read-requests`, which must return HTTP 400 with
+`rest_invalid_param`.
+
+Set `MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1` only when a local draft write and its
+cleanup are intentionally part of the acceptance pass. The fixture still
+requires a human Core approval and removes the created draft by default.
+
+If the signed acceptance reports that the expected ability is missing from the
+Core catalog, compare the WP-CLI and HTTPS catalogs and check Toolkit's package
+settings and REST registration. WordPress defines `REST_REQUEST` after `init`;
+Toolkit must defer package registration to `rest_api_init` when necessary.
+A missing HTTP catalog is an acceptance failure, even when WP-CLI can see it.
+
 ## Default Check
 
 Run after connecting a local CLI profile:
@@ -23,6 +65,7 @@ The default check runs:
 - `GET /health`;
 - `GET /connection/manifest`;
 - `GET /help`;
+- `GET /capabilities`, including the expected read ability;
 - a fail-closed `read-ability` probe for
   `npcink-abilities-toolkit/build-content-inventory-fix-plan`.
 
