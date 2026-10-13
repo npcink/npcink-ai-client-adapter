@@ -456,6 +456,7 @@ foreach ( array( 'rest_do_request', 'register_rest_route', 'get_option', 'update
 	maa_adapter_assert( false === strpos( $execution_action_runner, $forbidden_runner_dependency ), 'Execution action runner excludes forbidden dependency: ' . $forbidden_runner_dependency );
 }
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'final class Supported_Plan_Abilities' ), 'Supported plan ability registry exists.' );
+maa_adapter_assert( false !== strpos( $supported_plan_abilities, "'npcink-abilities-toolkit/build-flagged-media-removal-plan' => true" ), 'Plan handoff explicitly supports the Toolkit flagged-media removal builder.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function ids' ), 'Supported plan ability exposes ids.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'public static function contains' ), 'Supported plan ability exposes membership checks.' );
 maa_adapter_assert( false !== strpos( $supported_plan_abilities, 'npcink-abilities-toolkit/build-content-metadata-apply-plan' ), 'Supported plan ability registry accepts Toolkit content metadata apply plans.' );

@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Npcink AI Client Adapter 0.4.2\n"
+"Project-Id-Version: Npcink AI Client Adapter 0.4.3\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-adapter\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-13T01:50:28+00:00\n"
+"POT-Creation-Date: 2026-10-13T06:19:46+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: npcink-ai-client-adapter\n"
@@ -1213,22 +1213,42 @@ msgid "delete-media-permanently execution input must target an existing attachme
 msgstr ""
 
 #: includes/Rest/Execution_Profile_Registry.php:447
-msgid "reply-comment content_format must be html, markdown, or plain."
+msgid "delete-attachment deletion_policy_branch must be illegal_content_no_backup or governed_with_backup."
 msgstr ""
 
 #: includes/Rest/Execution_Profile_Registry.php:453
-msgid "reply-comment execution input must include comment_id."
+msgid "delete-attachment execution input must include attachment_id."
 msgstr ""
 
-#: includes/Rest/Execution_Profile_Registry.php:458
-msgid "reply-comment execution input must include content."
+#: includes/Rest/Execution_Profile_Registry.php:459
+msgid "delete-attachment execution input must include an operator reason."
+msgstr ""
+
+#: includes/Rest/Execution_Profile_Registry.php:463
+msgid "delete-attachment execution input must include idempotency_key."
 msgstr ""
 
 #: includes/Rest/Execution_Profile_Registry.php:467
-msgid "trash-comment execution input must include comment_id."
+msgid "delete-attachment execution input must target an existing attachment."
 msgstr ""
 
 #: includes/Rest/Execution_Profile_Registry.php:477
+msgid "reply-comment content_format must be html, markdown, or plain."
+msgstr ""
+
+#: includes/Rest/Execution_Profile_Registry.php:483
+msgid "reply-comment execution input must include comment_id."
+msgstr ""
+
+#: includes/Rest/Execution_Profile_Registry.php:488
+msgid "reply-comment execution input must include content."
+msgstr ""
+
+#: includes/Rest/Execution_Profile_Registry.php:497
+msgid "trash-comment execution input must include comment_id."
+msgstr ""
+
+#: includes/Rest/Execution_Profile_Registry.php:507
 msgid "approve-comment execution input must include comment_id."
 msgstr ""
 
