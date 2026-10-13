@@ -1575,6 +1575,25 @@ maa_adapter_smoke_assert( 'npcink_abilities_toolkit_contract.v1' === (string) ( 
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['host_governed_writes'] ?? false ), 'adapter health detects Toolkit host-governed writes' );
 maa_adapter_smoke_assert( false === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['commit_default'] ?? true ), 'adapter health detects Toolkit commit default disabled' );
 maa_adapter_smoke_assert( true === (bool) ( $health['dependency_contracts']['npcink-abilities-toolkit']['workflow_projection_source_supported'] ?? false ), 'adapter health detects Toolkit workflow definition projection source' );
+
+$invalid_proposal_limit = maa_adapter_smoke_rest_result(
+	'GET',
+	'/npcink-openclaw-adapter/v1/proposals',
+	array( 'limit' => 'abc' )
+);
+maa_adapter_smoke_assert( 400 === (int) $invalid_proposal_limit['status'], 'adapter proposals reject non-numeric limit with HTTP 400' );
+maa_adapter_smoke_assert( 'rest_invalid_param' === (string) ( $invalid_proposal_limit['data']['code'] ?? '' ), 'adapter proposals use the standard invalid-param error code for non-numeric limit' );
+maa_adapter_smoke_assert( isset( $invalid_proposal_limit['data']['data']['params']['limit'] ), 'adapter proposals identify limit as the invalid parameter' );
+
+$invalid_read_request_limit = maa_adapter_smoke_rest_result(
+	'GET',
+	'/npcink-openclaw-adapter/v1/read-requests',
+	array( 'limit' => 'abc' )
+);
+maa_adapter_smoke_assert( 400 === (int) $invalid_read_request_limit['status'], 'adapter read requests reject non-numeric limit with HTTP 400' );
+maa_adapter_smoke_assert( 'rest_invalid_param' === (string) ( $invalid_read_request_limit['data']['code'] ?? '' ), 'adapter read requests use the standard invalid-param error code for non-numeric limit' );
+maa_adapter_smoke_assert( isset( $invalid_read_request_limit['data']['data']['params']['limit'] ), 'adapter read requests identify limit as the invalid parameter' );
+
 maa_adapter_smoke_assert( in_array( 'profile_path', (array) ( $health['client_policy']['forbidden_outputs'] ?? array() ), true ), 'adapter health policy forbids profile path output' );
 maa_adapter_smoke_assert( in_array( 'key_id', (array) ( $health['client_policy']['forbidden_outputs'] ?? array() ), true ), 'adapter health policy forbids key id output' );
 maa_adapter_smoke_assert( in_array( 'database_direct', (array) ( $health['client_policy']['forbidden_local_access'] ?? array() ), true ), 'adapter health policy forbids direct database access' );
