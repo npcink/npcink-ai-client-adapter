@@ -42,7 +42,7 @@ for kind in directory symlink; do
 done
 unset MAA_ADAPTER_PACKAGE_SMOKE_ZIP
 export COMPOSER_BIN="$task_tmp/composer" MOCK_LOG="$task_tmp/calls"
-bash "$ROOT_DIR/tests/local-dev-acceptance.sh" > "$task_tmp/output" 2>&1
+env -u MAA_ADAPTER_FIXTURE_FLAGGED_MEDIA -u MAA_ADAPTER_FIXTURE_ALLOW_COMMIT bash "$ROOT_DIR/tests/local-dev-acceptance.sh" > "$task_tmp/output" 2>&1
 cat > "$task_tmp/expected" <<'EXPECTED'
 test:all
 analyse:php
