@@ -79,3 +79,22 @@ this explicit recovery; it must not be described as a clean acceptance pass.
 mismatch, missing execution evidence and cleanup failure propagation without
 using WordPress or real media. It is included in `composer test:all`. A green
 behavior harness is separate from the real HTTPS acceptance gate above.
+
+## Separate browser approval acceptance
+
+For an operator UI check, create only one disposable `governed_with_backup`
+attachment and proposal using the same fixture contract. Retain the helper's
+state file and show the operator the exact proposal id, attachment id, deletion
+reason and backup policy. First verify signed self-approval and pending execution
+are refused and the attachment remains intact. Stop before the helper's `approve`
+action: the operator must approve that proposal in Core's actual admin page.
+
+After the operator confirms, read the proposal through the signed client and
+verify `approved` plus Core's approval audit. Execute with explicit commit intent,
+then reuse the automated gate's execution assertions, helper `deleted` check,
+duplicate refusal and execution-record readback. Cleanup removes only the fixture
+and its backup; retain the Core proposal and audit. An administrator test-context
+approval must never be reported as this browser check.
+
+The [2026-10-13 final local acceptance record](archive/2026-10-13-local-acceptance-release-readiness.md)
+records the completed operator check and the subsequent full aggregate run.

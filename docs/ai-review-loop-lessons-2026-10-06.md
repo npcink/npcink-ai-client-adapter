@@ -14,6 +14,9 @@ re-derive them.
 For the later local acceptance, REST lifecycle, fixture cleanup and workspace
 closeout lessons, see the
 [2026-10-13 acceptance checkpoint](archive/2026-10-13-local-acceptance-session-checkpoint.md).
+Its later [local acceptance and release-readiness record](archive/2026-10-13-local-acceptance-release-readiness.md)
+records the real Provider and browser approval passes, merged dependencies and
+verified topic-ref cleanup. The original checkpoint remains a historical snapshot.
 
 ## Advisory review loop mechanics (learned over 12+ rounds)
 

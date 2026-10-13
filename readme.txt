@@ -88,6 +88,8 @@ Adapter health and help routes can report dependency status. Routes that require
 * Add a complete local development acceptance command covering deterministic gates, WordPress fixtures, fresh package installation and restoration, and signed client contract checks; reject incomplete or skipped smoke passes.
 * Preserve the original plugin on package smoke prerequisite failures, restore network activation correctly, and accept the standard Local.app MySQL socket setting in Plugin Check.
 * Keep the 0.4.2 non-numeric `limit` rejection on both list routes and test media-deletion proposals without current Core branch evidence as fail-closed.
+* Accept Toolkit flagged-media removal plans through the existing proposal bridge and verify signed deletion, retained-backup restoration, and duplicate-execution refusal over HTTPS.
+* Forward scoped proposal, correlation, and Adapter request identifiers during approved writes so real AI Request Logs can match the signed execution; restore prior log context on success, errors, and exceptions without forwarding private execution authority.
 
 = 0.4.2 =
 
