@@ -24,8 +24,11 @@ root. No credentials or connection identifiers are included in this note.
 - The signed fixture created/read a governed proposal, rejected client
   self-approval and refused execution without commit intent. A subsequent commit-enabled signed fixture attempt was blocked by the real
   Core app rate limit while reading proposal status (HTTP 429), before approval
-  or draft creation. Successful signed final execution is not claimed; final
-  draft writes are covered by the administrator WordPress fixture suite.
+  or draft creation. After the quota reset, both the standalone signed
+  final-write fixture and the commit-enabled aggregate acceptance passed on the
+  0.4.3 candidate. Core evidence/result records, duplicate refusal and readback
+  passed, and both resulting drafts were removed. See the candidate record for
+  the follow-up evidence; administrator approval is a test-context simulation.
 
 After merging Adapter master (including the new delete-attachment execution
 profile), the frozen registry and execute-id hashes were refreshed in the
