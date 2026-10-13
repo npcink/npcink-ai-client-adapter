@@ -11,6 +11,10 @@ the publisher delivery+triage gate's first production loops (#79-#87)
 and the live governed-write verification — so future sessions do not
 re-derive them.
 
+For the later local acceptance, REST lifecycle, fixture cleanup and workspace
+closeout lessons, see the
+[2026-10-13 acceptance checkpoint](archive/2026-10-13-local-acceptance-session-checkpoint.md).
+
 ## Advisory review loop mechanics (learned over 12+ rounds)
 
 - **Rounds are per-head**: every push triggers a fresh full-diff review;
