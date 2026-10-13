@@ -34,6 +34,10 @@ final class Plugin {
 		add_filter( 'rest_request_after_callbacks', array( $this, 'emit_adapter_dispatch_event' ), 10, 3 );
 		add_filter( 'plugin_action_links_' . plugin_basename( NPCINK_OPENCLAW_ADAPTER_FILE ), array( $this, 'filter_plugin_action_links' ) );
 		add_action( 'admin_menu', array( $this, 'register_admin_page' ), 20 );
+		add_action( 'admin_notices', array( $this, 'render_dependency_notice' ) );
+		add_action( 'activated_plugin', array( $this, 'purge_dependency_notice_cache' ) );
+		add_action( 'deactivated_plugin', array( $this, 'purge_dependency_notice_cache' ) );
+		add_action( 'wp_delete_application_password', array( $this, 'drop_revoked_fallback_password_row' ), 10, 2 );
 		add_action( 'admin_post_npcink_openclaw_adapter_create_openclaw_password', array( $this, 'handle_create_openclaw_password' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_pairing_decision', array( $this, 'handle_pairing_decision' ) );
 		add_action( 'admin_post_npcink_openclaw_adapter_revoke_client_key', array( $this, 'handle_revoke_client_key' ) );
@@ -133,12 +137,193 @@ final class Plugin {
 		if ( $is_error ) {
 			$payload['error_code']    = $this->adapter_dispatch_error_code( $response );
 			$payload['status_detail'] = 'http_' . $status_code;
+			$this->record_recent_client_error( $payload );
 		}
 		$payload['event_id'] = $this->adapter_dispatch_event_id( $event_kind, $payload );
 
 		Observability::emit( $event_kind, $payload );
 
 		return $response;
+	}
+
+	/**
+	 * Records one bounded Adapter channel failure for the admin surface.
+	 *
+	 * The buffer is diagnostics-only, non-authoritative, and never replaces
+	 * Core governance audit or AI Request Logs; it answers the site owner's
+	 * "why did my client stop working" question without leaving wp-admin.
+	 *
+	 * A client stuck in a retry loop must not turn into one option write per
+	 * request: a failure identical to any of the newest records (same method,
+	 * route, status, and code, within 60 seconds) is skipped. The window scan
+	 * covers the last five records so a client alternating between failing
+	 * routes still throttles. A global cap adds a second layer: once five
+	 * records land within 60 seconds, further failures in that window are
+	 * skipped, so even an anonymous caller cycling distinct route tuples
+	 * cannot amplify option writes. Concurrent failures may race the
+	 * read-modify-write cycle and lose records; losing diagnostics rows is
+	 * accepted, they are advisory only.
+	 *
+	 * @param array<string,mixed> $payload Sanitized dispatch payload.
+	 * @return void
+	 */
+	private function record_recent_client_error( array $payload ): void {
+		// Length caps keep one attacker-controlled unmatched route from
+		// filling the bounded buffer with megabytes of junk.
+		$record = array(
+			'time'   => gmdate( 'c' ),
+			'method' => mb_substr( (string) ( $payload['method'] ?? '' ), 0, 16 ),
+			'route'  => mb_substr( (string) ( $payload['route'] ?? '' ), 0, 200 ),
+			'status' => absint( $payload['status_code'] ?? 0 ),
+			'code'   => mb_substr( (string) ( $payload['error_code'] ?? '' ), 0, 100 ),
+		);
+
+		$errors = get_option( 'npcink_openclaw_adapter_recent_client_errors', array() );
+		if ( ! is_array( $errors ) ) {
+			$errors = array();
+		}
+		$errors = array_values( $errors );
+
+		$recent_window = 0;
+		foreach ( array_slice( $errors, -5 ) as $recent ) {
+			if ( ! is_array( $recent ) ) {
+				continue;
+			}
+
+			$recent_time = strtotime( (string) ( $recent['time'] ?? '' ) );
+			if ( false === $recent_time || ( time() - $recent_time ) >= 60 ) {
+				continue;
+			}
+
+			++$recent_window;
+
+			if (
+				(string) ( $recent['method'] ?? '' ) === $record['method']
+				&& (string) ( $recent['route'] ?? '' ) === $record['route']
+				&& absint( $recent['status'] ?? 0 ) === $record['status']
+				&& (string) ( $recent['code'] ?? '' ) === $record['code']
+			) {
+				return;
+			}
+		}
+
+		// Global window cap: at most five recorded failures per minute, so
+		// even a caller cycling distinct route tuples cannot amplify writes.
+		if ( $recent_window >= 5 ) {
+			return;
+		}
+
+		$errors[] = $record;
+
+		update_option( 'npcink_openclaw_adapter_recent_client_errors', array_slice( $errors, -15 ), false );
+	}
+
+	/**
+	 * Renders the missing-dependency notice for administrators.
+	 *
+	 * The notice is the activation-agnostic companion of the Adapter page's
+	 * readiness checklist: without it, a site owner who activates Adapter
+	 * while the suite plugins are missing sees no dashboard-level signal
+	 * until they open the Adapter page. It renders only on the screens where
+	 * the owner can act (plugins, dashboard, and the Adapter page), so the
+	 * route-registry probe does not initialize the REST server on every
+	 * admin screen.
+	 *
+	 * @return void
+	 */
+	public function render_dependency_notice(): void {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$screen    = function_exists( 'get_current_screen' ) ? get_current_screen() : null;
+		$screen_id = is_object( $screen ) ? (string) $screen->id : '';
+		if ( ! in_array( $screen_id, array( 'plugins', 'plugins-network', 'dashboard', 'dashboard-network', 'npcink-ai_page_npcink-ai-client-adapter', 'settings_page_npcink-ai-client-adapter' ), true ) ) {
+			return;
+		}
+
+		// The route-registry probe boots the REST server once per state
+		// change, not per admin page view: the result is cached for one
+		// minute and the cache is purged on plugin activation or
+		// deactivation, so the notice tracks suite changes immediately.
+		$cache_key = 'npcink_openclaw_adapter_dependency_notice_v1';
+		$missing   = get_transient( $cache_key );
+		if ( ! is_array( $missing ) ) {
+			$missing = Rest\Dependency_Status::missing_dependency_keys();
+			set_transient( $cache_key, $missing, 60 );
+		}
+		if ( array() === $missing ) {
+			return;
+		}
+
+		$labels = array();
+		foreach ( $missing as $key ) {
+			$labels[] = Rest\Dependency_Status::dependency_label( $key );
+		}
+
+		$settings_url = menu_page_url( 'npcink-ai-client-adapter', false );
+		if ( '' === $settings_url ) {
+			// Fallback when admin_menu has not registered the page yet. The
+			// parent choice mirrors Connection_Page's own menu registration:
+			// the page hangs under the admin.php Npcink parent when any
+			// Npcink plugin registered it, otherwise under Settings.
+			$has_parent = false;
+			global $menu;
+			foreach ( (array) $menu as $item ) {
+				if ( isset( $item[2] ) && 'npcink-ai' === $item[2] ) {
+					$has_parent = true;
+					break;
+				}
+			}
+			$settings_url = $has_parent
+				? admin_url( 'admin.php?page=npcink-ai-client-adapter' )
+				: admin_url( 'options-general.php?page=npcink-ai-client-adapter' );
+		}
+		?>
+		<div class="notice notice-error">
+			<p>
+				<strong><?php echo esc_html__( 'Npcink AI Client Adapter cannot serve AI clients yet.', 'npcink-ai-client-adapter' ); ?></strong>
+				<?php
+				echo esc_html(
+					sprintf(
+						/* translators: %s: comma-separated dependency labels. */
+						__( 'Required suite components are missing: %s. Adapter routes fail closed until they are installed and active.', 'npcink-ai-client-adapter' ),
+						implode( ', ', $labels )
+					)
+				);
+				?>
+				<a href="<?php echo esc_url( $settings_url ); ?>"><?php echo esc_html__( 'Open the Adapter page', 'npcink-ai-client-adapter' ); ?></a>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Purges the cached dependency-notice probe so suite changes surface
+	 * immediately instead of after the cache TTL.
+	 *
+	 * @return void
+	 */
+	public function purge_dependency_notice_cache(): void {
+		delete_transient( 'npcink_openclaw_adapter_dependency_notice_v1' );
+	}
+
+	/**
+	 * Drops the uninstall tracking row when a tracked fallback credential is
+	 * revoked through normal operation (profile UI or REST), so rows do not
+	 * accumulate for passwords that no longer exist.
+	 *
+	 * @param int   $user_id Application password owner.
+	 * @param array $item    Deleted application password item.
+	 * @return void
+	 */
+	public function drop_revoked_fallback_password_row( int $user_id, array $item ): void {
+		$uuid = isset( $item['uuid'] ) ? sanitize_text_field( (string) $item['uuid'] ) : '';
+		if ( '' === $uuid ) {
+			return;
+		}
+
+		delete_option( 'npcink_openclaw_adapter_fallback_app_password_' . md5( $user_id . ':' . $uuid ) );
 	}
 
 	/**

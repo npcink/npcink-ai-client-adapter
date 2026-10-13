@@ -8,6 +8,7 @@
 namespace Npcink\OpenClawAdapter\Admin;
 
 use Npcink\OpenClawAdapter\Rest\Controller;
+use Npcink\OpenClawAdapter\Rest\Dependency_Status;
 use WP_Error;
 use WP_REST_Request;
 
@@ -179,9 +180,11 @@ final class Connection_Page {
 					</p>
 				</div>
 			<?php endif; ?>
+			<?php $this->render_contract_mismatch_notice( $health ); ?>
 
 			<?php
 			$this->render_readiness_checklist( $health, $key_records, $active_key_count );
+			$this->render_recent_client_errors();
 			$application_password_count = $active_key_count > 0 ? $this->current_user_application_password_count() : 0;
 			?>
 			<?php if ( $application_password_count > 0 ) : ?>
@@ -531,10 +534,201 @@ final class Connection_Page {
 			exit;
 		}
 
+		// Remember the created password so uninstall can revoke Adapter-created
+		// fallback credentials instead of leaving live REST access behind. Each
+		// credential gets its own uniquely keyed option row: no shared
+		// read-modify-write cycle, so concurrent creations cannot lose entries
+		// and uninstall completeness does not depend on a counter.
+		$created_item = isset( $created[1] ) && is_array( $created[1] ) ? $created[1] : array();
+		$created_uuid = isset( $created_item['uuid'] ) ? sanitize_text_field( (string) $created_item['uuid'] ) : '';
+		if ( '' !== $created_uuid ) {
+			update_option(
+				'npcink_openclaw_adapter_fallback_app_password_' . md5( $user_id . ':' . $created_uuid ),
+				array(
+					'user_id' => (int) $user_id,
+					'uuid'    => $created_uuid,
+				),
+				false
+			);
+		}
+
 		status_header( 200 );
 		nocache_headers();
 		$this->render_created_handoff( (string) $created[0], is_array( $created[1] ?? null ) ? $created[1] : array(), $include_local_tls );
 		exit;
+	}
+
+	/**
+	 * Renders the dependency contract mismatch notice.
+	 *
+	 * Complements the missing-plugin warning: when every suite plugin is
+	 * active but one is older than the contract minimum, the page explains
+	 * which component and which version is required instead of an empty
+	 * "Needs dependencies" state.
+	 *
+	 * @param array<string,mixed> $health Adapter health data.
+	 * @return void
+	 */
+	private function render_contract_mismatch_notice( array $health ): void {
+		if ( empty( $health ) || ! empty( $health['dependency_contracts_ready'] ) ) {
+			return;
+		}
+
+		$contracts = isset( $health['dependency_contracts'] ) && is_array( $health['dependency_contracts'] ) ? $health['dependency_contracts'] : array();
+		$missing   = isset( $health['missing_dependencies'] ) && is_array( $health['missing_dependencies'] ) ? $health['missing_dependencies'] : array();
+
+		$rows = array();
+		foreach ( Dependency_Status::contract_dependency_keys() as $dependency ) {
+			// Entirely missing plugins are covered by the missing-plugins
+			// warning above; this notice explains version mismatches only.
+			if ( in_array( $dependency, $missing, true ) ) {
+				continue;
+			}
+			$contract = isset( $contracts[ $dependency ] ) && is_array( $contracts[ $dependency ] ) ? $contracts[ $dependency ] : array();
+			$issue    = $this->contract_issue_summary( $dependency, $contract );
+			if ( '' !== $issue ) {
+				$rows[] = $issue;
+			}
+		}
+
+		if ( array() === $rows ) {
+			return;
+		}
+		?>
+		<div class="notice notice-warning">
+			<p>
+				<strong><?php echo esc_html__( 'Dependency contracts need attention.', 'npcink-ai-client-adapter' ); ?></strong>
+				<?php echo esc_html( implode( ' ', $rows ) ); ?>
+			</p>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Builds the operator-facing mismatch sentence for one dependency contract.
+	 *
+	 * @param string              $dependency Dependency key.
+	 * @param array<string,mixed> $contract Contract summary from health data.
+	 * @return string Empty when compatible, otherwise the issue sentence.
+	 */
+	private function contract_issue_summary( string $dependency, array $contract ): string {
+		if ( array() === $contract || ! empty( $contract['compatible'] ) ) {
+			return '';
+		}
+
+		$label = Dependency_Status::dependency_label( $dependency );
+
+		if ( empty( $contract['available'] ) ) {
+			/* translators: %s: dependency label. */
+			return sprintf( __( '%s is not reachable for a contract check.', 'npcink-ai-client-adapter' ), $label ) . ' ';
+		}
+
+		$issues = array();
+		if ( empty( $contract['plugin_version_supported'] ) ) {
+			$detected_version = (string) ( $contract['plugin_version'] ?? '' );
+			if ( '' === $detected_version ) {
+				/* translators: %s: required version. */
+				$issues[] = sprintf( __( 'does not report a plugin version; the required version is %s.', 'npcink-ai-client-adapter' ), (string) ( $contract['minimum_plugin_version'] ?? '' ) );
+			} else {
+				$issues[] = sprintf(
+					/* translators: 1: detected version, 2: required version. */
+					__( 'version %1$s is older than the required %2$s.', 'npcink-ai-client-adapter' ),
+					$detected_version,
+					(string) ( $contract['minimum_plugin_version'] ?? '' )
+				);
+			}
+		}
+		if ( empty( $contract['contract_version_supported'] ) ) {
+			$detected_contract = (string) ( $contract['contract_version'] ?? '' );
+			if ( '' === $detected_contract ) {
+				/* translators: %s: required contract version. */
+				$issues[] = sprintf( __( 'does not report a contract version; the required contract version is %s.', 'npcink-ai-client-adapter' ), (string) ( $contract['minimum_contract_version'] ?? '' ) );
+			} else {
+				$issues[] = sprintf(
+					/* translators: 1: detected contract version, 2: required contract version. */
+					__( 'contract version %1$s is older than the required %2$s.', 'npcink-ai-client-adapter' ),
+					$detected_contract,
+					(string) ( $contract['minimum_contract_version'] ?? '' )
+				);
+			}
+		}
+		if ( empty( $contract['schema_supported'] ) ) {
+			/* translators: %s: dependency label. */
+			$issues[] = sprintf( __( '%s exposes an unsupported schema version.', 'npcink-ai-client-adapter' ), $label );
+		}
+		if ( empty( $contract['contract_semantics_supported'] ) ) {
+			/* translators: %s: dependency label. */
+			$issues[] = sprintf( __( '%s does not support the required boundary semantics.', 'npcink-ai-client-adapter' ), $label );
+		}
+
+		if ( array() === $issues ) {
+			return '';
+		}
+
+		/* translators: %s: dependency label. */
+		return sprintf( __( '%s:', 'npcink-ai-client-adapter' ), $label ) . ' ' . implode( ' ', $issues ) . ' ';
+	}
+
+	/**
+	 * Renders the bounded recent client errors disclosure.
+	 *
+	 * The list shows only connection-scope diagnostics (time, route, status,
+	 * error code) from the Adapter channel buffer. It is non-authoritative
+	 * and never replaces Core governance audit or AI Request Logs.
+	 *
+	 * @return void
+	 */
+	private function render_recent_client_errors(): void {
+		$errors = get_option( 'npcink_openclaw_adapter_recent_client_errors', array() );
+		// The display window matches the writer's buffer size so every
+		// buffered record is reachable.
+		$errors = is_array( $errors ) ? array_slice( array_values( $errors ), -15 ) : array();
+		?>
+		<details class="maa-inline-disclosure maa-recent-errors">
+			<summary>
+				<span class="maa-disclosure-copy">
+					<strong><?php echo esc_html__( 'Recent client errors', 'npcink-ai-client-adapter' ); ?></strong>
+					<span class="description">
+						<?php
+						echo esc_html(
+							sprintf(
+								/* translators: %d: number of recorded errors. */
+								_n( '%d recent Adapter channel error.', '%d recent Adapter channel errors.', count( $errors ), 'npcink-ai-client-adapter' ),
+								count( $errors )
+							)
+						);
+						?>
+					</span>
+				</span>
+				<span class="maa-disclosure-icon" aria-hidden="true"></span>
+			</summary>
+			<?php if ( array() === $errors ) : ?>
+				<p class="description"><?php echo esc_html__( 'No recent client errors recorded. Failed Adapter requests from connected clients appear here.', 'npcink-ai-client-adapter' ); ?></p>
+			<?php else : ?>
+				<table class="widefat striped">
+					<thead>
+						<tr>
+							<th scope="col"><?php echo esc_html__( 'Time', 'npcink-ai-client-adapter' ); ?></th>
+							<th scope="col"><?php echo esc_html__( 'Request', 'npcink-ai-client-adapter' ); ?></th>
+							<th scope="col"><?php echo esc_html__( 'Status', 'npcink-ai-client-adapter' ); ?></th>
+							<th scope="col"><?php echo esc_html__( 'Error code', 'npcink-ai-client-adapter' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php foreach ( $errors as $error ) : ?>
+							<tr>
+								<td><?php echo esc_html( $this->display_datetime( isset( $error['time'] ) ? (string) $error['time'] : '' ) ); ?></td>
+								<td><?php echo esc_html( ( isset( $error['method'] ) ? (string) $error['method'] : '' ) . ' ' . ( isset( $error['route'] ) ? (string) $error['route'] : '' ) ); ?></td>
+								<td><?php echo esc_html( 'HTTP ' . (string) ( $error['status'] ?? '' ) ); ?></td>
+								<td><code><?php echo esc_html( isset( $error['code'] ) ? (string) $error['code'] : '' ); ?></code></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+			<?php endif; ?>
+			<p class="description"><?php echo esc_html__( 'Bounded diagnostics from the Adapter channel only. Core Governance Audit remains the governance log; AI Request Logs remain the provider request log.', 'npcink-ai-client-adapter' ); ?></p>
+		</details>
+		<?php
 	}
 
 	/**

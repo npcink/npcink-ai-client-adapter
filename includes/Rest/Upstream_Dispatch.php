@@ -220,7 +220,24 @@ final class Upstream_Dispatch {
 			)
 		);
 
-		return new WP_REST_Response( $response->get_data(), $status );
+		// Relay the upstream list pagination totals so adapter list consumers
+		// can page Core proposal/read-request collections without guessing the
+		// collection end from short pages.
+		$relay = new WP_REST_Response( $response->get_data(), $status );
+		if ( method_exists( $response, 'get_headers' ) ) {
+			$headers = $response->get_headers();
+			if ( is_array( $headers ) ) {
+				foreach ( array( 'X-WP-Total', 'X-WP-TotalPages' ) as $total_header ) {
+					foreach ( $headers as $name => $value ) {
+						if ( 0 === strcasecmp( (string) $name, $total_header ) && is_scalar( $value ) && ctype_digit( (string) $value ) ) {
+							$relay->header( $total_header, (string) $value );
+						}
+					}
+				}
+			}
+		}
+
+		return $relay;
 	}
 	/**
 	 * Returns the configured Core app token source without exposing the token.

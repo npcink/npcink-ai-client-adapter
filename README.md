@@ -386,6 +386,11 @@ The page default view shows:
 - a `Connection readiness` checklist covering suite dependencies, paired
   client keys, and signed-request verification (connection scope only;
   proposal and approval state stay in Core);
+- a dependency contract notice naming which suite component is too old when
+  plugins are active but contract minimums fail;
+- a collapsed `Recent client errors` disclosure with bounded
+  connection-scope diagnostics (time, route, status, error code); Core
+  Governance Audit remains the governance log;
 - a read-only boundary hygiene notice when paired keys exist alongside
   active administrator Application Passwords;
 - a simple Application Password connection for clients with a dedicated
@@ -852,7 +857,8 @@ Proposal-required write flow:
 3. Core stores the proposal and WordPress approval state.
 4. OpenClaw polls `GET /proposals/{proposal_id}` through the adapter until Core
    returns an approved or rejected status. `GET /proposals?limit=...` is
-   available for list views.
+   available for list views; Core's collection pagination totals are relayed
+   as `X-WP-Total`/`X-WP-TotalPages` response headers.
 5. A human approves the proposal in the Core admin (or a WordPress
    administrator session uses the unified
    `POST /proposals/{proposal_id}/approve-and-execute` action). Core remains
@@ -888,7 +894,7 @@ Proposal-required write flow:
 	   `npcink-abilities-toolkit/restore-media-backup`,
 	   `npcink-abilities-toolkit/adopt-cloud-media-derivative`,
 	   `npcink-abilities-toolkit/rename-media-file`,
-	   `npcink-abilities-toolkit/delete-media-permanently`, `npcink-abilities-toolkit/reply-comment`,
+	   `npcink-abilities-toolkit/delete-media-permanently`, `npcink-abilities-toolkit/delete-attachment`, `npcink-abilities-toolkit/reply-comment`,
    `npcink-abilities-toolkit/trash-comment`, or `npcink-abilities-toolkit/approve-comment` through
    `POST /proposals/{proposal_id}/execute` or
    `POST /execute-approved-proposal`.
@@ -1146,6 +1152,16 @@ CLI profile:
 MAA_ADAPTER_ACCEPTANCE_PROFILE=local composer accept:local-ai-client
 ```
 
+Run the complete local development check, including deterministic gates,
+WordPress smoke (`limit=abc` validation), package-install smoke, signed client
+acceptance, and the non-destructive proposal fixture:
+
+```bash
+MAA_ADAPTER_ACCEPTANCE_PROFILE=local \
+MAA_ADAPTER_ACCEPTANCE_INSECURE_LOCAL_TLS=1 \
+composer accept:local-dev
+```
+
 Run the signed local AI client fixture acceptance pass:
 
 ```bash
@@ -1157,6 +1173,12 @@ client cannot self-approve through the unified route, and verifies that the CLI
 refuses final Adapter execution without `--intent=commit`. To run the final
 human-approval-plus-execute fixture, set `MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1`;
 the script deletes the created draft post with WP-CLI by default.
+
+For the real HTTPS governed attachment-deletion fixture, use
+`composer accept:local-ai-client-flagged-media` with explicit commit opt-in.
+It checks both branch policies, Core evidence, duplicate refusal, backup restore
+and run-owned attachment cleanup. Owner dependencies must be present in the
+actual HTTP catalog. See [the flagged-media acceptance guide](docs/local-flagged-media-https-acceptance.md).
 
 Set `MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_*`,
 `MAA_ADAPTER_ACCEPTANCE_PREFLIGHT_PROPOSAL_ID`, or
@@ -1193,3 +1215,18 @@ readback reports no failed block reads, image markup has non-empty `src` and
 Gutenberg-native spacing. Set `MAA_ADAPTER_KEEP_VISUAL_ACCEPTANCE_FIXTURES=1`
 with `MAA_ADAPTER_VISUAL_ACCEPTANCE_OUT=/path/to/manifest.json` when a retained
 fixture is needed for browser viewport review.
+
+The plan bridge also accepts `npcink-abilities-toolkit/build-flagged-media-removal-plan`:
+one manual-only Core batch with exactly one governed attachment deletion and
+bounded operator-reviewed exact URL patches. Toolkit owns branch evidence,
+retained backup manifests and deleted-attachment restoration. The existing
+`restore-media-backup` execution profile forwards the original deleted id and
+`flagged_delete_*` backup id; Toolkit requires administrator/upload authority,
+refuses occupied file targets and returns a newly created attachment id.
+
+Flagged-media integration acceptance (disposable attachments only):
+`WP_PATH=/path/to/site WP_CLI=/path/to/wp composer accept:flagged-media`.
+This signs Adapter requests, verifies both manual-approval branches, and restores
+a deleted governed attachment through the existing restore execution profile.
+Core, Toolkit, and Adapter must load the intended checkout revisions. The fixture
+removes its own keys, records, attachments, and backups on exit.

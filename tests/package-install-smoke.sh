@@ -89,6 +89,7 @@ run_wp() {
 }
 
 restore_original_plugin() {
+	local restore_exit=$?
 	set +e
 	if [[ -d "$PLUGIN_DIR" && ! -L "$PLUGIN_DIR" ]]; then
 		run_wp plugin deactivate "$PLUGIN_SLUG" >/dev/null 2>&1 || true
@@ -98,24 +99,29 @@ restore_original_plugin() {
 	fi
 
 	if [[ "$RESTORE_KIND" == "symlink" && -n "$RESTORE_TARGET" ]]; then
-		ln -s "$RESTORE_TARGET" "$PLUGIN_DIR"
+		ln -s "$RESTORE_TARGET" "$PLUGIN_DIR" || restore_exit=1
 	elif [[ "$RESTORE_KIND" == "directory" && -n "$BACKUP_DIR" && -d "$BACKUP_DIR/$PLUGIN_SLUG" ]]; then
-		mv "$BACKUP_DIR/$PLUGIN_SLUG" "$PLUGIN_DIR"
+		if ! mv "$BACKUP_DIR/$PLUGIN_SLUG" "$PLUGIN_DIR"; then
+			echo "[fail] Plugin restore failed; original retained at $BACKUP_DIR/$PLUGIN_SLUG" >&2
+			exit 1
+		fi
 	fi
 
-	if [[ "$RESTORE_STATUS" == "active" || "$RESTORE_STATUS" == "active-network" ]]; then
-		run_wp plugin activate "$PLUGIN_SLUG" >/dev/null 2>&1 || true
+	if [[ "$RESTORE_STATUS" == "active-network" ]]; then
+		run_wp plugin activate "$PLUGIN_SLUG" --network >/dev/null 2>&1 || restore_exit=1
+	elif [[ "$RESTORE_STATUS" == "active" ]]; then
+		run_wp plugin activate "$PLUGIN_SLUG" >/dev/null 2>&1 || restore_exit=1
 	fi
 
 	if [[ -n "$BACKUP_DIR" ]]; then
 		rm -rf "$BACKUP_DIR"
 	fi
+	exit "$restore_exit"
 }
-trap restore_original_plugin EXIT
 
 run_wp core is-installed >/dev/null
 
-RESTORE_STATUS="$(run_wp plugin list --name="$PLUGIN_SLUG" --field=status --skip-update-check 2>/dev/null || true)"
+RESTORE_STATUS="$(run_wp plugin list --name="$PLUGIN_SLUG" --field=status --skip-update-check)"
 if [[ -L "$PLUGIN_DIR" ]]; then
 	RESTORE_KIND="symlink"
 	RESTORE_TARGET="$(readlink "$PLUGIN_DIR")"
@@ -125,6 +131,8 @@ elif [[ -d "$PLUGIN_DIR" ]]; then
 	BACKUP_DIR="$(mktemp -d)"
 	mv "$PLUGIN_DIR" "$BACKUP_DIR/$PLUGIN_SLUG"
 fi
+
+trap restore_original_plugin EXIT
 
 run_wp plugin install "$PACKAGE_PATH" --force >/dev/null
 run_wp plugin activate "$PLUGIN_SLUG" >/dev/null

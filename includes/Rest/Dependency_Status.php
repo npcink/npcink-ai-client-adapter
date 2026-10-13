@@ -26,6 +26,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Dependency_Status {
 
 	/**
+	 * Canonical dependency keys, in status() order.
+	 *
+	 * Every keyed surface in this class (availability probes, labels, and
+	 * contract checks) derives from these constants, so adding or renaming a
+	 * dependency touches the definition once.
+	 *
+	 * @var array<int,string>
+	 */
+	const DEPENDENCY_KEYS = array( 'npcink-governance-core', 'wordpress-abilities-api', 'npcink-abilities-toolkit' );
+
+	/**
+	 * The subset of dependencies whose runtime contracts Adapter checks.
+	 *
+	 * @var array<int,string>
+	 */
+	const CONTRACT_KEYS = array( 'npcink-governance-core', 'npcink-abilities-toolkit' );
+
+	/**
 	 * Upstream dispatch service for live route availability.
 	 *
 	 * @var Upstream_Dispatch
@@ -53,6 +71,70 @@ final class Dependency_Status {
 	 */
 	public function __construct( Upstream_Dispatch $upstream_dispatch ) {
 		$this->upstream_dispatch = $upstream_dispatch;
+	}
+
+	/**
+	 * Returns live availability per dependency key without building the service stack.
+	 *
+	 * Single source of truth for the detector probes: the instance-based
+	 * status() and the static admin-notice helper both read this map, so a
+	 * detector change cannot diverge between the two.
+	 *
+	 * @return array<string,bool> Availability keyed by dependency key.
+	 */
+	public static function dependency_availability(): array {
+		$routes = function_exists( 'rest_get_server' ) ? rest_get_server()->get_routes() : array();
+
+		return array(
+			'npcink-governance-core'   => isset( $routes['/npcink-governance-core/v1/capabilities'] ),
+			'wordpress-abilities-api'  => isset( $routes['/wp-abilities/v1/abilities'] ),
+			'npcink-abilities-toolkit' => function_exists( 'npcink_abilities_toolkit_get_registered' ),
+		);
+	}
+
+	/**
+	 * Returns the missing dependency keys without building the service stack.
+	 *
+	 * Cheap enough for admin-page notices: the checks are in-memory route
+	 * registry lookups plus a function_exists probe.
+	 *
+	 * @return array<int,string> Missing dependency keys.
+	 */
+	public static function missing_dependency_keys(): array {
+		$availability = self::dependency_availability();
+		$missing      = array();
+		foreach ( $availability as $key => $available ) {
+			if ( ! $available ) {
+				$missing[] = (string) $key;
+			}
+		}
+
+		return $missing;
+	}
+
+	/**
+	 * Maps a dependency key to its operator-facing label.
+	 *
+	 * @param string $key Dependency key such as npcink-governance-core.
+	 * @return string Human-readable label.
+	 */
+	public static function dependency_label( string $key ): string {
+		$labels = array(
+			'npcink-governance-core'   => 'Npcink Governance Core',
+			'wordpress-abilities-api'  => 'WordPress Abilities API',
+			'npcink-abilities-toolkit' => 'Npcink Abilities Toolkit',
+		);
+
+		return isset( $labels[ $key ] ) ? $labels[ $key ] : $key;
+	}
+
+	/**
+	 * Returns the dependency keys whose runtime contracts Adapter checks.
+	 *
+	 * @return array<int,string> Contract-checked dependency keys.
+	 */
+	public static function contract_dependency_keys(): array {
+		return self::CONTRACT_KEYS;
 	}
 
 	/**
@@ -94,7 +176,8 @@ final class Dependency_Status {
 	 * @return WP_Error|null
 	 */
 	public function missing_for_route( string $route ): ?WP_Error {
-		if ( 0 === strpos( $route, '/npcink-governance-core/v1/' ) && ! $this->upstream_dispatch->rest_route_available( '/npcink-governance-core/v1/capabilities' ) ) {
+		$availability = self::dependency_availability();
+		if ( 0 === strpos( $route, '/npcink-governance-core/v1/' ) && ! (bool) ( $availability['npcink-governance-core'] ?? false ) ) {
 			return new WP_Error(
 				'npcink_openclaw_adapter_missing_dependency',
 				__( 'Npcink Governance Core is required before Adapter can read capabilities, create proposals, or run commit preflight.', 'npcink-ai-client-adapter' ),
@@ -107,7 +190,7 @@ final class Dependency_Status {
 			);
 		}
 
-		if ( 0 === strpos( $route, '/wp-abilities/v1/' ) && ! $this->upstream_dispatch->rest_route_available( '/wp-abilities/v1/abilities' ) ) {
+		if ( 0 === strpos( $route, '/wp-abilities/v1/' ) && ! (bool) ( $availability['wordpress-abilities-api'] ?? false ) ) {
 			return new WP_Error(
 				'npcink_openclaw_adapter_missing_dependency',
 				__( 'WordPress Abilities API is required before Adapter can execute read abilities or approved write abilities.', 'npcink-ai-client-adapter' ),
@@ -129,32 +212,46 @@ final class Dependency_Status {
 	 * @return array{items:array<string,array<string,mixed>>,missing:array<int,string>}
 	 */
 	public function status(): array {
-		$items   = array(
+		$availability = self::dependency_availability();
+		// Per-dependency metadata; label and availability come from the
+		// shared helpers so key strings and probes stay single-source.
+		/**
+		 * @var array<string,array<string,mixed>> $metadata
+		 */
+		$metadata = array(
 			'npcink-governance-core'   => array(
-				'label'        => 'Npcink Governance Core',
 				'slug'         => 'npcink-governance-core',
 				'slug_status'  => 'planned',
 				'required_for' => array( 'capabilities', 'proposals', 'commit_preflight', 'approved_execution' ),
-				'available'    => $this->upstream_dispatch->rest_route_available( '/npcink-governance-core/v1/capabilities' ),
 				'detector'     => 'rest_route:/npcink-governance-core/v1/capabilities',
 			),
 			'wordpress-abilities-api'  => array(
-				'label'        => 'WordPress Abilities API',
 				'slug'         => 'wordpress-core',
 				'slug_status'  => 'platform',
 				'required_for' => array( 'read_ability_execution', 'approved_execution' ),
-				'available'    => $this->upstream_dispatch->rest_route_available( '/wp-abilities/v1/abilities' ),
 				'detector'     => 'rest_route:/wp-abilities/v1/abilities',
 			),
 			'npcink-abilities-toolkit' => array(
-				'label'        => 'Npcink Abilities Toolkit',
 				'slug'         => 'npcink-abilities-toolkit',
 				'slug_status'  => 'wordpress_org_declared',
 				'required_for' => array( 'reference_abilities', 'execution_profiles' ),
-				'available'    => function_exists( 'npcink_abilities_toolkit_get_registered' ),
 				'detector'     => 'function:npcink_abilities_toolkit_get_registered',
 			),
 		);
+
+		$items = array();
+		foreach ( self::DEPENDENCY_KEYS as $key ) {
+			// Shared label/availability values merge last so per-dependency
+			// metadata can never silently override them.
+			$items[ $key ] = array_merge(
+				isset( $metadata[ $key ] ) && is_array( $metadata[ $key ] ) ? $metadata[ $key ] : array(),
+				array(
+					'label'     => self::dependency_label( $key ),
+					'available' => (bool) ( $availability[ $key ] ?? false ),
+				)
+			);
+		}
+
 		$missing = array();
 		foreach ( $items as $key => $item ) {
 			if ( empty( $item['available'] ) ) {
