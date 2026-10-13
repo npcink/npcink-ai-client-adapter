@@ -67,4 +67,9 @@ else
 	run_acceptance accept:local-ai-client-fixture
 fi
 
+if [[ "${MAA_ADAPTER_FIXTURE_FLAGGED_MEDIA:-}" == "1" ]]; then
+	echo "[local-dev] real HTTPS flagged-media deletion and restoration fixtures"
+	run_acceptance accept:local-ai-client-flagged-media
+fi
+
 echo "local development checks and acceptance: ok"

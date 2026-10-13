@@ -1174,6 +1174,12 @@ refuses final Adapter execution without `--intent=commit`. To run the final
 human-approval-plus-execute fixture, set `MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1`;
 the script deletes the created draft post with WP-CLI by default.
 
+For the real HTTPS governed attachment-deletion fixture, use
+`composer accept:local-ai-client-flagged-media` with explicit commit opt-in.
+It checks both branch policies, Core evidence, duplicate refusal, backup restore
+and run-owned attachment cleanup. Owner dependencies must be present in the
+actual HTTP catalog. See [the flagged-media acceptance guide](docs/local-flagged-media-https-acceptance.md).
+
 Set `MAA_ADAPTER_ACCEPTANCE_SENSITIVE_READ_*`,
 `MAA_ADAPTER_ACCEPTANCE_PREFLIGHT_PROPOSAL_ID`, or
 `MAA_ADAPTER_ACCEPTANCE_COMMIT_PROPOSAL_ID` only for explicit sensitive-read,

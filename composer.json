@@ -21,11 +21,13 @@
     "test:security-hardening": "php tests/security-hardening-behavior.php",
     "test:verification-supplement": "php tests/verification-supplement-behavior.php",
     "test:local-dev-acceptance": "bash tests/local-dev-acceptance-behavior.sh",
+    "test:flagged-media-https-fixture": "bash tests/flagged-media-https-fixture-behavior.sh",
     "test:ai-review-gate": "bash scripts/verify-ai-review.sh --self-test",
     "smoke:wp": "bash tests/smoke-wp.sh",
     "smoke:package-install": "bash tests/package-install-smoke.sh",
     "accept:local-ai-client": "bash tests/local-ai-client-acceptance.sh",
     "accept:local-ai-client-fixture": "bash tests/local-ai-client-fixture-acceptance.sh",
+    "accept:local-ai-client-flagged-media": "bash tests/local-ai-client-flagged-media-fixture.sh",
     "accept:local-dev": "bash tests/local-dev-acceptance.sh",
     "accept:openclaw-zhihu-atomics": "bash tests/openclaw-zhihu-atomics-acceptance.sh",
     "accept:block-theme-openclaw": "bash tests/block-theme-openclaw-acceptance.sh",
@@ -57,6 +59,7 @@
       "@test:verification-supplement",
       "@test:ai-review-gate",
       "@test:local-dev-acceptance",
+      "@test:flagged-media-https-fixture",
       "@check:doc-routes",
       "@test"
     ]
