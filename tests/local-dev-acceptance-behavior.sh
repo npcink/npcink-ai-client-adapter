@@ -42,7 +42,7 @@ for kind in directory symlink; do
 done
 unset MAA_ADAPTER_PACKAGE_SMOKE_ZIP
 export COMPOSER_BIN="$task_tmp/composer" MOCK_LOG="$task_tmp/calls"
-bash "$ROOT_DIR/tests/local-dev-acceptance.sh" > "$task_tmp/output" 2>&1
+env -u MAA_ADAPTER_FIXTURE_FLAGGED_MEDIA -u MAA_ADAPTER_FIXTURE_ALLOW_COMMIT bash "$ROOT_DIR/tests/local-dev-acceptance.sh" > "$task_tmp/output" 2>&1
 cat > "$task_tmp/expected" <<'EXPECTED'
 test:all
 analyse:php
@@ -56,6 +56,12 @@ accept:local-ai-client
 accept:local-ai-client-fixture
 EXPECTED
 diff -u "$task_tmp/expected" "$MOCK_LOG"
+: > "$MOCK_LOG"
+if MAA_ADAPTER_FIXTURE_FLAGGED_MEDIA=1 MAA_ADAPTER_FIXTURE_ALLOW_COMMIT=1 MOCK_FAIL=accept:local-ai-client-flagged-media bash "$ROOT_DIR/tests/local-dev-acceptance.sh" > "$task_tmp/output" 2>&1; then
+  echo 'Requested flagged-media gate failure must fail aggregate acceptance' >&2; exit 1
+fi
+test "$(tail -1 "$MOCK_LOG")" = accept:local-ai-client-flagged-media
+! grep -q 'local development checks and acceptance: ok' "$task_tmp/output"
 for failure in analyse:php smoke:package-install; do
   : > "$MOCK_LOG"
   if MOCK_FAIL="$failure" bash "$ROOT_DIR/tests/local-dev-acceptance.sh" > "$task_tmp/output" 2>&1; then echo "Expected gate failure" >&2; exit 1; fi
