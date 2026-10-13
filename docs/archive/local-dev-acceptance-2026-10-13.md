@@ -55,7 +55,9 @@ updated by this patch and an unrelated Toolbox documentation assertion failure
 (`governed backup manifest`) in another active working tree. Cross-repository
 closeout must not be called complete with any failed repository gate. The next
 run passed Adapter, Toolkit, Core and Toolbox; Cloud Addon failed its PR-body
-fixture check in a separate active working tree.
+fixture check in a separate active working tree. A final run at
+2026-10-13T05:35:06Z then passed all seven rows. The signed final-write follow-up
+is tracked in [the 0.4.3 candidate acceptance](2026-10-13-adapter-0.4.3-release-acceptance.md).
 
 Revert this focused acceptance patch to roll back. The installer restores the
 original plugin and activation status; no plugin schema migration is introduced.

@@ -5,7 +5,7 @@ Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.0
 Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
-Stable tag: 0.4.2
+Stable tag: 0.4.3
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ Adapter health and help routes can report dependency status. Routes that require
 3. WordPress Application Password fallback connection flow for clients that use a dedicated secret field or credential vault.
 
 == Changelog ==
+
+= 0.4.3 =
+
+* Add an explicit post-Core execution profile for `npcink-abilities-toolkit/delete-attachment` on hosts providing that Toolkit ability; require deletion policy branch, operator reason, idempotency key, approval and commit preflight.
+* Add a complete local development acceptance command covering deterministic gates, WordPress fixtures, fresh package installation and restoration, and signed client contract checks; reject incomplete or skipped smoke passes.
+* Preserve the original plugin on package smoke prerequisite failures, restore network activation correctly, and accept the standard Local.app MySQL socket setting in Plugin Check.
+* Keep the 0.4.2 non-numeric `limit` rejection on both list routes and test media-deletion proposals without current Core branch evidence as fail-closed.
 
 = 0.4.2 =
 
