@@ -271,7 +271,7 @@ function maa_adapter_smoke_assert_contract_snapshot( array $payload, string $lab
 		'toolkit_plugin_min_version'           => '0.5.3',
 		'execution_profile_registry_hash'      => 'sha256:94b64af7340b48fae0ee3c51eb05b7fb6844e5519a10356b7240ae2bd518ae21',
 		'supported_execute_ability_ids_hash'   => 'sha256:1bd7df88f161066cb7c68d890224e37073bdb6a5c1bc2e9d5857d4c2d6e418f9',
-		'supported_plan_ability_ids_hash'      => 'sha256:3474b36bb21317614cdc3401681f18b9c41039716e26581c33395d3938ff4831',
+		'supported_plan_ability_ids_hash'      => 'sha256:f9beab23f14b0497bc768b50cb6ff28a16050f95716435334b4fb089e29f52f4',
 		'max_execution_actions'                => 200,
 		'core_proxy_execute'                   => false,
 		'commit_execution'                     => false,

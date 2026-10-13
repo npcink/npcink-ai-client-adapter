@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Npcink AI Client Adapter 0.4.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-"
 "adapter\n"
-"POT-Creation-Date: 2026-10-13T01:50:28+00:00\n"
+"POT-Creation-Date: 2026-10-13T06:19:46+00:00\n"
 "PO-Revision-Date: 2026-09-04 19:05+0800\n"
 "Last-Translator: Npcink <dev@npcink.local>\n"
 "Language-Team: Chinese (China) <zh_CN@li.org>\n"
@@ -1404,22 +1404,44 @@ msgid ""
 msgstr "delete-media-permanently 执行输入必须指向一个已存在的附件。"
 
 #: includes/Rest/Execution_Profile_Registry.php:447
+msgid ""
+"delete-attachment deletion_policy_branch must be illegal_content_no_backup "
+"or governed_with_backup."
+msgstr "delete-attachment 的 deletion_policy_branch 必须为 illegal_content_no_backup 或 governed_with_backup。"
+
+#: includes/Rest/Execution_Profile_Registry.php:453
+msgid "delete-attachment execution input must include attachment_id."
+msgstr "delete-attachment 执行输入必须包含 attachment_id。"
+
+#: includes/Rest/Execution_Profile_Registry.php:459
+msgid "delete-attachment execution input must include an operator reason."
+msgstr "delete-attachment 执行输入必须包含操作人员填写的原因。"
+
+#: includes/Rest/Execution_Profile_Registry.php:463
+msgid "delete-attachment execution input must include idempotency_key."
+msgstr "delete-attachment 执行输入必须包含 idempotency_key。"
+
+#: includes/Rest/Execution_Profile_Registry.php:467
+msgid "delete-attachment execution input must target an existing attachment."
+msgstr "delete-attachment 执行输入必须指向一个已存在的附件。"
+
+#: includes/Rest/Execution_Profile_Registry.php:477
 msgid "reply-comment content_format must be html, markdown, or plain."
 msgstr "reply-comment 的 content_format 必须是 html、markdown 或 plain。"
 
-#: includes/Rest/Execution_Profile_Registry.php:453
+#: includes/Rest/Execution_Profile_Registry.php:483
 msgid "reply-comment execution input must include comment_id."
 msgstr "reply-comment 执行输入必须包含 comment_id。"
 
-#: includes/Rest/Execution_Profile_Registry.php:458
+#: includes/Rest/Execution_Profile_Registry.php:488
 msgid "reply-comment execution input must include content."
 msgstr "reply-comment 执行输入必须包含 content。"
 
-#: includes/Rest/Execution_Profile_Registry.php:467
+#: includes/Rest/Execution_Profile_Registry.php:497
 msgid "trash-comment execution input must include comment_id."
 msgstr "trash-comment 执行输入必须包含 comment_id。"
 
-#: includes/Rest/Execution_Profile_Registry.php:477
+#: includes/Rest/Execution_Profile_Registry.php:507
 msgid "approve-comment execution input must include comment_id."
 msgstr "approve-comment 执行输入必须包含 comment_id。"
 
