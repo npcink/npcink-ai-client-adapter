@@ -122,8 +122,16 @@ run_wp() {
 	"$WP_CLI_PHP" "${php_args[@]}" "$WP_CLI_BIN" --path="$WP_PATH" "$@"
 }
 
+provider_log_marker="npcink-provider-log-$("$NODE_BIN" -e 'process.stdout.write(require("node:crypto").randomBytes(12).toString("hex"))')"
+post_id=""
+provider_log_installed=0
 tmp_dir="$(mktemp -d)"
 cleanup() {
+	if [[ "$provider_log_installed" == "1" ]]; then
+		MAA_PROVIDER_LOG_CLEANUP_POST="$CLEANUP_POST" MAA_PROVIDER_LOG_MODE=remove MAA_PROVIDER_LOG_MARKER="$provider_log_marker" run_wp eval-file "$ROOT_DIR/tests/provider-log-acceptance-wp.php" >/dev/null || true
+	elif [[ "$CLEANUP_POST" == "1" && "$post_id" =~ ^[0-9]+$ && "$post_id" -gt 0 ]]; then
+		run_wp post delete "$post_id" --force >/dev/null || true
+	fi
 	rm -rf "$tmp_dir"
 }
 trap cleanup EXIT
@@ -184,7 +192,7 @@ cat >"$proposal_body" <<JSON
   "summary": "Local AI client fixture proposal for Adapter release acceptance.",
   "input": {
     "title": "Adapter CLI fixture draft",
-    "content": "Adapter CLI fixture draft created through the signed local client acceptance flow.",
+    "content": "Adapter CLI fixture draft created through the signed local client acceptance flow. $provider_log_marker",
     "content_format": "plain",
     "dry_run": true,
     "commit": false
@@ -243,6 +251,10 @@ fi
 echo "[accept-fixture] approving the pending proposal as a WordPress administrator through Core"
 approve_proposal_as_admin "$proposal_id" || fail "Human approval through the Core admin surface failed."
 
+echo "[accept-fixture] installing a marker-scoped real provider-log probe"
+MAA_PROVIDER_LOG_ABILITY="${MAA_ADAPTER_PROVIDER_LOG_ABILITY:-}" MAA_PROVIDER_LOG_MODE=install MAA_PROVIDER_LOG_MARKER="$provider_log_marker" MAA_PROVIDER_LOG_PROVIDER="${MAA_ADAPTER_PROVIDER_LOG_PROVIDER:-ollama}" MAA_PROVIDER_LOG_MODEL="${MAA_ADAPTER_PROVIDER_LOG_MODEL:-qwen3.5:0.8b}" run_wp eval-file "$ROOT_DIR/tests/provider-log-acceptance-wp.php" >&2
+provider_log_installed=1
+
 echo "[accept-fixture] executing the human-approved proposal through the signed CLI"
 run_cli_json "$execute_out" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/execute" --intent=commit
 execute_status="$(json_field "$execute_out" status)" || fail "Execution did not return status."
@@ -292,6 +304,9 @@ post_status="$(run_wp post get "$post_id" --field=post_status)" || fail "Created
 post_title="$(run_wp post get "$post_id" --field=post_title)" || fail "Created draft post title was not readable through WP-CLI."
 [[ "$post_title" == "Adapter CLI fixture draft" ]] || fail "Created post title mismatch: $post_title"
 
+echo "[accept-fixture] checking persisted AI Request Log correlation"
+MAA_PROVIDER_LOG_MODE=verify MAA_PROVIDER_LOG_MARKER="$provider_log_marker" MAA_PROVIDER_LOG_EXECUTION_FILE="$execute_out" run_wp eval-file "$ROOT_DIR/tests/provider-log-acceptance-wp.php" >&2
+
 echo "[accept-fixture] verifying duplicate execution is rejected"
 set +e
 "${CLI[@]}" request "${COMMON_ARGS[@]}" POST "/proposals/$proposal_id/execute" --intent=commit >"$duplicate_out" 2>"$duplicate_err"
@@ -316,6 +331,7 @@ assert_json_field_equals "$executed_status_out" adapter_status.execution_record.
 if [[ "$CLEANUP_POST" == "1" && "$post_id" =~ ^[0-9]+$ && "$post_id" -gt 0 ]]; then
 	echo "[accept-fixture] cleaning created draft post $post_id with WP-CLI"
 	run_wp post delete "$post_id" --force >/dev/null
+	post_id=""
 fi
 
 echo "local AI client fixture acceptance: ok"
