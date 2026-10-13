@@ -5,7 +5,7 @@ Requires at least: 7.0
 Tested up to: 7.1
 Requires PHP: 8.0
 Requires Plugins: npcink-abilities-toolkit, npcink-governance-core
-Stable tag: 0.4.1
+Stable tag: 0.4.2
 License: GPL-2.0-or-later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,14 @@ Adapter health and help routes can report dependency status. Routes that require
 3. WordPress Application Password fallback connection flow for clients that use a dedicated secret field or credential vault.
 
 == Changelog ==
+
+= 0.4.2 =
+
+* Reject non-numeric `limit` query parameters on proposal and sensitive read-request list routes with the standard WordPress REST 400 error envelope instead of silently coercing them to `1`.
+* Unify consumer-facing REST error details and complete `/help` and connection-manifest discovery for the shipped route surface, including actionable administrator-session and malformed-id responses.
+* Synchronize consumer documentation with the 26 explicit post-Core execution profiles and add a route-drift release gate.
+* Surface missing dependencies, contract mismatches, and recent client errors in the Adapter admin page; clean up tracked fallback Application Password credentials on revocation and uninstall.
+* Mark the 0.4.0 administrator-session restriction for unified `approve-and-execute` as a breaking change for signed clients.
 
 = 0.4.1 =
 

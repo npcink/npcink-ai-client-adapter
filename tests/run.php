@@ -1501,6 +1501,7 @@ maa_adapter_assert( false !== strpos( $plan_batch_metadata, "\$plan['atomicity']
 $plan_write_input_validation = substr( $controller_contract, (int) strpos( $controller_contract, 'public function validate_plan_write_actions' ), 3000 );
 maa_adapter_assert( false !== strpos( $plan_write_input_validation, "\$proposal_ready = array_key_exists( 'proposal_ready', \$raw_action )" ) && false !== strpos( $plan_write_input_validation, "\$requires_input = array_values( array_map( 'sanitize_key', (array) ( \$raw_action['requires_input'] ?? array() ) ) )" ) && false !== strpos( $plan_write_input_validation, "'npcink_openclaw_adapter_plan_action_input_invalid'" ), 'Adapter rejects malformed and requires-input plan actions before Core proposal forwarding.' );
 maa_adapter_assert( false !== strpos( $controller, 'min( self::MAX_PROPOSAL_LIST_LIMIT, max( 1, absint' ), 'Adapter list routes clamp caller supplied limits.' );
+maa_adapter_assert( 2 <= substr_count( $controller, "'sanitize_callback' => 'rest_parse_request_arg'" ), 'Adapter list limit arguments preserve WordPress integer validation before sanitization.' );
 maa_adapter_assert( false === strpos( $controller, 'HTTP_USER_AGENT' ), 'Public pairing rate limit is not weakened by caller-controlled user agents.' );
 maa_adapter_assert( false !== strpos( $controller, "approve_device_pairing( string \$user_code, string \$admin_label = '' )" ), 'Controller accepts an administrator label during device pairing approval.' );
 maa_adapter_assert( false !== strpos( $controller_contract, '$admin_label = $this->bounded_text_field( $admin_label, 80 );' ), 'Controller bounds administrator device labels before storage.' );
@@ -2331,14 +2332,15 @@ foreach (
 		'Tested up to: 7.1',
 		'Requires PHP: 8.0',
 		'Requires Plugins: npcink-abilities-toolkit, npcink-governance-core',
-		'Stable tag: 0.4.1',
+		'Stable tag: 0.4.2',
 		'License: GPL-2.0-or-later',
 		'structured missing dependency error',
 		'machine-readable `client_policy`',
 		'local CLI also redacts profile paths',
 		'Npcink Governance Core remains the governance backend',
 		'npcink-abilities-toolkit/trash-post',
-		'= 0.4.1 =',
+		'= 0.4.2 =',
+		'Reject non-numeric `limit` query parameters',
 		'= 0.3.1 =',
 		'= 0.3.0 =',
 		'Add Adapter-declared Core and Abilities Toolkit compatibility floors to the machine-readable contract metadata',

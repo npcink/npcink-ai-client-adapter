@@ -2,7 +2,7 @@
 
 Status: complete
 Date: 2026-06-02
-Re-synced: 2026-10-11 against `npcink-ai-client-adapter` 0.4.1 (route surface
+Re-synced: 2026-10-13 against `npcink-ai-client-adapter` 0.4.2 (route surface
 and execution supported profiles refreshed; the original June dependency
 snapshot below is kept for history).
 
@@ -33,7 +33,7 @@ needed to connect OpenClaw to Core governance and WordPress Abilities API.
 
 ## Verified Routes
 
-The current Adapter route surface (re-synced to 0.4.1):
+The current Adapter route surface (re-synced to 0.4.2):
 
 - `GET /health`
 - `GET /help`
