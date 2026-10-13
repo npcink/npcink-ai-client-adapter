@@ -68,6 +68,13 @@ if ( 'prepare' === $action ) {
 
 $check( is_array( $state ) && preg_match( '/^adapter-flagged-https-[a-f0-9]{16}$/', $state['run'] ?? '' ), 'Invalid fixture cleanup state.' );
 $entries = $state['entries'];
+foreach ( $entries as $name => $entry ) {
+	$check( in_array( $name, array( 'governed_with_backup', 'illegal_content_no_backup' ), true ) && $entry['relative'] === $state['run'] . '/' . $name . '.png', 'Fixture path does not match its run and branch.' );
+	$check( is_int( $entry['attachment_id'] ) && $entry['attachment_id'] >= 0, 'Invalid fixture attachment identity.' );
+	if ( $entry['attachment_id'] > 0 ) {
+		$check( $entry['backup_id'] === Backup::id( $entry['attachment_id'], $state['run'] . '-' . $name ), 'Fixture backup identity does not match its run.' );
+	}
+}
 
 if ( 'approve' === $action ) {
 	$proposal_id = (string) getenv( 'MAA_FLAGGED_FIXTURE_PROPOSAL' );
@@ -107,7 +114,8 @@ if ( 'cleanup' === $action ) {
 				if ( get_post( $post->ID ) ) { $failures[] = 'fixture attachment remains'; }
 			}
 		}
-		$path = $upload['basedir'] . '/' . $relative;
+		$path = Backup::path( $relative );
+		$check( '' !== $path, 'Fixture cleanup path could not be safely resolved.' );
 		if ( is_file( $path ) && ! unlink( $path ) ) { $failures[] = 'fixture file remains'; }
 	}
 	$result = Backup::locked( static function () use ( $entries ) {

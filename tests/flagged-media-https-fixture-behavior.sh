@@ -68,4 +68,34 @@ grep -q 'Fixture cleanup failed; retain recovery state' "$work/output"
 state="$(cat "$work/state-path")"
 [[ -f "$state" ]] || { echo 'Cleanup failure lost recovery state.' >&2; exit 1; }
 rm -rf "$(dirname "$state")"
-echo 'Flagged-media HTTPS acceptance opt-in, site mismatch, evidence refusal and cleanup failure handling: ok'
+# Recovery state must not redirect cleanup outside its exact run-owned paths.
+export FLAGGED_TEST_HELPER="$ROOT_DIR/tests/flagged-media-https-fixture.php"
+cat >"$work/helper-bootstrap.php" <<'PHP'
+<?php
+namespace Npcink_Abilities_Toolkit\Support {
+ class Flagged_Media_Backup {
+  public static function id($id, $key) { return 'flagged_delete_' . substr(hash('sha256', $id . '|' . $key), 0, 24); }
+ }
+}
+namespace {
+ define('ABSPATH', __DIR__ . '/');
+ function get_users($args) { return array(1); }
+ function wp_set_current_user($id) {}
+ function wp_upload_dir() { return array('basedir' => __DIR__, 'error' => false); }
+ function get_posts($args) { file_put_contents(getenv('FLAGGED_TEST_ROOT') . '/mutation', 'unexpected'); return array(); }
+ require getenv('FLAGGED_TEST_HELPER');
+}
+PHP
+for invalid in traversal backup_identity; do
+ if [[ "$invalid" == traversal ]]; then
+  printf '{"run":"adapter-flagged-https-0123456789abcdef","entries":{"governed_with_backup":{"relative":"adapter-flagged-https-0123456789abcdef/../../unrelated.png","attachment_id":0}}}\n' >"$work/state.json"
+ else
+  printf '{"run":"adapter-flagged-https-0123456789abcdef","entries":{"governed_with_backup":{"relative":"adapter-flagged-https-0123456789abcdef/governed_with_backup.png","attachment_id":42,"backup_id":"unrelated-backup"}}}\n' >"$work/state.json"
+ fi
+ if MAA_FLAGGED_FIXTURE_STATE="$work/state.json" MAA_FLAGGED_FIXTURE_ACTION=cleanup php "$work/helper-bootstrap.php" >"$work/helper-output" 2>&1; then
+  echo 'Unsafe cleanup recovery state was accepted.' >&2; exit 1
+ fi
+ grep -q 'Fixture .* does not match' "$work/helper-output"
+ [[ ! -e "$work/mutation" ]] || { echo 'Unsafe state reached WordPress cleanup.' >&2; exit 1; }
+done
+echo 'Flagged-media HTTPS opt-in, site identity, evidence refusal and safe cleanup recovery: ok'
