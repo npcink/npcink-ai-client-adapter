@@ -22,9 +22,14 @@ root. No credentials or connection identifiers are included in this note.
   `core_proxy_execute=false`, `commit_execution=false`, and client self-approval
   forbidden. Core discovery exposed 209 abilities, including 165 Toolkit abilities.
 - The signed fixture created/read a governed proposal, rejected client
-  self-approval and refused execution without commit intent. The commit-enabled
-  signed fixture was not requested for this pass; final draft execution is covered
-  by the administrator WordPress fixture suite rather than a claimed signed E2E.
+  self-approval and refused execution without commit intent. A subsequent commit-enabled signed fixture attempt was blocked by the real
+  Core app rate limit while reading proposal status (HTTP 429), before approval
+  or draft creation. Successful signed final execution is not claimed; final
+  draft writes are covered by the administrator WordPress fixture suite.
+
+After merging Adapter master (including the new delete-attachment execution
+profile), the frozen registry and execute-id hashes were refreshed in the
+WordPress contract snapshot. This caught main-branch drift before closeout.
 
 ## Findings corrected during acceptance
 
@@ -48,7 +53,9 @@ are registered for cleanup.
 The central gate-running matrix initially exposed an Adapter text assertion
 updated by this patch and an unrelated Toolbox documentation assertion failure
 (`governed backup manifest`) in another active working tree. Cross-repository
-closeout must not be called complete while Toolbox remains red.
+closeout must not be called complete with any failed repository gate. The next
+run passed Adapter, Toolkit, Core and Toolbox; Cloud Addon failed its PR-body
+fixture check in a separate active working tree.
 
 Revert this focused acceptance patch to roll back. The installer restores the
 original plugin and activation status; no plugin schema migration is introduced.
