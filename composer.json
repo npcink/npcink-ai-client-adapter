@@ -43,7 +43,8 @@
     "check:doc-routes": "@php scripts/check-doc-route-drift.php",
     "pr:publish": "bash scripts/publish-pr.sh",
     "i18n:pot": "WP_CLI_BIN=\"${WP_CLI_BIN:-/tmp/wp-cli.phar}\"; php \"$WP_CLI_BIN\" i18n make-pot . languages/npcink-ai-client-adapter.pot --slug=npcink-ai-client-adapter --domain=npcink-ai-client-adapter --exclude=build,vendor,node_modules,packages,sj,tests,tools,docs --package-name=\"Npcink AI Client Adapter\"",
-    "package:release": "rm -rf build/npcink-ai-client-adapter build/npcink-ai-client-adapter.zip && mkdir -p build && rsync -a --delete --exclude-from=.distignore ./ build/npcink-ai-client-adapter/ && cd build && zip -qr npcink-ai-client-adapter.zip npcink-ai-client-adapter",
+    "package:release": "bash scripts/package-release.sh",
+    "test:package-reproducibility": "bash scripts/test-package-reproducibility.sh",
     "package:suite": "bash scripts/package-suite.sh",
     "plugin-check:release": "bash scripts/plugin-check-release.sh",
     "release:verify": [
@@ -51,7 +52,8 @@
       "@check:wporg",
       "@check:i18n",
       "@check:doc-routes",
-      "@plugin-check:release"
+      "@plugin-check:release",
+      "@test:package-reproducibility"
     ],
     "test:all": [
       "@lint:php",
