@@ -8,6 +8,11 @@ Before uploading this plugin to WordPress.org, run:
 composer release:verify
 ```
 
+`release:verify` also builds the package twice from the `.distignore` boundary
+and requires identical ZIP bytes. The package builder fixes timestamps,
+permissions and archive metadata so the checksum is bound to source content
+rather than the checkout's filesystem state.
+
 Before the SVN upload itself, verify what WordPress.org actually ships today
 — a git tag, changelog entry, or readme stable tag alone is not a release.
 0.3.3 had all three but was never committed to SVN, so the directory stayed
