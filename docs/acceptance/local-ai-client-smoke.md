@@ -112,8 +112,10 @@ records the historical handoff and intentionally retained Adapter ref.
 
 The [Adapter 0.4.3 RC3 review](adapter-043-rc3-2026-10-17/review.md) records the
 2026-10-17 frozen source manifest, exact compatibility revalidation, artifact
-checksums and proposed publication/rollback steps. It is pending operator
-publication approval; the historical snapshot and RC2 pins remain unchanged.
+checksums and proposed publication/rollback steps. The operator subsequently
+approved the Adapter-only release; the [publication closeout](../archive/2026-10-17-adapter-0.4.3-release-closeout.md)
+records the released tag, GitHub artifact and WordPress.org verification.
+The frozen manifest, historical snapshot and RC2 pins remain unchanged.
 
 For a local administrator-only runtime pass that provisions temporary Core
 read requests, set `MAA_ADAPTER_SMOKE_CREATE_READ_GRANTS=1` when running
