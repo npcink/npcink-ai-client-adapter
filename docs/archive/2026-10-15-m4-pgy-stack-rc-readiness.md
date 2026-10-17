@@ -87,7 +87,7 @@ stack-rc-2026-10-15-core-0.3.0-adapter-0.4.3-toolkit-0.7.0
 | 组件 | 版本 | 当前验收/矩阵 revision |
 | --- | --- | --- |
 | Governance Core | 0.3.0 | `48411354cdf25ba2970e6ef9cedf89715261ab2a` |
-| AI Client Adapter | 0.4.3 | `c96e85f4f689bb8e68bf183c2a852a5cad7aa1a5` |
+| AI Client Adapter | 0.4.3 | `eb73e503a8c102acd6f87b69f406ee4b94aac85f` |
 | Abilities Toolkit | 0.7.0 | `921d1dc7cb5661fef10ca8f83b781690c98034cb` |
 | Workflow Toolbox | — | `90eb43768a1fc32b98795393c0a21c8df9021a7a` |
 | Cloud Addon | 0.4.1 | `014fde9f44620320a8940b0e1f4e998cc04d3f00` |
@@ -122,3 +122,7 @@ worktree 已清理”。
 
 本次变更仅新增/更新文档，回滚为文档 revert。M4 临时资源已清理，不需要数据库
 迁移或服务回退；历史 Core/Toolkit tag 保持不变。
+
+后续状态见 [2026-10-17 会话收尾审视](2026-10-17-session-closeout-review.md)。
+本表 Adapter revision 更正为 amend 后的最终提交；其余内容保留 10 月 15 日快照，
+不能据此判断后续 tag、主线或跨仓工作区状态。

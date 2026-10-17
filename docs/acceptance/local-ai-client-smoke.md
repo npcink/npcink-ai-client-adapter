@@ -102,6 +102,14 @@ hostname, so a test loader that compares a host-plus-port string can create a
 false product failure. Fix the fixture and rerun the strict assertions instead
 of weakening correlation requirements.
 
+For Adapter closeout, report source merge, runtime acceptance, release publication,
+and branch/worktree disposition separately. Check the current default central
+matrix before making a cross-repository completion claim. Preserve named remote
+refs used by fixed manifests; a squash merge alone does not replace the exact
+source pin. Follow the platform's [publishing standard](../../../npcink-workflow-toolbox/docs/platform/pr-publishing-standard-v1.md)
+for shared publication and cleanup rules. The [2026-10-17 review](../archive/2026-10-17-session-closeout-review.md)
+records the historical handoff and intentionally retained Adapter ref.
+
 For a local administrator-only runtime pass that provisions temporary Core
 read requests, set `MAA_ADAPTER_SMOKE_CREATE_READ_GRANTS=1` when running
 `composer smoke:wp`. Core still redacts sensitive plan output; if a redacted
