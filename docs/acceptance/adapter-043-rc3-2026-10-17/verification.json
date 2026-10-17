@@ -1,0 +1,622 @@
+{
+  "candidate_id": "adapter-0.4.3-rc3-2026-10-17",
+  "candidate_manifest_sha256": "38abcf4d0a7ed60c220bc75083c67ffe05539e83388d9a5f452b44965360faf8",
+  "status": "engineering_revalidation_passed_pending_operator_publication_review",
+  "completed_at": "2026-10-17T06:11:03.150818+00:00",
+  "publication_authorized": false,
+  "matrices": {
+    "default": {
+      "generated_at": "2026-10-17T06:00:34+00:00",
+      "exit_code": 0,
+      "report_sha256": "86bbdeb601d41132817ff94a01a9b371b0252087edfc879d3af68a25d86fe5f4",
+      "rows": [
+        {
+          "name": "npcink-abilities-toolkit",
+          "path_source": "default",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-governance-core",
+          "path_source": "default",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-ai-client-adapter",
+          "path_source": "default",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-workflow-toolbox",
+          "path_source": "default",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-cloud-addon",
+          "path_source": "default",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-eval-lab",
+          "path_source": "default",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-ai-cloud",
+          "path_source": "default",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        }
+      ]
+    },
+    "candidate": {
+      "generated_at": "2026-10-17T06:01:20+00:00",
+      "exit_code": 0,
+      "report_sha256": "44cbd660a75895f23c2000b7f5bd837292e786052f371059f9ac53a1b09a15dd",
+      "rows": [
+        {
+          "name": "npcink-abilities-toolkit",
+          "path_source": "override",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-governance-core",
+          "path_source": "override",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-ai-client-adapter",
+          "path_source": "override",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-workflow-toolbox",
+          "path_source": "override",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-cloud-addon",
+          "path_source": "override",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-eval-lab",
+          "path_source": "override",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        },
+        {
+          "name": "npcink-ai-cloud",
+          "path_source": "override",
+          "dirty_count": 0,
+          "gate_status": "passed",
+          "gate_exit": 0
+        }
+      ]
+    }
+  },
+  "acceptance_events": [
+    {
+      "name": "cross-repo-release",
+      "command": [
+        "composer",
+        "acceptance:cross-repo-release"
+      ],
+      "started_at": "2026-10-17T06:04:49.167717+00:00",
+      "exit_code": 0,
+      "completed_at": "2026-10-17T06:09:05.385679+00:00",
+      "duration_seconds": 256.22
+    },
+    {
+      "name": "adapter-phpstan",
+      "command": [
+        "composer",
+        "analyse:php"
+      ],
+      "started_at": "2026-10-17T06:09:05.386267+00:00",
+      "exit_code": 0,
+      "completed_at": "2026-10-17T06:09:16.828731+00:00",
+      "duration_seconds": 11.44
+    },
+    {
+      "name": "adapter-phpcs",
+      "command": [
+        "composer",
+        "lint:standards"
+      ],
+      "started_at": "2026-10-17T06:09:16.829216+00:00",
+      "exit_code": 0,
+      "completed_at": "2026-10-17T06:09:18.547669+00:00",
+      "duration_seconds": 1.72
+    },
+    {
+      "name": "signed-client-contract",
+      "command": [
+        "composer",
+        "accept:local-ai-client"
+      ],
+      "started_at": "2026-10-17T06:09:18.547930+00:00",
+      "exit_code": 0,
+      "completed_at": "2026-10-17T06:09:19.897952+00:00",
+      "duration_seconds": 1.35
+    },
+    {
+      "name": "flagged-media-https",
+      "command": [
+        "composer",
+        "accept:local-ai-client-flagged-media"
+      ],
+      "started_at": "2026-10-17T06:09:19.898238+00:00",
+      "exit_code": 0,
+      "completed_at": "2026-10-17T06:09:29.708951+00:00",
+      "duration_seconds": 9.81
+    },
+    {
+      "name": "cli-tests",
+      "command": [
+        "npm",
+        "test"
+      ],
+      "started_at": "2026-10-17T06:09:29.709311+00:00",
+      "exit_code": 0,
+      "completed_at": "2026-10-17T06:09:30.057408+00:00",
+      "duration_seconds": 0.35
+    },
+    {
+      "name": "rc-version-matrix",
+      "command": [
+        "composer",
+        "rc:version-matrix"
+      ],
+      "started_at": "2026-10-17T06:09:30.057777+00:00",
+      "exit_code": 0,
+      "completed_at": "2026-10-17T06:09:30.355517+00:00",
+      "duration_seconds": 0.3
+    }
+  ],
+  "cross_repo_skip_count": 0,
+  "m4_wordpress_evidence": {
+    "core": {
+      "schema_version": "npcink_core_wordpress_smoke_evidence.v1",
+      "runner": "m4-docker",
+      "source_revision": "289ce777eff158e8f2d5088c30d90866efc87e2c",
+      "source_archive_sha256": "fc9a347b3431ed7ac064f3a4b7a8d0e4f61741779b0f8d51c3166875ab13281e",
+      "package_sha256": "71c752a7c100f58a4628646c071b72b1b862011fdaae776a8217d3ba6ad78fc4",
+      "toolkit_revision": "b09ad3008a027782f672d929e79c77ac7a01333e",
+      "toolkit_archive_sha256": "01b7337a5ead62449d04a15ed904ca44d6141037227fbdde9071157b890d963f",
+      "docker_server_version": "29.7.2",
+      "generated_at": "2026-10-17T06:06:41Z",
+      "profiles": {
+        "wordpress-7.0-php-8.0": {
+          "wordpress": "7.0",
+          "php": "8.0",
+          "assertions": 1614,
+          "installed_from_zip": true,
+          "status": "passed"
+        },
+        "wordpress-7.0-php-8.5": {
+          "wordpress": "7.0",
+          "php": "8.5",
+          "assertions": 1614,
+          "installed_from_zip": true,
+          "status": "passed"
+        }
+      }
+    },
+    "toolkit": {
+      "schema_version": "npcink_toolkit_wordpress_smoke_evidence.v1",
+      "runner": "m4-docker",
+      "source_revision": "b09ad3008a027782f672d929e79c77ac7a01333e",
+      "source_archive_sha256": "01b7337a5ead62449d04a15ed904ca44d6141037227fbdde9071157b890d963f",
+      "docker_server_version": "29.7.2",
+      "generated_at": "2026-10-17T06:02:26Z",
+      "profiles": {
+        "wordpress-6.9.4-php-8.0": {
+          "wordpress": "6.9.4",
+          "php": "8.0",
+          "assertions": 478,
+          "status": "passed"
+        },
+        "wordpress-7.0-php-8.5": {
+          "wordpress": "7.0",
+          "php": "8.5",
+          "assertions": 478,
+          "status": "passed"
+        }
+      }
+    }
+  },
+  "signed_limit_results": [
+    {
+      "route": "/proposals",
+      "status": 400,
+      "code": "rest_invalid_param"
+    },
+    {
+      "route": "/read-requests",
+      "status": 400,
+      "code": "rest_invalid_param"
+    }
+  ],
+  "provider_log_evidence": {
+    "log_id": "9d085390-bee0-46af-905b-5a0d57a16031",
+    "provider": "ollama",
+    "model": "qwen2.5:1.5b",
+    "status": "success",
+    "context": {
+      "proposal_id": "b61b99ac-3b11-4610-abbf-8d33c83552fb",
+      "correlation_id": "f233be06-a606-42c7-9c35-76c245d76196",
+      "adapter_request_id": "f0f56fe3-946b-461b-92f2-cec9d49fbe9e",
+      "npcink_governance_core": {
+        "proposal_id": "b61b99ac-3b11-4610-abbf-8d33c83552fb",
+        "correlation_id": "f233be06-a606-42c7-9c35-76c245d76196"
+      }
+    }
+  },
+  "sdk_provenance": {
+    "source_url": "https://downloads.wordpress.org/plugin/ai-provider-for-ollama.1.3.0.zip",
+    "version": "1.3.0",
+    "zip_sha256": "8c483f337b07c5dcb537444c09485208e3fa745430807a8f2905513fd5109e2c",
+    "bytes": 56547
+  },
+  "cloud_exact_sha_ci": [
+    {
+      "completed_at": "2026-10-17T05:51:34Z",
+      "conclusion": "success",
+      "head_sha": "6fddd93d03b712431c742eea30e722bbc87fafb6",
+      "html_url": "https://github.com/npcink/npcink-ai-cloud/actions/runs/39007356491/job/117323686308",
+      "name": "backend",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-17T05:45:26Z",
+      "conclusion": "success",
+      "head_sha": "6fddd93d03b712431c742eea30e722bbc87fafb6",
+      "html_url": "https://github.com/npcink/npcink-ai-cloud/actions/runs/39007356491/job/117322463275",
+      "name": "frontend",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-17T05:46:52Z",
+      "conclusion": "success",
+      "head_sha": "6fddd93d03b712431c742eea30e722bbc87fafb6",
+      "html_url": "https://github.com/npcink/npcink-ai-cloud/actions/runs/39007356458/job/117322442689",
+      "name": "Analyze (python)",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-17T05:46:37Z",
+      "conclusion": "success",
+      "head_sha": "6fddd93d03b712431c742eea30e722bbc87fafb6",
+      "html_url": "https://github.com/npcink/npcink-ai-cloud/actions/runs/39007356458/job/117322442582",
+      "name": "Analyze (javascript-typescript)",
+      "status": "completed"
+    },
+    {
+      "completed_at": "2026-10-17T05:44:32Z",
+      "conclusion": "success",
+      "head_sha": "6fddd93d03b712431c742eea30e722bbc87fafb6",
+      "html_url": "https://github.com/npcink/npcink-ai-cloud/actions/runs/39007356491/job/117322442558",
+      "name": "Secret scan",
+      "status": "completed"
+    }
+  ],
+  "artifacts": [
+    {
+      "filename": "npcink-ai-client-adapter-0.4.3.zip",
+      "source_revision": "d3b114f73029836277f42d04c292f661b255a332",
+      "sha256": "4356f90721d56b7484d42ad4a73b1ed0500295f21580ce75a656b5f9cba68fbc",
+      "bytes": 176899,
+      "purpose": "proposed Adapter publication artifact"
+    },
+    {
+      "filename": "npcink-governance-core-compatibility-test.zip",
+      "source_revision": "289ce777eff158e8f2d5088c30d90866efc87e2c",
+      "sha256": "71c752a7c100f58a4628646c071b72b1b862011fdaae776a8217d3ba6ad78fc4",
+      "bytes": 269974,
+      "purpose": "Core package tested on M4; not proposed for publication"
+    }
+  ],
+  "rollback_artifact": {
+    "purpose": "offline rollback package; not installed by this task",
+    "origin": "https://downloads.wordpress.org/plugin/npcink-ai-client-adapter.0.4.2.zip",
+    "version": "0.4.2",
+    "sha256": "727e7dbee11469313e1a50ce7c9cbd7ed4ca42b7ae3f4ec571502948996ebc3f",
+    "bytes": 175297
+  },
+  "site_before": {
+    "site_url": "https://magick-ai.local",
+    "environment": "local",
+    "wordpress": "7.1.3",
+    "php": "8.4.21",
+    "providers": [
+      "npcink-cloud"
+    ]
+  },
+  "site_after": {
+    "site_url": "https://magick-ai.local",
+    "providers": [
+      "npcink-cloud"
+    ],
+    "provider_marker_loaders": []
+  },
+  "cleanup": {
+    "started_at": "2026-10-17T06:09:30.671647+00:00",
+    "errors": [],
+    "completed_at": "2026-10-17T06:09:33.682799+00:00",
+    "passed": true
+  },
+  "initial_setup_attempt": "FPM cached original paths; rejected before business fixtures, restored, then OPcache revalidated and exact binding passed",
+  "approval_evidence": "automated administrator test context in this run; historical manual browser approval is not rerun",
+  "limits": [
+    "No tag, Release, SVN publication, npm publication or production deployment performed.",
+    "No Cloud runtime deployment or real-user observation performed.",
+    "Existing Core/Toolkit conventional tags remain historical; pinned compatibility SHAs are not replacement public releases.",
+    "Cloud Python CVE Upstream Watch run 39006725612 failed; exact source CI is separate from image readiness."
+  ],
+  "source_differences": [
+    {
+      "repo": "npcink-ai-client-adapter",
+      "sha": "d3b114f73029836277f42d04c292f661b255a332",
+      "baseline": "eb73e503a8c102acd6f87b69f406ee4b94aac85f",
+      "change_kinds": {
+        "documentation": 3
+      },
+      "commits": [
+        "d3b114f docs: close historical acceptance session and preserve exact source refs (#119)"
+      ]
+    },
+    {
+      "repo": "npcink-governance-core",
+      "sha": "289ce777eff158e8f2d5088c30d90866efc87e2c",
+      "baseline": "ed28f984153200a8362fcd0928bbb32b83636159",
+      "change_kinds": {
+        "documentation": 36
+      },
+      "commits": [
+        "289ce77 docs: publish weekly ownership audit and scoped cleanup receipts (#179)",
+        "95ef210 docs: publish weekly source and owner closeout evidence (#178)",
+        "9d15384 docs: publish RC2 verification and historical closeout batch (#177)",
+        "7904f5b docs: record post-tag audit refresh (#176)",
+        "243271e docs: record post-tag checkout drift (#175)",
+        "97c14bf docs: record snapshot tag publication (#174)",
+        "6cade13 docs: record final RC release evidence (#173)",
+        "08068d1 docs: record owner handoff acceptance (#172)"
+      ]
+    },
+    {
+      "repo": "npcink-abilities-toolkit",
+      "sha": "b09ad3008a027782f672d929e79c77ac7a01333e",
+      "baseline": "921d1dc7cb5661fef10ca8f83b781690c98034cb",
+      "change_kinds": {
+        "documentation": 1,
+        "source_or_tooling": 6
+      },
+      "commits": [
+        "b09ad30 fix: consume Cloud anchor evidence in internal-link resolver (#262)"
+      ]
+    },
+    {
+      "repo": "npcink-workflow-toolbox",
+      "sha": "a2ad8981e7d31a90e822bca46278296f56fb6ee5",
+      "baseline": "ee814e04de54e4774d7851181837ea767e552a14",
+      "change_kinds": {
+        "source_or_tooling": 18,
+        "documentation": 12
+      },
+      "commits": [
+        "a2ad898 fix: preserve recommendation feedback evidence across real articles (#274)",
+        "d253bdb fix(editor): align internal-link readiness with live Apply checks (#273)",
+        "3ae12c4 fix(tests): close Lane 3 registry ownership and fixture cleanup (#272)",
+        "135090b feat(recommendations): freeze baselines and bounded ranking telemetry (#271)",
+        "569da58 docs: record internal-link stage zero evidence (#270)",
+        "a04c129 fix: avoid duplicate contextual ALT review cards (#265)"
+      ]
+    },
+    {
+      "repo": "npcink-cloud-addon",
+      "sha": "3e650d1bc74d9428d6671f27dd668938c6b6078b",
+      "baseline": "4978338f4ebf36ec9a3cb704e9d84f418202b15b",
+      "change_kinds": {
+        "source_or_tooling": 11,
+        "documentation": 9
+      },
+      "commits": [
+        "3e650d1 docs: record reconciliation lessons and session handoff (#285)",
+        "ba6a621 fix: initialize reconciliation without skipping older content (#284)",
+        "b80b966 feat(feedback): transport bounded recommendation ranking metadata (#283)",
+        "0ae75fe docs: record Cloud read-only coverage and owner evidence (#282)",
+        "243c81f docs: add Cloud owner decision and state handoff drafts (#281)",
+        "f0e2a58 docs: record final clean matrix evidence (#280)",
+        "6c9d3c4 chore(deps): bump alibaba/open-code-review to 1.12.13 (#279)"
+      ]
+    },
+    {
+      "repo": "npcink-eval-lab",
+      "sha": "5362655d9f27f9db9a3bcc8a7717e75ac1d9659f",
+      "baseline": "5362655d9f27f9db9a3bcc8a7717e75ac1d9659f",
+      "change_kinds": {},
+      "commits": []
+    },
+    {
+      "repo": "npcink-ai-cloud",
+      "sha": "6fddd93d03b712431c742eea30e722bbc87fafb6",
+      "baseline": "fe9207965f4a5049f80736019114f360186ec96b",
+      "change_kinds": {
+        "source_or_tooling": 56,
+        "documentation": 19
+      },
+      "commits": [
+        "6fddd93d perf(usage): reuse per-round health snapshots and record rollup timings (#1127)",
+        "fbdfa372 test(tooling): add zero-paid Provider and Portal regression (#1126)",
+        "d26e9409 feat(ops): add lightweight diagnostic cadence and manual quality analysis (#1125)",
+        "585aa660 docs(portal): synthesize three sessions and restore validation handoff (#1124)",
+        "c75c2db9 fix(tooling): recover bounded resource sampling and closeout records (#1123)",
+        "ea62b3f2 fix(ci): disable OCR self-update during pinned startup (#1122)",
+        "a40625b5 fix(recommendations): bound anchor search and preserve ranking metadata (#1121)",
+        "d06ff482 docs(m4): prefer LAN before Pgy and Tailscale (#1120)",
+        "2fd7282f fix(frontend): localize provider catalog and service errors (#1119)"
+      ]
+    }
+  ],
+  "logs": [
+    {
+      "name": "adapter-phpcs.log",
+      "sha256": "4a82a4201ec95cdff5ee5d955037510ce834e31238a67ce8d49dc0a7c6a62a82"
+    },
+    {
+      "name": "adapter-phpstan.log",
+      "sha256": "48060449d2bdfa2095e5772c78414f5cc13d9ad9bb5c94efdc4488ff85f57c3d"
+    },
+    {
+      "name": "candidate-matrix.log",
+      "sha256": "44cbd660a75895f23c2000b7f5bd837292e786052f371059f9ac53a1b09a15dd"
+    },
+    {
+      "name": "cli-tests.log",
+      "sha256": "5121520b2fe36666dbe04b4d3a43af30b2cbf6a04740e8c10ab3dc4b44a86c08"
+    },
+    {
+      "name": "cloud-upstream-watch-failure.log",
+      "sha256": "3e46eeccec6122424478d2a4e39dc4dbbbc3626d350f428dc0c6c87470bc1727"
+    },
+    {
+      "name": "core-m4-smoke.log",
+      "sha256": "4ec2dcd2ca9c4d2bd125513f770d603b1e8841f9d47fb03ee9c94efa7dd1bf65"
+    },
+    {
+      "name": "cross-repo-release.log",
+      "sha256": "91127a5f5336a5d0afd75dd9dd7b52e6e06b1d340e45ff1b1a094ea44270dc1b"
+    },
+    {
+      "name": "dependencies-npcink-abilities-toolkit.log",
+      "sha256": "90e2ee4c969b7d2b6da61618f95ad8308a4b5cc47b1cf50fa6afb1df975bc9d8"
+    },
+    {
+      "name": "dependencies-npcink-ai-client-adapter.log",
+      "sha256": "a779099edb5fe18543a562bc9c863111fdb475b637f834f1a79b0e2f7971613d"
+    },
+    {
+      "name": "dependencies-npcink-cloud-addon.log",
+      "sha256": "4133adc80bc3b54e0b02ec53951fda293a0351963746d7cb66c7ca2fa919a66d"
+    },
+    {
+      "name": "dependencies-npcink-governance-core.log",
+      "sha256": "7576bb3dc06c0b243a99feaa4b953160a9509ec57860fc91eb87d9e80ea0a3aa"
+    },
+    {
+      "name": "dependencies-npcink-workflow-toolbox.log",
+      "sha256": "00930e9c9a5a90bab6c973ac37efbe30e99898cfea40ec0a629947f236eb230f"
+    },
+    {
+      "name": "flagged-media-https.log",
+      "sha256": "3ca0e36b1445cfc18b51b93af4c72c491f4d671974925a7342a3d3c9677a57f6"
+    },
+    {
+      "name": "local-acceptance-driver.log",
+      "sha256": "e27fbf5e7981908236ee3da7854b186c8b4db39ceeabb7f18378caa5bb945fc1"
+    },
+    {
+      "name": "ollama-tunnel.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "name": "rc-version-matrix.log",
+      "sha256": "f6b38eb94aa68d460426806ee59cd4047ab23c424f7fa2c977b6ed009221d0b6"
+    },
+    {
+      "name": "setup-attempt-1-driver.log",
+      "sha256": "2bc2cc4dd098fa895d834bced372ef4cf58b0c46f1898cf874f152f9b555a54c"
+    },
+    {
+      "name": "signed-client-contract.log",
+      "sha256": "3626808b02787ae7cae159639d4c1b00f2bb4b7e8efeed535153b90bd8a5689b"
+    },
+    {
+      "name": "toolkit-m4-smoke.log",
+      "sha256": "bda337cbfec928a84bb1da3e57a974e3e59214bfc0af74cec03a25a8fa6c9419"
+    }
+  ],
+  "verification_checkout_cleanup": {
+    "completed_at": "2026-10-17T06:11:24.073063+00:00",
+    "removed_count": 7,
+    "shared_source_roots_changed": false,
+    "verification_checkouts": [
+      {
+        "repo": "npcink-ai-client-adapter",
+        "source_revision": "d3b114f73029836277f42d04c292f661b255a332",
+        "worktree_clean": true,
+        "removed_verification_checkout": "/Users/muze/gitee/.worktrees/adapter-043-rc3-2026-10-17/npcink-ai-client-adapter"
+      },
+      {
+        "repo": "npcink-governance-core",
+        "source_revision": "289ce777eff158e8f2d5088c30d90866efc87e2c",
+        "worktree_clean": true,
+        "removed_verification_checkout": "/Users/muze/gitee/.worktrees/adapter-043-rc3-2026-10-17/npcink-governance-core"
+      },
+      {
+        "repo": "npcink-abilities-toolkit",
+        "source_revision": "b09ad3008a027782f672d929e79c77ac7a01333e",
+        "worktree_clean": true,
+        "removed_verification_checkout": "/Users/muze/gitee/.worktrees/adapter-043-rc3-2026-10-17/npcink-abilities-toolkit"
+      },
+      {
+        "repo": "npcink-workflow-toolbox",
+        "source_revision": "a2ad8981e7d31a90e822bca46278296f56fb6ee5",
+        "worktree_clean": true,
+        "removed_verification_checkout": "/Users/muze/gitee/.worktrees/adapter-043-rc3-2026-10-17/npcink-workflow-toolbox"
+      },
+      {
+        "repo": "npcink-cloud-addon",
+        "source_revision": "3e650d1bc74d9428d6671f27dd668938c6b6078b",
+        "worktree_clean": true,
+        "removed_verification_checkout": "/Users/muze/gitee/.worktrees/adapter-043-rc3-2026-10-17/npcink-cloud-addon"
+      },
+      {
+        "repo": "npcink-eval-lab",
+        "source_revision": "5362655d9f27f9db9a3bcc8a7717e75ac1d9659f",
+        "worktree_clean": true,
+        "removed_verification_checkout": "/Users/muze/gitee/.worktrees/adapter-043-rc3-2026-10-17/npcink-eval-lab"
+      },
+      {
+        "repo": "npcink-ai-cloud",
+        "source_revision": "6fddd93d03b712431c742eea30e722bbc87fafb6",
+        "worktree_clean": true,
+        "removed_verification_checkout": "/Users/muze/gitee/.worktrees/adapter-043-rc3-2026-10-17/npcink-ai-cloud"
+      }
+    ],
+    "temporary_sdk_removed": true
+  },
+  "review_document_validation": {
+    "composer_test_all_exit": 0,
+    "composer_analyse_php_exit": 0,
+    "composer_lint_standards_exit": 0,
+    "composer_validate_exit": 0,
+    "composer_check_wporg_exit": 0,
+    "json_identity_and_local_links": "passed",
+    "package_sha256_after_review_docs": "4356f90721d56b7484d42ad4a73b1ed0500295f21580ce75a656b5f9cba68fbc"
+  }
+}
