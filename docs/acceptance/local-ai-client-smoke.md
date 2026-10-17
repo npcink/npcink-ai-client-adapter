@@ -81,6 +81,35 @@ git diff --check
 The fixture checks are separate from the default release baseline because the
 commit-enabled path intentionally performs a local WordPress write.
 
+## M4 Ollama over PgyVPN
+
+For the local M4 acceptance profile, use the M4 PgyVPN address
+`172.16.3.35` with the already verified SSH identity. Keep Ollama bound to the
+M4 loopback (`127.0.0.1:11434`) and create only a temporary SSH loopback
+tunnel for the test process. Do not expose port 11434 on the PgyVPN interface,
+change the persistent Provider registry, or pull a model as part of acceptance.
+
+The M4 matrix must include both Docker smoke profiles for Core and Toolkit,
+the signed HTTPS `limit=abc` checks for `/proposals` and `/read-requests`, the
+real Provider-log correlation, and cleanup of the tunnel, temporary SDK/MU
+loader, fixtures, containers, volumes, and backups. Record M4 evidence against
+the exact source revisions; a passing local fixture is not real-user or
+production Cloud evidence.
+
+When a Provider-log correlation fails, inspect the temporary loader's provider
+identification first. The WordPress AI logging integration compares the parsed
+hostname, so a test loader that compares a host-plus-port string can create a
+false product failure. Fix the fixture and rerun the strict assertions instead
+of weakening correlation requirements.
+
+For Adapter closeout, report source merge, runtime acceptance, release publication,
+and branch/worktree disposition separately. Check the current default central
+matrix before making a cross-repository completion claim. Preserve named remote
+refs used by fixed manifests; a squash merge alone does not replace the exact
+source pin. Follow the platform's [publishing standard](../../../npcink-workflow-toolbox/docs/platform/pr-publishing-standard-v1.md)
+for shared publication and cleanup rules. The [2026-10-17 review](../archive/2026-10-17-session-closeout-review.md)
+records the historical handoff and intentionally retained Adapter ref.
+
 For a local administrator-only runtime pass that provisions temporary Core
 read requests, set `MAA_ADAPTER_SMOKE_CREATE_READ_GRANTS=1` when running
 `composer smoke:wp`. Core still redacts sensitive plan output; if a redacted
