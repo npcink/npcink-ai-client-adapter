@@ -1,0 +1,100 @@
+{
+  "schema_version": "npcink_adapter_candidate_review.v1",
+  "candidate_id": "adapter-0.4.3-rc3-2026-10-17",
+  "frozen_at": "2026-10-17T05:58:45.380799+00:00",
+  "scope": "Adapter 0.4.3 with seven-repository compatibility baseline",
+  "publication_authorized": false,
+  "proposed_adapter_tag": "v0.4.3",
+  "adapter_source_revision": "d3b114f73029836277f42d04c292f661b255a332",
+  "historical_snapshot_unchanged": {
+    "tag": "stack-rc-2026-10-16-core-0.3.0-adapter-0.4.3-toolkit-0.7.0",
+    "tag_object": "ffb5e5d6d7b68fa952288524a181ff688a7698ee",
+    "peeled_commit": "ed28f984153200a8362fcd0928bbb32b83636159"
+  },
+  "components": [
+    {
+      "repository": "npcink-ai-client-adapter",
+      "origin": "https://github.com/npcink/npcink-ai-client-adapter.git",
+      "selected_from": "origin/master",
+      "source_revision": "d3b114f73029836277f42d04c292f661b255a332",
+      "git_tree": "9ea9adae9512151e5369cd4cd1e085feb2b3af78",
+      "git_archive_sha256": "80a89cc01d27e4e1c0963ef5516bedbb35b8b33136da9f92936b3a86a85c82cc",
+      "declared_plugin_version": "0.4.3",
+      "published_snapshot_revision": "eb73e503a8c102acd6f87b69f406ee4b94aac85f",
+      "publication_scope": "adapter_plugin_only"
+    },
+    {
+      "repository": "npcink-governance-core",
+      "origin": "https://github.com/npcink/npcink-governance-core.git",
+      "selected_from": "origin/master",
+      "source_revision": "289ce777eff158e8f2d5088c30d90866efc87e2c",
+      "git_tree": "59df625fd5ffdf80a8532135e8814bcf537e485a",
+      "git_archive_sha256": "fc9a347b3431ed7ac064f3a4b7a8d0e4f61741779b0f8d51c3166875ab13281e",
+      "declared_plugin_version": "0.3.0",
+      "published_snapshot_revision": "ed28f984153200a8362fcd0928bbb32b83636159",
+      "publication_scope": "compatibility_baseline_only"
+    },
+    {
+      "repository": "npcink-abilities-toolkit",
+      "origin": "https://github.com/npcink/npcink-abilities-toolkit.git",
+      "selected_from": "origin/master",
+      "source_revision": "b09ad3008a027782f672d929e79c77ac7a01333e",
+      "git_tree": "93829933f7bc3b349ca2b5cab6010cd4c191c58e",
+      "git_archive_sha256": "01b7337a5ead62449d04a15ed904ca44d6141037227fbdde9071157b890d963f",
+      "declared_plugin_version": "0.7.0",
+      "published_snapshot_revision": "921d1dc7cb5661fef10ca8f83b781690c98034cb",
+      "publication_scope": "compatibility_baseline_only"
+    },
+    {
+      "repository": "npcink-workflow-toolbox",
+      "origin": "https://github.com/npcink/npcink-workflow-toolbox.git",
+      "selected_from": "origin/master",
+      "source_revision": "a2ad8981e7d31a90e822bca46278296f56fb6ee5",
+      "git_tree": "f843b6047f654f3ceb1843e218e34c32cf3b832e",
+      "git_archive_sha256": "b32b671d5c4cb68cb5fded2bd98869fefb06fd66af64e3d7d9d8522cb201f90d",
+      "declared_plugin_version": "0.6.0",
+      "published_snapshot_revision": "ee814e04de54e4774d7851181837ea767e552a14",
+      "publication_scope": "compatibility_baseline_only"
+    },
+    {
+      "repository": "npcink-cloud-addon",
+      "origin": "https://github.com/npcink/npcink-cloud-addon.git",
+      "selected_from": "origin/master",
+      "source_revision": "3e650d1bc74d9428d6671f27dd668938c6b6078b",
+      "git_tree": "12414b8af0f6e40359029a04df9f627dd57df6a4",
+      "git_archive_sha256": "bd22b5014de794812d77256cd79dd52638352e4711928a33226efdb1d0cfed72",
+      "declared_plugin_version": "0.4.1",
+      "published_snapshot_revision": "4978338f4ebf36ec9a3cb704e9d84f418202b15b",
+      "publication_scope": "compatibility_baseline_only"
+    },
+    {
+      "repository": "npcink-eval-lab",
+      "origin": "https://github.com/npcink/npcink-eval-lab.git",
+      "selected_from": "origin/main",
+      "source_revision": "5362655d9f27f9db9a3bcc8a7717e75ac1d9659f",
+      "git_tree": "95011ed4a4c5823938e92a56ae730f9c083ff602",
+      "git_archive_sha256": "eb1f72f91776e90dd08664175bedbc8eebaa76b73c91253b5bfb1c791321b071",
+      "declared_plugin_version": null,
+      "published_snapshot_revision": "5362655d9f27f9db9a3bcc8a7717e75ac1d9659f",
+      "publication_scope": "compatibility_baseline_only"
+    },
+    {
+      "repository": "npcink-ai-cloud",
+      "origin": "https://github.com/npcink/npcink-ai-cloud.git",
+      "selected_from": "origin/master",
+      "source_revision": "6fddd93d03b712431c742eea30e722bbc87fafb6",
+      "git_tree": "69c5540ffa436d7f4e337c8ee018a555803d8070",
+      "git_archive_sha256": "450fff9a9ffdb6e03db58791d2b7da81da08a9adefb381797d9c0574f57935db",
+      "declared_plugin_version": null,
+      "published_snapshot_revision": "fe9207965f4a5049f80736019114f360186ec96b",
+      "publication_scope": "compatibility_baseline_only"
+    }
+  ],
+  "boundaries": {
+    "core_proxy_execute": false,
+    "commit_execution": false,
+    "new_runtime_code": false,
+    "cloud_deployment": false,
+    "real_user_evidence": false
+  }
+}

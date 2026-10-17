@@ -110,6 +110,11 @@ source pin. Follow the platform's [publishing standard](../../../npcink-workflow
 for shared publication and cleanup rules. The [2026-10-17 review](../archive/2026-10-17-session-closeout-review.md)
 records the historical handoff and intentionally retained Adapter ref.
 
+The [Adapter 0.4.3 RC3 review](adapter-043-rc3-2026-10-17/review.md) records the
+2026-10-17 frozen source manifest, exact compatibility revalidation, artifact
+checksums and proposed publication/rollback steps. It is pending operator
+publication approval; the historical snapshot and RC2 pins remain unchanged.
+
 For a local administrator-only runtime pass that provisions temporary Core
 read requests, set `MAA_ADAPTER_SMOKE_CREATE_READ_GRANTS=1` when running
 `composer smoke:wp`. Core still redacts sensitive plan output; if a redacted
