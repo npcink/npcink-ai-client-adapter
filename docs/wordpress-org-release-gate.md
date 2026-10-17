@@ -29,6 +29,23 @@ versions were never published; fold them into the next release notes.
 This release gate exists because functional tests and local smoke tests can pass
 while WordPress.org rejects the package for review-policy issues.
 
+## Verify publication and update distribution separately
+
+After SVN commit, record the revision and verify remote trunk/tag file contents,
+the directory/plugin-information version, and the official ZIP's full unpacked
+file set against the approved package. WordPress.org can regenerate ZIP metadata,
+so record both ZIP digests and compare every unpacked file when their bytes differ.
+
+Also probe `https://api.wordpress.org/plugins/update-check/1.1/` with a previous
+installed version. The [official September 2026 release process](https://make.wordpress.org/plugins/2026/09/09/automated-security-review-for-plugin-releases/)
+has an approximately six-hour cooldown and automated security review before
+update distribution. A published directory page and downloadable ZIP therefore
+do not prove that Dashboard updates offer the new version. Record these states
+separately, with a follow-up time; do not rewrite a released tag to accelerate it.
+If distribution remains unavailable after the window, check the committer's
+review email and the actual update API response before deciding on remediation.
+Do not infer a security block from the cooldown response alone.
+
 The local `check:wporg` guard blocks recurring review problems:
 
 - direct `wp-admin/includes/*` path construction, except the common
