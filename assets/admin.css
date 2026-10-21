@@ -483,3 +483,15 @@
 .npcink-openclaw-adapter-connection .maa-readiness-step .maa-status {
 	flex: none;
 }
+
+.npcink-openclaw-adapter-connection .maa-status-card { max-width: 900px; margin: 16px 0 24px; padding: 16px 24px; box-sizing: border-box; }
+.npcink-openclaw-adapter-connection .maa-status-line { display: flex; align-items: center; gap: 8px; margin: 0 0 16px; font-size: 15px; }
+.npcink-openclaw-adapter-connection .maa-status-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.npcink-openclaw-adapter-connection .maa-status-dot-ok { background: #00a32a; }
+.npcink-openclaw-adapter-connection .maa-status-dot-warning { background: #dba617; }
+.npcink-openclaw-adapter-connection .maa-status-actions { margin: 0 0 8px; }
+.npcink-openclaw-adapter-connection .maa-status-card .description { margin: 0; }
+.npcink-openclaw-adapter-connection .maa-more-info { max-width: 900px; margin: 0 0 24px; }
+.npcink-openclaw-adapter-connection .maa-devices-card h2 { margin: 0 0 8px; font-size: 15px; }
+.npcink-openclaw-adapter-connection .maa-devices-card .maa-inline-disclosure { margin-top: 16px; }
+.npcink-openclaw-adapter-connection .maa-more-info .maa-backup-connection { margin-top: 24px; }

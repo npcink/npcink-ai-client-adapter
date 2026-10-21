@@ -383,12 +383,13 @@ Npcink -> Adapter
 
 The page default view shows:
 
-- a `Connection readiness` checklist covering suite dependencies, paired
+- one status sentence with one action, and a folded `More information`
+  section holding the `Connection readiness` checklist covering suite dependencies, paired
   client keys, and signed-request verification (connection scope only;
   proposal and approval state stay in Core);
 - a dependency contract notice naming which suite component is too old when
   plugins are active but contract minimums fail;
-- a collapsed `Recent client errors` disclosure with bounded
+- a collapsed `Recent connection errors` disclosure with bounded
   connection-scope diagnostics (time, route, status, error code); Core
   Governance Audit remains the governance log;
 - a read-only boundary hygiene notice when paired keys exist alongside

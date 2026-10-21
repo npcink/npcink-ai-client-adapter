@@ -23,13 +23,17 @@ The default page should answer only:
 
 Primary actions:
 
-- `Secure key pairing`, with `Copy connect command` as the primary
-  action.
-- `Manage devices`, which opens the active signed key-pair devices list
-  without adding a separate control surface.
-- `Fallback: WordPress Application Password connection`, with `Create
-  Application Password connection` as the fallback action for clients that have
-  a dedicated secret field.
+- A status card with one plain sentence and one action: `Copy connect command`
+  is primary only while no AI client is connected (Secure key pairing is the
+  default path); once devices are paired it becomes a secondary action, and a
+  missing-dependency state offers `Open Plugins` instead.
+- `Connected AI clients`, shown only when at least one device is connected, in a
+  card with the same width and style as the status card. Its `Manage devices`
+  disclosure lists the active signed key-pair devices and where to revoke them.
+- `Other option: connect with a WordPress application password`
+  (the `Fallback: WordPress Application Password connection`), folded inside
+  `More information (for troubleshooting)`, with `Create Application Password
+  connection` as a non-primary action for clients that have a dedicated secret field.
 
 Default copyable values:
 
@@ -38,7 +42,8 @@ Default copyable values:
 
 ### Readiness Checklist
 
-The default view may include a `Connection readiness` checklist. It reports
+The page may include a `Connection readiness` checklist, folded with the
+recent connection errors under `More information (for troubleshooting)`. It reports
 only connection-scope state the page already owns:
 
 - suite dependency health;
@@ -60,11 +65,18 @@ dependency contract check fails, the page explains which component is too old
 (plugin version, contract version, schema, or boundary semantics) instead of
 an empty "Needs dependencies" state.
 
+Checklist and footer copy stays plain: `Required plugins`, `Connect a device`,
+`First request from the device`; logs are called the operation log and the AI
+request log (操作记录 / AI 请求记录), and device keys are 设备密钥 rather than
+signing or key-pair jargon.
+
 ### Recent Client Errors
 
-The default view may include a collapsed `Recent client errors` disclosure.
+The default view may include a collapsed `Recent connection errors` disclosure (error codes stay inside it).
 It shows only bounded connection-scope diagnostics from the Adapter channel:
-time, request method and route, HTTP status, and the adapter error code. It
+time, request method and route, HTTP status, and the adapter error code,
+newest first. Only the latest five rows show by default; older rows sit in a
+nested `Show N older errors` disclosure. It
 is diagnostics-only and non-authoritative; Core Governance Audit remains the
 governance log and AI Request Logs remain the provider request log. The page
 must not show proposal, approval, preflight, audit, or log content rows.
