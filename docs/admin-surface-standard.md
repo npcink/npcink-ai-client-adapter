@@ -27,12 +27,13 @@ Primary actions:
   is primary only while no AI client is connected (Secure key pairing is the
   default path); once devices are paired it becomes a secondary action, and a
   missing-dependency state offers `Open Plugins` instead.
-- `Connected AI clients`, whose `Manage devices` disclosure lists the active signed key-pair devices
-  and where to revoke them.
-- `Other option: connect with a WordPress application password` 
-  (the `Fallback: WordPress Application Password connection`), folded, with `Create
-  Application Password connection` as a non-primary action for clients that
-  have a dedicated secret field.
+- `Connected AI clients`, shown only when at least one device is connected, in a
+  card with the same width and style as the status card. Its `Manage devices`
+  disclosure lists the active signed key-pair devices and where to revoke them.
+- `Other option: connect with a WordPress application password`
+  (the `Fallback: WordPress Application Password connection`), folded inside
+  `More information (for troubleshooting)`, with `Create Application Password
+  connection` as a non-primary action for clients that have a dedicated secret field.
 
 Default copyable values:
 

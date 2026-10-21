@@ -492,3 +492,6 @@
 .npcink-openclaw-adapter-connection .maa-status-actions { margin: 0 0 8px; }
 .npcink-openclaw-adapter-connection .maa-status-card .description { margin: 0; }
 .npcink-openclaw-adapter-connection .maa-more-info { max-width: 900px; margin: 0 0 24px; }
+.npcink-openclaw-adapter-connection .maa-devices-card h2 { margin: 0 0 8px; font-size: 15px; }
+.npcink-openclaw-adapter-connection .maa-devices-card .maa-inline-disclosure { margin-top: 16px; }
+.npcink-openclaw-adapter-connection .maa-more-info .maa-backup-connection { margin-top: 24px; }

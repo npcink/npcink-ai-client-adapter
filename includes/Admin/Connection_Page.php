@@ -156,8 +156,26 @@ final class Connection_Page {
 			<h1><?php echo esc_html( 'Npcink AI Client Adapter' ); ?></h1>
 			<p class="description"><?php echo esc_html__( 'Connect this WordPress site to OpenClaw or other local AI clients.', 'npcink-ai-client-adapter' ); ?></p>
 
+			<textarea id="maa-local-cli-connect-command" hidden readonly><?php echo esc_textarea( $local_cli_connect_command ); ?></textarea>
 			<?php $this->render_status_card( $health, $status, $active_key_count ); ?>
 			<?php $this->render_contract_mismatch_notice( $health ); ?>
+			<?php if ( $active_key_count > 0 ) : ?>
+				<div id="maa-connect" class="card maa-status-card maa-devices-card">
+					<h2><?php echo esc_html__( 'Connected AI clients', 'npcink-ai-client-adapter' ); ?></h2>
+					<p class="description"><?php echo esc_html__( 'Each AI client connects with its own key, so it never needs your WordPress password.', 'npcink-ai-client-adapter' ); ?></p>
+				<details id="maa-authorized-devices" class="maa-inline-disclosure maa-device-manager">
+					<summary>
+						<span class="maa-disclosure-copy">
+							<strong><?php echo esc_html__( 'Manage devices', 'npcink-ai-client-adapter' ); ?></strong>
+							<span class="description"><?php echo esc_html( $this->key_pair_summary_text( $key_records ) ); ?></span>
+						</span>
+						<span class="maa-disclosure-icon" aria-hidden="true"></span>
+					</summary>
+					<p class="description"><?php echo esc_html__( 'Revoke a device when it is no longer used or was approved by mistake. Revoked devices must pair again before they can connect.', 'npcink-ai-client-adapter' ); ?></p>
+					<?php $this->render_key_pair_clients_table( $key_records ); ?>
+				</details>
+				</div>
+			<?php endif; ?>
 
 			<details class="maa-inline-disclosure maa-more-info">
 				<summary>
@@ -170,6 +188,45 @@ final class Connection_Page {
 				$this->render_readiness_checklist( $health, $key_records, $active_key_count );
 				$this->render_recent_client_errors();
 				?>
+			<details class="maa-inline-disclosure maa-backup-connection">
+				<summary>
+					<span class="maa-disclosure-copy">
+						<strong><?php echo esc_html__( 'Other option: connect with a WordPress application password', 'npcink-ai-client-adapter' ); ?></strong>
+						<span class="description"><?php echo esc_html__( 'Use this only if your AI client cannot connect with its own key. A client holding this password can change the site directly, without the approval step.', 'npcink-ai-client-adapter' ); ?></span>
+					</span>
+					<span class="maa-disclosure-icon" aria-hidden="true"></span>
+				</summary>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="<?php echo esc_attr( self::CREATE_ACTION ); ?>" />
+					<?php wp_nonce_field( self::CREATE_ACTION ); ?>
+					<p>
+						<label for="npcink-openclaw-adapter-password-name-compact"><span class="maa-label"><?php echo esc_html__( 'Application name', 'npcink-ai-client-adapter' ); ?></span></label>
+						<input id="npcink-openclaw-adapter-password-name-compact" class="regular-text" type="text" name="application_name" value="AI client via Npcink AI Client Adapter" />
+					</p>
+					<div class="maa-option">
+						<label>
+							<input type="checkbox" name="include_local_tls" value="1" <?php checked( $this->is_local_url( home_url() ) ); ?> />
+							<span><?php echo esc_html__( 'Include LocalWP TLS setting', 'npcink-ai-client-adapter' ); ?></span>
+						</label>
+						<p class="description"><?php echo esc_html__( 'LocalWP TLS option. Use only for localhost or .local testing.', 'npcink-ai-client-adapter' ); ?></p>
+					</div>
+					<div class="maa-option">
+						<label>
+							<input type="checkbox" name="<?php echo esc_attr( self::APPLICATION_PASSWORD_FALLBACK_CONFIRM_FIELD ); ?>" value="1" required />
+							<span><?php echo esc_html__( 'I understand this fallback creates a WordPress Application Password and the signed key-pair connection is preferred because only a paired key is an enforced boundary.', 'npcink-ai-client-adapter' ); ?></span>
+						</label>
+					</div>
+					<p class="maa-form-actions">
+						<button type="submit" class="button" <?php disabled( ! $can_create_password ); ?>>
+							<?php echo esc_html__( 'Create Application Password connection', 'npcink-ai-client-adapter' ); ?>
+						</button>
+					</p>
+					<?php if ( ! $can_create_password ) : ?>
+						<p class="description"><?php echo esc_html( $this->application_password_unavailable_message() ); ?></p>
+					<?php endif; ?>
+				</form>
+				<p class="description"><?php echo esc_html__( 'The password is shown once. Store it only in the client secret field.', 'npcink-ai-client-adapter' ); ?></p>
+			</details>
 			</details>
 			<?php
 			$application_password_count = $active_key_count > 0 ? $this->current_user_application_password_count() : 0;
@@ -192,70 +249,6 @@ final class Connection_Page {
 				</div>
 			<?php endif; ?>
 
-			<div id="maa-connect" class="maa-method-grid">
-				<section class="maa-section maa-method-card maa-method-card-recommended">
-					<div class="maa-section-heading">
-						<div>
-							<h2>
-								<?php echo esc_html__( 'Connected AI clients', 'npcink-ai-client-adapter' ); ?>
-							</h2>
-							<p class="maa-section-intro"><?php echo esc_html__( 'Each AI client connects with its own key, so it never needs your WordPress password.', 'npcink-ai-client-adapter' ); ?></p>
-						</div>
-					</div>
-					<textarea id="maa-local-cli-connect-command" hidden readonly><?php echo esc_textarea( $local_cli_connect_command ); ?></textarea>
-					<details id="maa-authorized-devices" class="maa-inline-disclosure maa-device-manager">
-						<summary>
-							<span class="maa-disclosure-copy">
-								<strong><?php echo esc_html__( 'Manage devices', 'npcink-ai-client-adapter' ); ?></strong>
-								<span class="description"><?php echo esc_html( $this->key_pair_summary_text( $key_records ) ); ?></span>
-							</span>
-							<span class="maa-disclosure-icon" aria-hidden="true"></span>
-						</summary>
-						<p class="description"><?php echo esc_html__( 'Revoke a device when it is no longer used or was approved by mistake. Revoked devices must pair again before they can connect.', 'npcink-ai-client-adapter' ); ?></p>
-						<?php $this->render_key_pair_clients_table( $key_records ); ?>
-					</details>
-
-					<details class="maa-inline-disclosure maa-backup-connection">
-						<summary>
-							<span class="maa-disclosure-copy">
-								<strong><?php echo esc_html__( 'Other option: connect with a WordPress application password', 'npcink-ai-client-adapter' ); ?></strong>
-								<span class="description"><?php echo esc_html__( 'Use this only if your AI client cannot connect with its own key. A client holding this password can change the site directly, without the approval step.', 'npcink-ai-client-adapter' ); ?></span>
-							</span>
-							<span class="maa-disclosure-icon" aria-hidden="true"></span>
-						</summary>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-							<input type="hidden" name="action" value="<?php echo esc_attr( self::CREATE_ACTION ); ?>" />
-							<?php wp_nonce_field( self::CREATE_ACTION ); ?>
-							<p>
-								<label for="npcink-openclaw-adapter-password-name-compact"><span class="maa-label"><?php echo esc_html__( 'Application name', 'npcink-ai-client-adapter' ); ?></span></label>
-								<input id="npcink-openclaw-adapter-password-name-compact" class="regular-text" type="text" name="application_name" value="AI client via Npcink AI Client Adapter" />
-							</p>
-							<div class="maa-option">
-								<label>
-									<input type="checkbox" name="include_local_tls" value="1" <?php checked( $this->is_local_url( home_url() ) ); ?> />
-									<span><?php echo esc_html__( 'Include LocalWP TLS setting', 'npcink-ai-client-adapter' ); ?></span>
-								</label>
-								<p class="description"><?php echo esc_html__( 'LocalWP TLS option. Use only for localhost or .local testing.', 'npcink-ai-client-adapter' ); ?></p>
-							</div>
-							<div class="maa-option">
-								<label>
-									<input type="checkbox" name="<?php echo esc_attr( self::APPLICATION_PASSWORD_FALLBACK_CONFIRM_FIELD ); ?>" value="1" required />
-									<span><?php echo esc_html__( 'I understand this fallback creates a WordPress Application Password and the signed key-pair connection is preferred because only a paired key is an enforced boundary.', 'npcink-ai-client-adapter' ); ?></span>
-								</label>
-							</div>
-							<p class="maa-form-actions">
-								<button type="submit" class="button" <?php disabled( ! $can_create_password ); ?>>
-									<?php echo esc_html__( 'Create Application Password connection', 'npcink-ai-client-adapter' ); ?>
-								</button>
-							</p>
-							<?php if ( ! $can_create_password ) : ?>
-								<p class="description"><?php echo esc_html( $this->application_password_unavailable_message() ); ?></p>
-							<?php endif; ?>
-						</form>
-						<p class="description"><?php echo esc_html__( 'The password is shown once. Store it only in the client secret field.', 'npcink-ai-client-adapter' ); ?></p>
-					</details>
-				</section>
-			</div>
 
 		</div>
 		<?php
@@ -569,11 +562,11 @@ final class Connection_Page {
 					?>
 				</strong></p>
 				<p class="maa-status-actions"><button type="button" class="button maa-copy-button" data-maa-copy-target="maa-local-cli-connect-command"><?php echo esc_html__( 'Copy connect command', 'npcink-ai-client-adapter' ); ?></button></p>
-				<p class="description maa-action-hint"><?php echo esc_html__( 'To add another computer, run the copied command there.', 'npcink-ai-client-adapter' ); ?></p>
+				<p class="description"><?php echo esc_html__( 'To add another computer, run the copied command there.', 'npcink-ai-client-adapter' ); ?></p>
 			<?php else : ?>
 				<p class="maa-status-line"><span class="maa-status-dot maa-status-dot-warning" aria-hidden="true"></span><strong><?php echo esc_html__( 'No AI client is connected yet.', 'npcink-ai-client-adapter' ); ?></strong></p>
 				<p class="maa-status-actions"><button type="button" class="button button-primary maa-copy-button" data-maa-copy-target="maa-local-cli-connect-command"><?php echo esc_html__( 'Copy connect command', 'npcink-ai-client-adapter' ); ?></button></p>
-				<p class="description maa-action-hint"><?php echo esc_html__( 'Run the copied command on the computer where your AI client runs, then approve the request that opens here.', 'npcink-ai-client-adapter' ); ?></p>
+				<p class="description"><?php echo esc_html__( 'Run the copied command on the computer where your AI client runs, then approve the request that opens here.', 'npcink-ai-client-adapter' ); ?></p>
 			<?php endif; ?>
 		</div>
 		<?php
