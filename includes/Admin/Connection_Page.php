@@ -147,8 +147,6 @@ final class Connection_Page {
 		$local_cli_connect_command = $this->local_cli_connect_command( $include_local_tls );
 		$key_records               = ( new Controller() )->admin_client_keys( get_current_user_id() );
 		$active_key_count          = $this->active_key_pair_count( $key_records );
-		$site_host                 = (string) wp_parse_url( home_url(), PHP_URL_HOST );
-		$site_host                 = '' !== $site_host ? $site_host : home_url();
 		?>
 		<div
 			class="wrap npcink-openclaw-adapter-connection"
@@ -158,50 +156,38 @@ final class Connection_Page {
 			<h1><?php echo esc_html( 'Npcink AI Client Adapter' ); ?></h1>
 			<p class="description"><?php echo esc_html__( 'Connect this WordPress site to OpenClaw or other local AI clients.', 'npcink-ai-client-adapter' ); ?></p>
 
-			<div class="maa-summary">
-				<div class="maa-summary-item">
-					<span class="maa-label"><?php echo esc_html__( 'Status', 'npcink-ai-client-adapter' ); ?></span>
-					<span class="maa-status maa-status-<?php echo esc_attr( $status['level'] ); ?>"><?php echo esc_html( $status['label'] ); ?></span>
-				</div>
-				<div class="maa-summary-item">
-					<span class="maa-label"><?php echo esc_html__( 'Site', 'npcink-ai-client-adapter' ); ?></span>
-					<span class="maa-value"><?php echo esc_html( $site_host ); ?></span>
-				</div>
-				<div class="maa-summary-item">
-					<span class="maa-label"><?php echo esc_html__( 'Active devices', 'npcink-ai-client-adapter' ); ?></span>
-					<span class="maa-value"><?php echo esc_html( (string) $active_key_count ); ?></span>
-				</div>
-			</div>
-			<?php if ( empty( $health['dependencies_ready'] ) && ! empty( $health['missing_dependencies'] ) && is_array( $health['missing_dependencies'] ) ) : ?>
-				<div class="notice notice-warning">
-					<p>
-						<strong><?php echo esc_html__( 'Suite dependencies need attention.', 'npcink-ai-client-adapter' ); ?></strong>
-						<?php echo esc_html( implode( ', ', array_map( 'sanitize_text_field', $health['missing_dependencies'] ) ) ); ?>
-					</p>
-				</div>
-			<?php endif; ?>
+			<?php $this->render_status_card( $health, $status, $active_key_count ); ?>
 			<?php $this->render_contract_mismatch_notice( $health ); ?>
 
+			<details class="maa-inline-disclosure maa-more-info">
+				<summary>
+					<span class="maa-disclosure-copy">
+						<strong><?php echo esc_html__( 'More information (for troubleshooting)', 'npcink-ai-client-adapter' ); ?></strong>
+					</span>
+					<span class="maa-disclosure-icon" aria-hidden="true"></span>
+				</summary>
+				<?php
+				$this->render_readiness_checklist( $health, $key_records, $active_key_count );
+				$this->render_recent_client_errors();
+				?>
+			</details>
 			<?php
-			$this->render_readiness_checklist( $health, $key_records, $active_key_count );
-			$this->render_recent_client_errors();
 			$application_password_count = $active_key_count > 0 ? $this->current_user_application_password_count() : 0;
 			?>
 			<?php if ( $application_password_count > 0 ) : ?>
 				<div class="notice notice-info maa-boundary-hygiene">
 					<p>
-						<strong><?php echo esc_html__( 'Boundary hygiene.', 'npcink-ai-client-adapter' ); ?></strong>
 						<?php
 						echo esc_html(
 							sprintf(
 								/* translators: %d: number of active application passwords. */
-								_n( 'You have %d active WordPress Application Password while paired device keys are available.', 'You have %d active WordPress Application Passwords while paired device keys are available.', $application_password_count, 'npcink-ai-client-adapter' ),
+								_n( 'You still have %d WordPress application password.', 'You still have %d WordPress application passwords.', $application_password_count, 'npcink-ai-client-adapter' ),
 								$application_password_count
 							)
 						);
 						?>
-						<?php echo esc_html__( 'Application Password connections are conventional boundaries; review and revoke unused ones.', 'npcink-ai-client-adapter' ); ?>
-						<a href="<?php echo esc_url( get_edit_profile_url( get_current_user_id() ) ); ?>#application-passwords-section"><?php echo esc_html__( 'Open profile passwords', 'npcink-ai-client-adapter' ); ?></a>
+						<?php echo esc_html__( 'Delete the ones you no longer use.', 'npcink-ai-client-adapter' ); ?>
+						<a href="<?php echo esc_url( get_edit_profile_url( get_current_user_id() ) ); ?>#application-passwords-section"><?php echo esc_html__( 'Open your profile', 'npcink-ai-client-adapter' ); ?></a>
 					</p>
 				</div>
 			<?php endif; ?>
@@ -211,22 +197,16 @@ final class Connection_Page {
 					<div class="maa-section-heading">
 						<div>
 							<h2>
-								<?php echo esc_html__( 'Secure key pairing', 'npcink-ai-client-adapter' ); ?>
-								<span class="maa-status maa-status-ok maa-heading-badge"><?php echo esc_html__( 'Recommended', 'npcink-ai-client-adapter' ); ?></span>
+								<?php echo esc_html__( 'Connected AI clients', 'npcink-ai-client-adapter' ); ?>
 							</h2>
-							<p class="maa-section-intro"><?php echo esc_html__( 'Recommended path: pair a local signed key so the client never receives a WordPress Application Password.', 'npcink-ai-client-adapter' ); ?></p>
+							<p class="maa-section-intro"><?php echo esc_html__( 'Each AI client connects with its own key, so it never needs your WordPress password.', 'npcink-ai-client-adapter' ); ?></p>
 						</div>
 					</div>
-					<div class="maa-action-row maa-command-row-primary">
-						<textarea id="maa-local-cli-connect-command" hidden readonly><?php echo esc_textarea( $local_cli_connect_command ); ?></textarea>
-						<button type="button" class="button button-primary maa-copy-button" data-maa-copy-target="maa-local-cli-connect-command"><?php echo esc_html__( 'Copy connect command', 'npcink-ai-client-adapter' ); ?></button>
-						<button type="button" class="button" data-maa-open-target="maa-authorized-devices"><?php echo esc_html__( 'Manage devices', 'npcink-ai-client-adapter' ); ?></button>
-					</div>
-					<p class="description maa-action-hint"><?php echo esc_html__( 'Run this command on the computer or terminal where OpenClaw is running. Adapter stores only the approved public key.', 'npcink-ai-client-adapter' ); ?></p>
+					<textarea id="maa-local-cli-connect-command" hidden readonly><?php echo esc_textarea( $local_cli_connect_command ); ?></textarea>
 					<details id="maa-authorized-devices" class="maa-inline-disclosure maa-device-manager">
 						<summary>
 							<span class="maa-disclosure-copy">
-								<strong><?php echo esc_html__( 'Active devices', 'npcink-ai-client-adapter' ); ?></strong>
+								<strong><?php echo esc_html__( 'Manage devices', 'npcink-ai-client-adapter' ); ?></strong>
 								<span class="description"><?php echo esc_html( $this->key_pair_summary_text( $key_records ) ); ?></span>
 							</span>
 							<span class="maa-disclosure-icon" aria-hidden="true"></span>
@@ -238,8 +218,8 @@ final class Connection_Page {
 					<details class="maa-inline-disclosure maa-backup-connection">
 						<summary>
 							<span class="maa-disclosure-copy">
-								<strong><?php echo esc_html__( 'Fallback: WordPress Application Password connection', 'npcink-ai-client-adapter' ); ?></strong>
-								<span class="description"><?php echo esc_html__( 'Use only when the client has a dedicated secret field. This is a conventional boundary: the password can reach WordPress REST directly, so the approval gate is voluntary for that client.', 'npcink-ai-client-adapter' ); ?></span>
+								<strong><?php echo esc_html__( 'Other option: connect with a WordPress application password', 'npcink-ai-client-adapter' ); ?></strong>
+								<span class="description"><?php echo esc_html__( 'Use this only if your AI client cannot connect with its own key. A client holding this password can change the site directly, without the approval step.', 'npcink-ai-client-adapter' ); ?></span>
 							</span>
 							<span class="maa-disclosure-icon" aria-hidden="true"></span>
 						</summary>
@@ -559,6 +539,47 @@ final class Connection_Page {
 	}
 
 	/**
+	 * Renders the one-sentence status and its single action.
+	 *
+	 * @param array<string,mixed> $health Adapter health data.
+	 * @param array<string,string> $status Status level and label from status().
+	 * @param int                 $active_key_count Active paired devices.
+	 * @return void
+	 */
+	private function render_status_card( array $health, array $status, int $active_key_count ): void {
+		$missing = isset( $health['missing_dependencies'] ) && is_array( $health['missing_dependencies'] ) ? array_map( 'sanitize_text_field', $health['missing_dependencies'] ) : array();
+		?>
+		<div class="card maa-status-card">
+			<?php if ( 'ok' !== ( $status['level'] ?? '' ) ) : ?>
+				<p class="maa-status-line"><span class="maa-status-dot maa-status-dot-warning" aria-hidden="true"></span><strong><?php echo esc_html__( 'Some required Npcink plugins are not active yet.', 'npcink-ai-client-adapter' ); ?></strong></p>
+				<p class="maa-status-actions"><a class="button button-primary" href="<?php echo esc_url( admin_url( 'plugins.php' ) ); ?>"><?php echo esc_html__( 'Open Plugins', 'npcink-ai-client-adapter' ); ?></a></p>
+				<?php if ( array() !== $missing ) : ?>
+				<p class="description">
+					<?php
+					/* translators: %s: comma-separated plugin names. */
+					echo esc_html( sprintf( __( 'Needed: %s', 'npcink-ai-client-adapter' ), implode( __( ', ', 'npcink-ai-client-adapter' ), $missing ) ) );
+					?>
+				</p>
+				<?php endif; ?>
+			<?php elseif ( $active_key_count > 0 ) : ?>
+				<p class="maa-status-line"><span class="maa-status-dot maa-status-dot-ok" aria-hidden="true"></span><strong>
+					<?php
+					/* translators: %d: number of connected AI clients. */
+					echo esc_html( sprintf( _n( '%d AI client is connected and can use this site.', '%d AI clients are connected and can use this site.', $active_key_count, 'npcink-ai-client-adapter' ), $active_key_count ) );
+					?>
+				</strong></p>
+				<p class="maa-status-actions"><button type="button" class="button maa-copy-button" data-maa-copy-target="maa-local-cli-connect-command"><?php echo esc_html__( 'Copy connect command', 'npcink-ai-client-adapter' ); ?></button></p>
+				<p class="description maa-action-hint"><?php echo esc_html__( 'To add another computer, run the copied command there.', 'npcink-ai-client-adapter' ); ?></p>
+			<?php else : ?>
+				<p class="maa-status-line"><span class="maa-status-dot maa-status-dot-warning" aria-hidden="true"></span><strong><?php echo esc_html__( 'No AI client is connected yet.', 'npcink-ai-client-adapter' ); ?></strong></p>
+				<p class="maa-status-actions"><button type="button" class="button button-primary maa-copy-button" data-maa-copy-target="maa-local-cli-connect-command"><?php echo esc_html__( 'Copy connect command', 'npcink-ai-client-adapter' ); ?></button></p>
+				<p class="description maa-action-hint"><?php echo esc_html__( 'Run the copied command on the computer where your AI client runs, then approve the request that opens here.', 'npcink-ai-client-adapter' ); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
 	 * Renders the dependency contract mismatch notice.
 	 *
 	 * Complements the missing-plugin warning: when every suite plugin is
@@ -597,7 +618,7 @@ final class Connection_Page {
 		?>
 		<div class="notice notice-warning">
 			<p>
-				<strong><?php echo esc_html__( 'Dependency contracts need attention.', 'npcink-ai-client-adapter' ); ?></strong>
+				<strong><?php echo esc_html__( 'Some required Npcink plugins need an update.', 'npcink-ai-client-adapter' ); ?></strong>
 				<?php echo esc_html( implode( ' ', $rows ) ); ?>
 			</p>
 		</div>
@@ -687,13 +708,13 @@ final class Connection_Page {
 		<details class="maa-inline-disclosure maa-recent-errors">
 			<summary>
 				<span class="maa-disclosure-copy">
-					<strong><?php echo esc_html__( 'Recent client errors', 'npcink-ai-client-adapter' ); ?></strong>
+					<strong><?php echo esc_html__( 'Recent connection errors', 'npcink-ai-client-adapter' ); ?></strong>
 					<span class="description">
 						<?php
 						echo esc_html(
 							sprintf(
 								/* translators: %d: number of recorded errors. */
-								_n( '%d recent Adapter channel error.', '%d recent Adapter channel errors.', count( $errors ), 'npcink-ai-client-adapter' ),
+								_n( '%d recent error.', '%d recent errors.', count( $errors ), 'npcink-ai-client-adapter' ),
 								count( $errors )
 							)
 						);
@@ -703,7 +724,7 @@ final class Connection_Page {
 				<span class="maa-disclosure-icon" aria-hidden="true"></span>
 			</summary>
 			<?php if ( array() === $errors ) : ?>
-				<p class="description"><?php echo esc_html__( 'No recent client errors recorded. Failed Adapter requests from connected clients appear here.', 'npcink-ai-client-adapter' ); ?></p>
+				<p class="description"><?php echo esc_html__( 'No recent errors.', 'npcink-ai-client-adapter' ); ?></p>
 			<?php else : ?>
 				<table class="widefat striped">
 					<thead>
@@ -1151,7 +1172,7 @@ final class Connection_Page {
 		}
 
 		if ( 0 === $active ) {
-			return __( 'No active key-pair clients', 'npcink-ai-client-adapter' );
+			return __( 'No devices yet', 'npcink-ai-client-adapter' );
 		}
 
 		if ( '' !== $latest ) {
@@ -1191,7 +1212,7 @@ final class Connection_Page {
 
 		if ( empty( $active_records ) ) :
 			?>
-			<p class="description"><?php echo esc_html__( 'No active key-pair clients are registered for this administrator. Run the connect command, approve the browser prompt, then refresh this page.', 'npcink-ai-client-adapter' ); ?></p>
+			<p class="description"><?php echo esc_html__( 'No devices are connected yet. Use the connect command above.', 'npcink-ai-client-adapter' ); ?></p>
 			<?php
 		else :
 			$this->render_key_pair_clients_table_rows( $active_records, true );

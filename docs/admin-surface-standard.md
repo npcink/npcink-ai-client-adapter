@@ -23,13 +23,16 @@ The default page should answer only:
 
 Primary actions:
 
-- `Secure key pairing`, with `Copy connect command` as the primary
-  action.
-- `Manage devices`, which opens the active signed key-pair devices list
-  without adding a separate control surface.
-- `Fallback: WordPress Application Password connection`, with `Create
-  Application Password connection` as the fallback action for clients that have
-  a dedicated secret field.
+- A status card with one plain sentence and one action: `Copy connect command`
+  is primary only while no AI client is connected (Secure key pairing is the
+  default path); once devices are paired it becomes a secondary action, and a
+  missing-dependency state offers `Open Plugins` instead.
+- `Connected AI clients`, whose `Manage devices` disclosure lists the active signed key-pair devices
+  and where to revoke them.
+- `Other option: connect with a WordPress application password` 
+  (the `Fallback: WordPress Application Password connection`), folded, with `Create
+  Application Password connection` as a non-primary action for clients that
+  have a dedicated secret field.
 
 Default copyable values:
 
@@ -38,7 +41,8 @@ Default copyable values:
 
 ### Readiness Checklist
 
-The default view may include a `Connection readiness` checklist. It reports
+The page may include a `Connection readiness` checklist, folded with the
+recent connection errors under `More information (for troubleshooting)`. It reports
 only connection-scope state the page already owns:
 
 - suite dependency health;
@@ -62,7 +66,7 @@ an empty "Needs dependencies" state.
 
 ### Recent Client Errors
 
-The default view may include a collapsed `Recent client errors` disclosure.
+The default view may include a collapsed `Recent connection errors` disclosure (error codes stay inside it).
 It shows only bounded connection-scope diagnostics from the Adapter channel:
 time, request method and route, HTTP status, and the adapter error code. It
 is diagnostics-only and non-authoritative; Core Governance Audit remains the
