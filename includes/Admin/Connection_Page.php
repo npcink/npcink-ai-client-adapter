@@ -154,7 +154,7 @@ final class Connection_Page {
 			data-maa-copy-failed-label="<?php echo esc_attr__( 'Copy failed', 'npcink-ai-client-adapter' ); ?>"
 		>
 			<h1><?php echo esc_html( 'Npcink AI Client Adapter' ); ?></h1>
-			<p class="description"><?php echo esc_html__( 'Connect this WordPress site to OpenClaw or other local AI clients.', 'npcink-ai-client-adapter' ); ?></p>
+			<p class="description"><?php echo esc_html__( 'Connect this site to AI clients on your computer.', 'npcink-ai-client-adapter' ); ?></p>
 
 			<textarea id="maa-local-cli-connect-command" hidden readonly><?php echo esc_textarea( $local_cli_connect_command ); ?></textarea>
 			<?php $this->render_status_card( $health, $status, $active_key_count ); ?>
@@ -213,7 +213,7 @@ final class Connection_Page {
 					<div class="maa-option">
 						<label>
 							<input type="checkbox" name="<?php echo esc_attr( self::APPLICATION_PASSWORD_FALLBACK_CONFIRM_FIELD ); ?>" value="1" required />
-							<span><?php echo esc_html__( 'I understand this fallback creates a WordPress Application Password and the signed key-pair connection is preferred because only a paired key is an enforced boundary.', 'npcink-ai-client-adapter' ); ?></span>
+							<span><?php echo esc_html__( 'I understand: an AI client connected with an application password can change the site directly, without approval.', 'npcink-ai-client-adapter' ); ?></span>
 						</label>
 					</div>
 					<p class="maa-form-actions">
@@ -697,6 +697,8 @@ final class Connection_Page {
 		// The display window matches the writer's buffer size so every
 		// buffered record is reachable.
 		$errors = is_array( $errors ) ? array_slice( array_values( $errors ), -15 ) : array();
+		// Newest first; only the latest five show until the admin asks for all.
+		$errors = array_reverse( $errors );
 		?>
 		<details class="maa-inline-disclosure maa-recent-errors">
 			<summary>
@@ -729,7 +731,7 @@ final class Connection_Page {
 						</tr>
 					</thead>
 					<tbody>
-						<?php foreach ( $errors as $error ) : ?>
+						<?php foreach ( array_slice( $errors, 0, 5 ) as $error ) : ?>
 							<tr>
 								<td><?php echo esc_html( $this->display_datetime( isset( $error['time'] ) ? (string) $error['time'] : '' ) ); ?></td>
 								<td><?php echo esc_html( ( isset( $error['method'] ) ? (string) $error['method'] : '' ) . ' ' . ( isset( $error['route'] ) ? (string) $error['route'] : '' ) ); ?></td>
@@ -739,8 +741,48 @@ final class Connection_Page {
 						<?php endforeach; ?>
 					</tbody>
 				</table>
+				<?php if ( count( $errors ) > 5 ) : ?>
+					<details class="maa-inline-disclosure maa-older-errors">
+						<summary>
+							<span class="maa-disclosure-copy">
+								<strong>
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: %d: number of recorded errors. */
+											_n( 'Show %d older error', 'Show %d older errors', count( $errors ) - 5, 'npcink-ai-client-adapter' ),
+											count( $errors ) - 5
+										)
+									);
+									?>
+								</strong>
+							</span>
+							<span class="maa-disclosure-icon" aria-hidden="true"></span>
+						</summary>
+					<table class="widefat striped">
+						<thead>
+							<tr>
+								<th scope="col"><?php echo esc_html__( 'Time', 'npcink-ai-client-adapter' ); ?></th>
+								<th scope="col"><?php echo esc_html__( 'Request', 'npcink-ai-client-adapter' ); ?></th>
+								<th scope="col"><?php echo esc_html__( 'Status', 'npcink-ai-client-adapter' ); ?></th>
+								<th scope="col"><?php echo esc_html__( 'Error code', 'npcink-ai-client-adapter' ); ?></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php foreach ( array_slice( $errors, 5 ) as $error ) : ?>
+								<tr>
+									<td><?php echo esc_html( $this->display_datetime( isset( $error['time'] ) ? (string) $error['time'] : '' ) ); ?></td>
+									<td><?php echo esc_html( ( isset( $error['method'] ) ? (string) $error['method'] : '' ) . ' ' . ( isset( $error['route'] ) ? (string) $error['route'] : '' ) ); ?></td>
+									<td><?php echo esc_html( 'HTTP ' . (string) ( $error['status'] ?? '' ) ); ?></td>
+									<td><code><?php echo esc_html( isset( $error['code'] ) ? (string) $error['code'] : '' ); ?></code></td>
+								</tr>
+							<?php endforeach; ?>
+						</tbody>
+					</table>
+					</details>
+				<?php endif; ?>
 			<?php endif; ?>
-			<p class="description"><?php echo esc_html__( 'Bounded diagnostics from the Adapter channel only. Core Governance Audit remains the governance log; AI Request Logs remain the provider request log.', 'npcink-ai-client-adapter' ); ?></p>
+			<p class="description"><?php echo esc_html__( 'Only errors from AI client connections are listed here. Site changes are in the operation log, and AI requests are in the AI request log.', 'npcink-ai-client-adapter' ); ?></p>
 		</details>
 		<?php
 	}
@@ -1103,26 +1145,26 @@ final class Connection_Page {
 			array(
 				'state'       => $dependencies_ready ? 'ok' : 'warning',
 				'state_label' => $dependencies_ready ? __( 'Ready', 'npcink-ai-client-adapter' ) : __( 'Needs attention', 'npcink-ai-client-adapter' ),
-				'label'       => __( 'Suite dependencies', 'npcink-ai-client-adapter' ),
+				'label'       => __( 'Required plugins', 'npcink-ai-client-adapter' ),
 				'description' => $dependencies_ready
-					? __( 'Npcink Governance Core and the Abilities Toolkit are active.', 'npcink-ai-client-adapter' )
-					: __( 'Install or activate the missing suite plugins listed above; Adapter routes fail closed without them.', 'npcink-ai-client-adapter' ),
+					? __( 'All required Npcink plugins are turned on.', 'npcink-ai-client-adapter' )
+					: __( 'Turn on the missing Npcink plugins listed above. AI clients cannot connect until they are on.', 'npcink-ai-client-adapter' ),
 			),
 			array(
 				'state'       => $active_key_count > 0 ? 'ok' : 'warning',
 				'state_label' => $active_key_count > 0 ? __( 'Ready', 'npcink-ai-client-adapter' ) : __( 'Needs attention', 'npcink-ai-client-adapter' ),
-				'label'       => __( 'Pair a client key', 'npcink-ai-client-adapter' ),
+				'label'       => __( 'Connect a device', 'npcink-ai-client-adapter' ),
 				'description' => $active_key_count > 0
-					? __( 'At least one approved device key is active; this is the enforced-boundary connection path.', 'npcink-ai-client-adapter' )
-					: __( 'Copy the connect command below, run it on the machine where the AI client runs, then approve the pairing request.', 'npcink-ai-client-adapter' ),
+					? __( 'At least one device is connected with its own device key.', 'npcink-ai-client-adapter' )
+					: __( 'Copy the connect command above, run it on the computer where the AI client runs, then approve the request here.', 'npcink-ai-client-adapter' ),
 			),
 			array(
 				'state'       => $signed_verified ? 'ok' : 'warning',
 				'state_label' => $signed_verified ? __( 'Ready', 'npcink-ai-client-adapter' ) : __( 'Needs attention', 'npcink-ai-client-adapter' ),
-				'label'       => __( 'Verify a signed request', 'npcink-ai-client-adapter' ),
+				'label'       => __( 'First request from the device', 'npcink-ai-client-adapter' ),
 				'description' => $signed_verified
-					? __( 'A paired key has completed a signed Adapter request successfully.', 'npcink-ai-client-adapter' )
-					: __( 'The connect command tests a signed health request after approval; this step completes automatically once pairing finishes.', 'npcink-ai-client-adapter' ),
+					? __( 'A connected device has made a request successfully.', 'npcink-ai-client-adapter' )
+					: __( 'This finishes on its own after you approve the device.', 'npcink-ai-client-adapter' ),
 			),
 		);
 		?>
@@ -1137,7 +1179,7 @@ final class Connection_Page {
 					</li>
 				<?php endforeach; ?>
 			</ol>
-			<p class="description"><?php echo esc_html__( 'Readiness covers the connection only. Writes still require a Core proposal, human approval, and commit-preflight; approval state lives in Npcink Governance Core.', 'npcink-ai-client-adapter' ); ?></p>
+			<p class="description"><?php echo esc_html__( 'This only checks the connection. Changes the AI suggests still need your approval before they are made.', 'npcink-ai-client-adapter' ); ?></p>
 		</section>
 		<?php
 	}

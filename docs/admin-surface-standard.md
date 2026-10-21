@@ -65,11 +65,18 @@ dependency contract check fails, the page explains which component is too old
 (plugin version, contract version, schema, or boundary semantics) instead of
 an empty "Needs dependencies" state.
 
+Checklist and footer copy stays plain: `Required plugins`, `Connect a device`,
+`First request from the device`; logs are called the operation log and the AI
+request log (操作记录 / AI 请求记录), and device keys are 设备密钥 rather than
+signing or key-pair jargon.
+
 ### Recent Client Errors
 
 The default view may include a collapsed `Recent connection errors` disclosure (error codes stay inside it).
 It shows only bounded connection-scope diagnostics from the Adapter channel:
-time, request method and route, HTTP status, and the adapter error code. It
+time, request method and route, HTTP status, and the adapter error code,
+newest first. Only the latest five rows show by default; older rows sit in a
+nested `Show N older errors` disclosure. It
 is diagnostics-only and non-authoritative; Core Governance Audit remains the
 governance log and AI Request Logs remain the provider request log. The page
 must not show proposal, approval, preflight, audit, or log content rows.

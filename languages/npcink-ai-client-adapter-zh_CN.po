@@ -3,9 +3,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Npcink AI Client Adapter 0.4.2\n"
-"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-"
-"adapter\n"
-"POT-Creation-Date: 2026-10-21T08:43:40+00:00\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-adapter\n"
+"POT-Creation-Date: 2026-10-21T09:07:11+00:00\n"
 "PO-Revision-Date: 2026-09-04 19:05+0800\n"
 "Last-Translator: Npcink <dev@npcink.local>\n"
 "Language-Team: Chinese (China) <zh_CN@li.org>\n"
@@ -50,18 +49,18 @@ msgstr "您没有权限查看此页面。"
 
 #: includes/Admin/Connection_Page.php:153
 #: includes/Admin/Connection_Page.php:276
-#: includes/Admin/Connection_Page.php:878
+#: includes/Admin/Connection_Page.php:920
 msgid "Copied"
 msgstr "已复制"
 
 #: includes/Admin/Connection_Page.php:154
-#: includes/Admin/Connection_Page.php:879
+#: includes/Admin/Connection_Page.php:921
 msgid "Copy failed"
 msgstr "复制失败"
 
 #: includes/Admin/Connection_Page.php:157
-msgid "Connect this WordPress site to OpenClaw or other local AI clients."
-msgstr "将此 WordPress 站点连接到 OpenClaw 或其他本地 AI 客户端。"
+msgid "Connect this site to AI clients on your computer."
+msgstr "将此站点连接到你电脑上的 AI 客户端。"
 
 #: includes/Admin/Connection_Page.php:164
 msgid "Connected AI clients"
@@ -96,9 +95,7 @@ msgid ""
 "Use this only if your AI client cannot connect with its own key. A client "
 "holding this password can change the site directly, without the approval "
 "step."
-msgstr ""
-"仅在 AI 客户端无法用自己的密钥连接时使用。持有此密码的客户端可以直接修改站"
-"点，不经过审批。"
+msgstr "仅在 AI 客户端无法用自己的密钥连接时使用。持有此密码的客户端可以直接修改站点，不经过审批。"
 
 #: includes/Admin/Connection_Page.php:203
 msgid "Application name"
@@ -114,12 +111,9 @@ msgstr "LocalWP TLS 选项。仅用于 localhost 或 .local 测试。"
 
 #: includes/Admin/Connection_Page.php:216
 msgid ""
-"I understand this fallback creates a WordPress Application Password and the "
-"signed key-pair connection is preferred because only a paired key is an "
-"enforced boundary."
-msgstr ""
-"我理解此备用方式会创建一个 WordPress 应用密码；推荐使用签名密钥对连接，因为只"
-"有已配对的密钥才处于受强制的边界内。"
+"I understand: an AI client connected with an application password can change"
+" the site directly, without approval."
+msgstr "我了解：用应用密码连接的 AI 客户端可以直接修改站点，不经过审批。"
 
 #: includes/Admin/Connection_Page.php:221
 msgid "Create Application Password connection"
@@ -163,8 +157,7 @@ msgid ""
 "to report ready; this browser page can be closed. Adapter stores only the "
 "public key; the private key was never sent to WordPress."
 msgstr ""
-"请返回发起配对的终端或本地 AI 客户端。等待它显示 ready；此浏览器页面可以关"
-"闭。适配器只保存公钥；私钥从未发送到 WordPress。"
+"请返回发起配对的终端或本地 AI 客户端。等待它显示 ready；此浏览器页面可以关闭。适配器只保存公钥；私钥从未发送到 WordPress。"
 
 #: includes/Admin/Connection_Page.php:286
 msgid ""
@@ -182,17 +175,15 @@ msgstr "连接已拒绝。"
 
 #: includes/Admin/Connection_Page.php:290
 msgid ""
-"Return to the terminal or local AI client. The client will stop polling with "
-"a rejected status."
+"Return to the terminal or local AI client. The client will stop polling with"
+" a rejected status."
 msgstr "请返回终端或本地 AI 客户端。客户端会以已拒绝状态停止轮询。"
 
 #: includes/Admin/Connection_Page.php:293
 msgid ""
 "Approve this local AI client only if you initiated the connection. Adapter "
 "stores only the public key; the private key stays on your computer."
-msgstr ""
-"只有在您主动发起连接时才批准此本地 AI 客户端。适配器只保存公钥；私钥保留在您"
-"的电脑上。"
+msgstr "只有在您主动发起连接时才批准此本地 AI 客户端。适配器只保存公钥；私钥保留在您的电脑上。"
 
 #: includes/Admin/Connection_Page.php:298
 #: includes/Admin/Connection_Page.php:342
@@ -242,13 +233,12 @@ msgstr "请求的访问权限"
 #: includes/Admin/Connection_Page.php:320
 msgid ""
 "This approval does not grant direct WordPress write, approval, publish, "
-"provider credential, prompt, model routing, or production workload execution "
-"authority. Writes must still go through Core proposal, approval, and commit-"
-"preflight; Adapter remains the client channel."
+"provider credential, prompt, model routing, or production workload execution"
+" authority. Writes must still go through Core proposal, approval, and "
+"commit-preflight; Adapter remains the client channel."
 msgstr ""
-"此批准不会授予直接 WordPress 写入、审批、发布、提供商凭据、提示词、模型路由或"
-"生产工作负载执行权限。写入仍必须经过 Core 提案、审批和提交预检；Adapter 仍然"
-"只是客户端通道。"
+"此批准不会授予直接 WordPress 写入、审批、发布、提供商凭据、提示词、模型路由或生产工作负载执行权限。写入仍必须经过 Core "
+"提案、审批和提交预检；Adapter 仍然只是客户端通道。"
 
 #: includes/Admin/Connection_Page.php:324
 msgid "Diagnostic details"
@@ -263,9 +253,7 @@ msgid ""
 "Do not paste these values into chat, tool commands, proposal payloads, or "
 "setup text unless a support workflow explicitly asks for diagnostic "
 "identifiers."
-msgstr ""
-"除非支持流程明确要求诊断标识符，否则不要把这些值粘贴到聊天、工具命令、提案负"
-"载或配置文本中。"
+msgstr "除非支持流程明确要求诊断标识符，否则不要把这些值粘贴到聊天、工具命令、提案负载或配置文本中。"
 
 #: includes/Admin/Connection_Page.php:330
 msgid "Public key fingerprint"
@@ -292,9 +280,7 @@ msgid ""
 "Optional administrator-only label for later management. It is not used for "
 "authentication or authorization. Do not enter passwords, tokens, private "
 "keys, or local file paths."
-msgstr ""
-"可选，仅供管理员后续管理识别。它不参与认证或授权。不要填写密码、令牌、私钥或"
-"本地文件路径。"
+msgstr "可选，仅供管理员后续管理识别。它不参与认证或授权。不要填写密码、令牌、私钥或本地文件路径。"
 
 #: includes/Admin/Connection_Page.php:349
 msgid "Approve connection"
@@ -329,9 +315,7 @@ msgid ""
 "Execute already-approved Adapter write routes after human approval in the "
 "Core admin and commit preflight. This scope never includes proposal "
 "approval: the client cannot approve its own proposals."
-msgstr ""
-"在治理核心后台人工批准并完成提交预检后，执行已获批准的适配器写入路由。此作用"
-"域绝不包含提案审批：客户端不能批准自己的提案。"
+msgstr "在治理核心后台人工批准并完成提交预检后，执行已获批准的适配器写入路由。此作用域绝不包含提案审批：客户端不能批准自己的提案。"
 
 #: includes/Admin/Connection_Page.php:399
 msgid "No recognized Adapter scopes were requested."
@@ -346,7 +330,7 @@ msgid "You do not have permission to create AI client handoff credentials."
 msgstr "您没有权限创建 OpenClaw 交接凭据。"
 
 #: includes/Admin/Connection_Page.php:480
-#: includes/Admin/Connection_Page.php:963
+#: includes/Admin/Connection_Page.php:1005
 msgid "Application Password fallback is disabled for this environment."
 msgstr "当前环境已禁用应用密码备用连接。"
 
@@ -454,252 +438,250 @@ msgstr "%s 不支持所需的边界语义。"
 msgid "%s:"
 msgstr "%s："
 
-#: includes/Admin/Connection_Page.php:704
+#: includes/Admin/Connection_Page.php:706
 msgid "Recent connection errors"
 msgstr "最近的连接错误"
 
 #. translators: %d: number of recorded errors.
-#: includes/Admin/Connection_Page.php:710
+#: includes/Admin/Connection_Page.php:712
 #, php-format
 msgid "%d recent error."
 msgid_plural "%d recent errors."
 msgstr[0] "最近有 %d 个错误。"
 
-#: includes/Admin/Connection_Page.php:720
+#: includes/Admin/Connection_Page.php:722
 msgid "No recent errors."
 msgstr "最近没有错误。"
 
-#: includes/Admin/Connection_Page.php:725
+#: includes/Admin/Connection_Page.php:727
+#: includes/Admin/Connection_Page.php:765
 msgid "Time"
 msgstr "时间"
 
-#: includes/Admin/Connection_Page.php:726
+#: includes/Admin/Connection_Page.php:728
+#: includes/Admin/Connection_Page.php:766
 msgid "Request"
 msgstr "请求"
 
-#: includes/Admin/Connection_Page.php:727
-#: includes/Admin/Connection_Page.php:1253
+#: includes/Admin/Connection_Page.php:729
+#: includes/Admin/Connection_Page.php:767
+#: includes/Admin/Connection_Page.php:1295
 msgid "Status"
 msgstr "状态"
 
-#: includes/Admin/Connection_Page.php:728
+#: includes/Admin/Connection_Page.php:730
+#: includes/Admin/Connection_Page.php:768
 msgid "Error code"
 msgstr "错误码"
 
-#: includes/Admin/Connection_Page.php:743
-msgid ""
-"Bounded diagnostics from the Adapter channel only. Core Governance Audit "
-"remains the governance log; AI Request Logs remain the provider request log."
-msgstr ""
-"仅包含适配器通道的有界诊断信息。Core Governance Audit 仍是治理日志；AI "
-"Request Logs 仍是提供方请求日志。"
+#. translators: %d: number of recorded errors.
+#: includes/Admin/Connection_Page.php:753
+#, php-format
+msgid "Show %d older error"
+msgid_plural "Show %d older errors"
+msgstr[0] "显示更早的 %d 条错误"
 
-#: includes/Admin/Connection_Page.php:771
+#: includes/Admin/Connection_Page.php:785
+msgid ""
+"Only errors from AI client connections are listed here. Site changes are in "
+"the operation log, and AI requests are in the AI request log."
+msgstr "这里只列出 AI 客户端连接的错误。站点修改见「操作记录」，AI 请求见「AI 请求记录」。"
+
+#: includes/Admin/Connection_Page.php:813
 msgid "Unavailable"
 msgstr "不可用"
 
-#: includes/Admin/Connection_Page.php:778
-#: includes/Admin/Connection_Page.php:1105
-#: includes/Admin/Connection_Page.php:1113
-#: includes/Admin/Connection_Page.php:1121
+#: includes/Admin/Connection_Page.php:820
+#: includes/Admin/Connection_Page.php:1147
+#: includes/Admin/Connection_Page.php:1155
+#: includes/Admin/Connection_Page.php:1163
 msgid "Ready"
 msgstr "就绪"
 
-#: includes/Admin/Connection_Page.php:784
+#: includes/Admin/Connection_Page.php:826
 msgid "Needs dependencies"
 msgstr "需要依赖项"
 
-#: includes/Admin/Connection_Page.php:874
-#: includes/Admin/Connection_Page.php:882
+#: includes/Admin/Connection_Page.php:916
+#: includes/Admin/Connection_Page.php:924
 msgid "AI Client Connection Created"
 msgstr "AI 客户端连接已创建"
 
-#: includes/Admin/Connection_Page.php:884
+#: includes/Admin/Connection_Page.php:926
 msgid ""
 "Copy this Application Password now. WordPress shows it only once and stores "
 "only a hash."
 msgstr "请立即复制此应用密码。WordPress 只显示一次，并且只保存哈希。"
 
-#: includes/Admin/Connection_Page.php:885
+#: includes/Admin/Connection_Page.php:927
 msgid ""
 "Paste it only into the AI client dedicated secret field. Adapter does not "
 "grant provider credentials, prompt management, workflow runtime, or Cloud "
 "connector authority."
-msgstr ""
-"只将它粘贴到 AI 客户端的专用密钥字段。Adapter 不授予提供商凭据、提示词管理、"
-"工作流运行时或 Cloud 连接器权限。"
+msgstr "只将它粘贴到 AI 客户端的专用密钥字段。Adapter 不授予提供商凭据、提示词管理、工作流运行时或 Cloud 连接器权限。"
 
-#: includes/Admin/Connection_Page.php:888
+#: includes/Admin/Connection_Page.php:930
 msgid "One-time Application Password"
 msgstr "一次性应用密码"
 
-#: includes/Admin/Connection_Page.php:890
+#: includes/Admin/Connection_Page.php:932
 msgid "Copy Application Password"
 msgstr "复制应用密码"
 
-#: includes/Admin/Connection_Page.php:894
+#: includes/Admin/Connection_Page.php:936
 msgid "Adapter URL"
 msgstr "适配器 URL"
 
-#: includes/Admin/Connection_Page.php:895
+#: includes/Admin/Connection_Page.php:937
 msgid "WordPress user"
 msgstr "WordPress 用户"
 
-#: includes/Admin/Connection_Page.php:896
+#: includes/Admin/Connection_Page.php:938
 msgid "Password UUID"
 msgstr "密码 UUID"
 
-#: includes/Admin/Connection_Page.php:898
+#: includes/Admin/Connection_Page.php:940
 msgid "Connection manifest"
 msgstr "连接清单"
 
-#: includes/Admin/Connection_Page.php:899
+#: includes/Admin/Connection_Page.php:941
 msgid "Copy manifest"
 msgstr "复制清单"
 
-#: includes/Admin/Connection_Page.php:902
+#: includes/Admin/Connection_Page.php:944
 msgid "AI client env placeholder"
 msgstr "客户端环境变量占位符"
 
-#: includes/Admin/Connection_Page.php:903
+#: includes/Admin/Connection_Page.php:945
 msgid "Copy env placeholder"
 msgstr "复制环境变量占位符"
 
-#: includes/Admin/Connection_Page.php:907
+#: includes/Admin/Connection_Page.php:949
 msgid "Back to Npcink AI Client Adapter"
 msgstr "返回 Npcink AI 客户端适配器"
 
-#: includes/Admin/Connection_Page.php:966
+#: includes/Admin/Connection_Page.php:1008
 msgid "Application Passwords are not available for this user or site."
 msgstr "此用户或站点不可用应用密码。"
 
-#: includes/Admin/Connection_Page.php:1105
-#: includes/Admin/Connection_Page.php:1113
-#: includes/Admin/Connection_Page.php:1121
+#: includes/Admin/Connection_Page.php:1147
+#: includes/Admin/Connection_Page.php:1155
+#: includes/Admin/Connection_Page.php:1163
 msgid "Needs attention"
 msgstr "需要处理"
 
-#: includes/Admin/Connection_Page.php:1106
-msgid "Suite dependencies"
-msgstr "套件依赖"
+#: includes/Admin/Connection_Page.php:1148
+msgid "Required plugins"
+msgstr "必需的插件"
 
-#: includes/Admin/Connection_Page.php:1108
-msgid "Npcink Governance Core and the Abilities Toolkit are active."
-msgstr "Npcink 治理核心与能力工具包均已激活。"
+#: includes/Admin/Connection_Page.php:1150
+msgid "All required Npcink plugins are turned on."
+msgstr "所需的 Npcink 插件都已启用。"
 
-#: includes/Admin/Connection_Page.php:1109
+#: includes/Admin/Connection_Page.php:1151
 msgid ""
-"Install or activate the missing suite plugins listed above; Adapter routes "
-"fail closed without them."
-msgstr ""
-"请安装或启用上方列出的缺失套件插件；缺少它们时，适配器路由将一律拒绝执行。"
+"Turn on the missing Npcink plugins listed above. AI clients cannot connect "
+"until they are on."
+msgstr "请启用上面列出的缺少的 Npcink 插件。启用前 AI 客户端无法连接。"
 
-#: includes/Admin/Connection_Page.php:1114
-msgid "Pair a client key"
-msgstr "配对一个客户端密钥"
+#: includes/Admin/Connection_Page.php:1156
+msgid "Connect a device"
+msgstr "连接一台设备"
 
-#: includes/Admin/Connection_Page.php:1116
+#: includes/Admin/Connection_Page.php:1158
+msgid "At least one device is connected with its own device key."
+msgstr "至少有一台设备已用自己的设备密钥连接。"
+
+#: includes/Admin/Connection_Page.php:1159
 msgid ""
-"At least one approved device key is active; this is the enforced-boundary "
-"connection path."
-msgstr "至少有一个已批准的设备密钥处于激活状态；这是受强制边界保护的连接路径。"
+"Copy the connect command above, run it on the computer where the AI client "
+"runs, then approve the request here."
+msgstr "复制上方的连接命令，在运行 AI 客户端的电脑上执行，然后在这里批准请求。"
 
-#: includes/Admin/Connection_Page.php:1117
-msgid ""
-"Copy the connect command below, run it on the machine where the AI client "
-"runs, then approve the pairing request."
-msgstr "复制下方的连接命令，在运行 AI 客户端的机器上执行，然后批准该配对请求。"
+#: includes/Admin/Connection_Page.php:1164
+msgid "First request from the device"
+msgstr "设备的首次请求"
 
-#: includes/Admin/Connection_Page.php:1122
-msgid "Verify a signed request"
-msgstr "验证一个签名请求"
+#: includes/Admin/Connection_Page.php:1166
+msgid "A connected device has made a request successfully."
+msgstr "已连接的设备成功发送过请求。"
 
-#: includes/Admin/Connection_Page.php:1124
-msgid "A paired key has completed a signed Adapter request successfully."
-msgstr "已配对的密钥成功完成了一次签名适配器请求。"
+#: includes/Admin/Connection_Page.php:1167
+msgid "This finishes on its own after you approve the device."
+msgstr "批准设备后会自动完成。"
 
-#: includes/Admin/Connection_Page.php:1125
-msgid ""
-"The connect command tests a signed health request after approval; this step "
-"completes automatically once pairing finishes."
-msgstr ""
-"连接命令会在批准后测试一次签名健康检查请求；配对完成后此步骤会自动完成。"
-
-#: includes/Admin/Connection_Page.php:1130
+#: includes/Admin/Connection_Page.php:1172
 msgid "Connection readiness"
 msgstr "连接就绪状态"
 
-#: includes/Admin/Connection_Page.php:1140
+#: includes/Admin/Connection_Page.php:1182
 msgid ""
-"Readiness covers the connection only. Writes still require a Core proposal, "
-"human approval, and commit-preflight; approval state lives in Npcink "
-"Governance Core."
-msgstr ""
-"就绪状态仅覆盖连接本身。写入操作仍需要治理核心提案、人工批准和提交预检；审批"
-"状态保存在 Npcink 治理核心中。"
+"This only checks the connection. Changes the AI suggests still need your "
+"approval before they are made."
+msgstr "这里只检查连接。AI 提出的修改仍需你批准后才会生效。"
 
-#: includes/Admin/Connection_Page.php:1168
+#: includes/Admin/Connection_Page.php:1210
 msgid "No devices yet"
 msgstr "还没有设备"
 
 #. translators: 1: number of active clients, 2: formatted last-used timestamp.
-#: includes/Admin/Connection_Page.php:1174
+#: includes/Admin/Connection_Page.php:1216
 #, php-format
 msgid "%1$d active, last used %2$s"
 msgid_plural "%1$d active, last used %2$s"
 msgstr[0] "%1$d 个有效，最近使用于 %2$s"
 
 #. translators: %d: number of active clients.
-#: includes/Admin/Connection_Page.php:1182
+#: includes/Admin/Connection_Page.php:1224
 #, php-format
 msgid "%d active, not used yet"
 msgid_plural "%d active, not used yet"
 msgstr[0] "%d 个有效，尚未使用"
 
-#: includes/Admin/Connection_Page.php:1208
+#: includes/Admin/Connection_Page.php:1250
 msgid "No devices are connected yet. Use the connect command above."
 msgstr "还没有连接设备。请使用上方的连接命令。"
 
-#: includes/Admin/Connection_Page.php:1219
+#: includes/Admin/Connection_Page.php:1261
 msgid "Revoked devices"
 msgstr "已撤销设备"
 
 #. translators: %d: number of revoked key-pair clients.
-#: includes/Admin/Connection_Page.php:1224
+#: includes/Admin/Connection_Page.php:1266
 #, php-format
 msgid "%d revoked device record"
 msgid_plural "%d revoked device records"
 msgstr[0] "%d 条已撤销设备记录"
 
-#: includes/Admin/Connection_Page.php:1250
+#: includes/Admin/Connection_Page.php:1292
 msgid "Device"
 msgstr "设备"
 
-#: includes/Admin/Connection_Page.php:1251
+#: includes/Admin/Connection_Page.php:1293
 msgid "Device ID"
 msgstr "设备标识"
 
-#: includes/Admin/Connection_Page.php:1252
+#: includes/Admin/Connection_Page.php:1294
 msgid "Last used"
 msgstr "上次使用"
 
-#: includes/Admin/Connection_Page.php:1255
+#: includes/Admin/Connection_Page.php:1297
 msgid "Action"
 msgstr "操作"
 
-#: includes/Admin/Connection_Page.php:1282
+#: includes/Admin/Connection_Page.php:1324
 msgid "Active"
 msgstr "有效"
 
-#: includes/Admin/Connection_Page.php:1282
+#: includes/Admin/Connection_Page.php:1324
 msgid "Revoked"
 msgstr "已撤销"
 
-#: includes/Admin/Connection_Page.php:1287
+#: includes/Admin/Connection_Page.php:1329
 msgid "Revoke this device? It must pair again before it can connect."
 msgstr "撤销此设备？撤销后它必须重新配对才能连接。"
 
-#: includes/Admin/Connection_Page.php:1291
+#: includes/Admin/Connection_Page.php:1333
 msgid "Revoke authorization"
 msgstr "撤销授权"
 
@@ -727,23 +709,19 @@ msgstr "打开适配器页面"
 msgid ""
 "This WordPress account cannot use the Adapter channel. Adapter routes "
 "require an administrator session or a paired signed client."
-msgstr ""
-"此 WordPress 账户无法使用 Adapter 通道。Adapter 路由需要管理员会话或已配对的"
-"签名客户端。"
+msgstr "此 WordPress 账户无法使用 Adapter 通道。Adapter 路由需要管理员会话或已配对的签名客户端。"
 
 #: includes/Rest/Controller.php:806
 msgid ""
-"Use an administrator account, or pair a signed client key through POST /"
-"connect/device/start."
-msgstr ""
-"请使用管理员账户，或通过 POST /connect/device/start 配对签名客户端密钥。"
+"Use an administrator account, or pair a signed client key through POST "
+"/connect/device/start."
+msgstr "请使用管理员账户，或通过 POST /connect/device/start 配对签名客户端密钥。"
 
 #: includes/Rest/Controller.php:852
 msgid ""
 "This route requires a WordPress administrator session. Administrator-only "
 "Adapter routes are not available to this account."
-msgstr ""
-"此路由需要 WordPress 管理员会话。仅限管理员的适配器路由对当前账户不可用。"
+msgstr "此路由需要 WordPress 管理员会话。仅限管理员的适配器路由对当前账户不可用。"
 
 #: includes/Rest/Controller.php:856
 msgid "Use an administrator account for administrator-only Adapter routes."
@@ -761,9 +739,8 @@ msgid ""
 "session. Signed AI clients must wait for human approval in the Npcink "
 "Governance Core admin, then call POST /proposals/{proposal_id}/execute."
 msgstr ""
-"统一的批准并执行操作需要 WordPress 管理员会话。签名 AI 客户端必须等待在 "
-"Npcink 治理核心后台完成人工批准，然后调用 POST /proposals/{proposal_id}/"
-"execute。"
+"统一的批准并执行操作需要 WordPress 管理员会话。签名 AI 客户端必须等待在 Npcink 治理核心后台完成人工批准，然后调用 POST "
+"/proposals/{proposal_id}/execute。"
 
 #: includes/Rest/Controller.php:969
 msgid "Ed25519 device pairing requires the PHP sodium extension."
@@ -830,20 +807,18 @@ msgstr "本地文件名：%s。"
 msgid ""
 "Repair post-content media references in %1$d post(s): %2$d actual "
 "replacement(s) from %3$d reviewed rule(s)."
-msgstr ""
-"修复 %1$d 篇文章中的媒体引用：根据 %3$d 条已审核规则执行 %2$d 处实际替换。"
+msgstr "修复 %1$d 篇文章中的媒体引用：根据 %3$d 条已审核规则执行 %2$d 处实际替换。"
 
 #: includes/Rest/Controller.php:2746
 msgid ""
 "Update reviewed media title, alt text, caption, description, or attribution "
 "metadata in the same approval."
-msgstr ""
-"在同一次批准中更新已审核的媒体标题、替代文本、说明文字、描述或署名元数据。"
+msgstr "在同一次批准中更新已审核的媒体标题、替代文本、说明文字、描述或署名元数据。"
 
 #: includes/Rest/Controller.php:2748
 msgid ""
-"Keep a local backup so the media file and post references can be rolled back "
-"after approval."
+"Keep a local backup so the media file and post references can be rolled back"
+" after approval."
 msgstr "保留本地备份，以便批准后仍可回滚媒体文件和文章引用。"
 
 #: includes/Rest/Controller.php:3005
@@ -857,17 +832,14 @@ msgid ""
 "Commit preflight relay skipped reference-addressed verification reads; the "
 "post-execution readback may degrade under read-authorization-requiring "
 "deployments."
-msgstr ""
-"提交预检中继跳过了引用寻址的验证读取；在要求读取授权的部署中，执行后回读可能"
-"降级。"
+msgstr "提交预检中继跳过了引用寻址的验证读取；在要求读取授权的部署中，执行后回读可能降级。"
 
 #: includes/Rest/Controller.php:3102
 msgid ""
 "Commit preflight relay could not derive verification reads; the post-"
 "execution readback may degrade under read-authorization-requiring "
 "deployments."
-msgstr ""
-"提交预检中继无法推导验证读取；在要求读取授权的部署中，执行后回读可能降级。"
+msgstr "提交预检中继无法推导验证读取；在要求读取授权的部署中，执行后回读可能降级。"
 
 #: includes/Rest/Controller.php:3192 includes/Rest/Controller.php:3270
 msgid "proposal_id is required."
@@ -951,8 +923,7 @@ msgstr "一条已签发的验证读取授权因缺少可用的 slug 寻址而被
 msgid ""
 "No minted verification read grant matched this readback; it runs without "
 "execution-attached authorization."
-msgstr ""
-"没有已签发的验证读取授权匹配此次回读；该回读将在无执行附带授权的情况下运行。"
+msgstr "没有已签发的验证读取授权匹配此次回读；该回读将在无执行附带授权的情况下运行。"
 
 #: includes/Rest/Controller.php:4121
 msgid "Core commit preflight response is invalid."
@@ -979,9 +950,7 @@ msgid ""
 "Execution found readback-paired actions without minted verification read "
 "grants; the post-execution readback may degrade under read-authorization-"
 "requiring deployments."
-msgstr ""
-"执行发现存在已配对回读但未签发验证读取授权的动作；在要求读取授权的部署中，执"
-"行后回读可能降级。"
+msgstr "执行发现存在已配对回读但未签发验证读取授权的动作；在要求读取授权的部署中，执行后回读可能降级。"
 
 #: includes/Rest/Controller.php:4669
 msgid ""
@@ -1017,9 +986,7 @@ msgstr "核心指导意外允许代理或提交执行。"
 msgid ""
 "Reload Core capabilities; if Core keeps allowing proxy or commit execution, "
 "align the Core boundary before retrying reads through Adapter."
-msgstr ""
-"请重新加载 Core 能力清单；如果 Core 持续允许代理或提交执行，请先对齐 Core 边"
-"界，再通过适配器重试读取。"
+msgstr "请重新加载 Core 能力清单；如果 Core 持续允许代理或提交执行，请先对齐 Core 边界，再通过适配器重试读取。"
 
 #: includes/Rest/Controller.php:5726
 msgid "Core read preflight did not return a read authorization context."
@@ -1038,7 +1005,8 @@ msgid ""
 msgstr "Adapter 返回此敏感读取结果前，Core 要求显式读取授权。"
 
 #: includes/Rest/Controller.php:5778
-msgid "Create or approve the sensitive read request in Npcink Governance Core."
+msgid ""
+"Create or approve the sensitive read request in Npcink Governance Core."
 msgstr "请在 Npcink Governance Core 中创建或批准敏感读取请求。"
 
 #: includes/Rest/Controller.php:5779
@@ -1051,16 +1019,13 @@ msgstr "仅在 Core 为此能力和输入提供有界读取授权上下文后重
 msgid ""
 "Do not bypass Adapter through the database, filesystem, logs, custom "
 "scripts, or direct WordPress internals."
-msgstr ""
-"不要通过数据库、文件系统、日志、自定义脚本或直接 WordPress 内部调用绕过 "
-"Adapter。"
+msgstr "不要通过数据库、文件系统、日志、自定义脚本或直接 WordPress 内部调用绕过 Adapter。"
 
 #: includes/Rest/Dependency_Status.php:183
 msgid ""
 "Npcink Governance Core is required before Adapter can read capabilities, "
 "create proposals, or run commit preflight."
-msgstr ""
-"Adapter 读取能力、创建提案或运行提交预检前，需要 Npcink Governance Core。"
+msgstr "Adapter 读取能力、创建提案或运行提交预检前，需要 Npcink Governance Core。"
 
 #: includes/Rest/Dependency_Status.php:196
 msgid ""
@@ -1069,7 +1034,8 @@ msgid ""
 msgstr "Adapter 执行读取能力或已批准写入能力前，需要 WordPress Abilities API。"
 
 #: includes/Rest/Execution_Input_Validator.php:55
-msgid "This proposal ability is not implemented by Adapter execution profiles."
+msgid ""
+"This proposal ability is not implemented by Adapter execution profiles."
 msgstr "此提案能力不允许由适配器执行。"
 
 #: includes/Rest/Execution_Input_Validator.php:90
@@ -1154,12 +1120,14 @@ msgstr "此执行配置受支持，但 WordPress 主机尚未将该设置目标�
 #: includes/Rest/Execution_Input_Validator.php:559
 #: includes/Rest/Execution_Input_Validator.php:624
 msgid ""
-"Batch output references must use $outputs.action_id.field as the whole value."
+"Batch output references must use $outputs.action_id.field as the whole "
+"value."
 msgstr "批处理输出引用必须将 $outputs.action_id.field 作为完整值。"
 
 #: includes/Rest/Execution_Input_Validator.php:574
 msgid ""
-"Batch output references must point to an earlier action in the same proposal."
+"Batch output references must point to an earlier action in the same "
+"proposal."
 msgstr "批处理输出引用必须指向同一提案中较早的操作。"
 
 #: includes/Rest/Execution_Input_Validator.php:607
@@ -1223,7 +1191,8 @@ msgid "update-template-blocks execution input must include post_id."
 msgstr "update-template-blocks 执行输入必须包含 post_id。"
 
 #: includes/Rest/Execution_Profile_Registry.php:130
-msgid "update-template-blocks execution input must include at least one block."
+msgid ""
+"update-template-blocks execution input must include at least one block."
 msgstr "update-template-blocks 执行输入必须至少包含一个区块。"
 
 #: includes/Rest/Execution_Profile_Registry.php:141
@@ -1235,7 +1204,8 @@ msgid "upsert-template-blocks execution input must include a valid slug."
 msgstr "upsert-template-blocks 执行输入必须包含有效 slug。"
 
 #: includes/Rest/Execution_Profile_Registry.php:153
-msgid "upsert-template-blocks execution input must include at least one block."
+msgid ""
+"upsert-template-blocks execution input must include at least one block."
 msgstr "upsert-template-blocks 执行输入必须至少包含一个区块。"
 
 #: includes/Rest/Execution_Profile_Registry.php:164
@@ -1309,8 +1279,8 @@ msgid ""
 "update-media-details source_type must be owned, ai_generated, stock, "
 "external, or test."
 msgstr ""
-"update-media-details 的 source_type 必须是 owned、ai_generated、stock、"
-"external 或 test。"
+"update-media-details 的 source_type 必须是 owned、ai_generated、stock、external 或 "
+"test。"
 
 #: includes/Rest/Execution_Profile_Registry.php:297
 msgid "update-media-details execution input must include attachment_id."
@@ -1327,8 +1297,8 @@ msgid ""
 "upload-media-from-url source_type must be owned, ai_generated, stock, "
 "external, or test."
 msgstr ""
-"upload-media-from-url 的 source_type 必须是 owned、ai_generated、stock、"
-"external 或 test。"
+"upload-media-from-url 的 source_type 必须是 owned、ai_generated、stock、external 或 "
+"test。"
 
 #: includes/Rest/Execution_Profile_Registry.php:319
 msgid "upload-media-from-url execution input must include url."
@@ -1358,8 +1328,7 @@ msgstr "replace-media-file 执行输入必须包含 attachment_id。"
 
 #: includes/Rest/Execution_Profile_Registry.php:370
 msgid "restore-media-backup target_conflict_mode must be fail or overwrite."
-msgstr ""
-"restore-media-backup 的 target_conflict_mode 必须是 fail 或 overwrite。"
+msgstr "restore-media-backup 的 target_conflict_mode 必须是 fail 或 overwrite。"
 
 #: includes/Rest/Execution_Profile_Registry.php:376
 msgid "restore-media-backup execution input must include attachment_id."
@@ -1378,8 +1347,7 @@ msgstr "adopt-cloud-media-derivative 执行输入必须包含 attachment_id。"
 msgid ""
 "adopt-cloud-media-derivative execution input must include "
 "derivative_artifact evidence."
-msgstr ""
-"adopt-cloud-media-derivative 执行输入必须包含 derivative_artifact 证据。"
+msgstr "adopt-cloud-media-derivative 执行输入必须包含 derivative_artifact 证据。"
 
 #: includes/Rest/Execution_Profile_Registry.php:408
 msgid "rename-media-file conflict_mode must be fail or unique."
@@ -1411,8 +1379,8 @@ msgid ""
 "delete-attachment deletion_policy_branch must be illegal_content_no_backup "
 "or governed_with_backup."
 msgstr ""
-"delete-attachment 的 deletion_policy_branch 必须为 illegal_content_no_backup "
-"或 governed_with_backup。"
+"delete-attachment 的 deletion_policy_branch 必须为 illegal_content_no_backup 或 "
+"governed_with_backup。"
 
 #: includes/Rest/Execution_Profile_Registry.php:453
 msgid "delete-attachment execution input must include attachment_id."
@@ -1500,7 +1468,8 @@ msgid "Core commit preflight did not return an Adapter execution handoff."
 msgstr "核心提交预检未返回适配器执行交接。"
 
 #: includes/Rest/Preflight_Handoffs.php:297
-msgid "Core execution handoff was not issued for Adapter after Core preflight."
+msgid ""
+"Core execution handoff was not issued for Adapter after Core preflight."
 msgstr "核心执行交接不是为核心预检后的适配器执行签发的。"
 
 #: includes/Rest/Preflight_Handoffs.php:312
@@ -1628,15 +1597,13 @@ msgstr "核心提交预检未授权执行。"
 msgid ""
 "Core already issued the one-time execution handoff, and the 409 response "
 "echoes its correlation id and expiry for recovery."
-msgstr ""
-"Core 已签发一次性执行交接，且 409 响应回传了其关联 ID 与有效期，可用于恢复。"
+msgstr "Core 已签发一次性执行交接，且 409 响应回传了其关联 ID 与有效期，可用于恢复。"
 
 #: includes/Rest/Proposal_Review.php:576
 msgid ""
 "Core has already issued the one-time execution handoff. This Core version "
 "does not echo the handoff identifiers, so Adapter cannot recover it."
-msgstr ""
-"Core 已签发一次性执行交接。该 Core 版本不回传交接标识，Adapter 无法恢复。"
+msgstr "Core 已签发一次性执行交接。该 Core 版本不回传交接标识，Adapter 无法恢复。"
 
 #: includes/Rest/Proposal_Review.php:581
 msgid "Show Core preflight blockers to the operator."
@@ -1658,22 +1625,18 @@ msgstr "为同一预期写入创建新提案。"
 msgid ""
 "After approval, call Adapter execute or approve-and-execute; do not call "
 "Core commit-preflight directly."
-msgstr ""
-"批准后，调用适配器 execute 或 approve-and-execute；不要直接调用核心 commit-"
-"preflight。"
+msgstr "批准后，调用适配器 execute 或 approve-and-execute；不要直接调用核心 commit-preflight。"
 
 #: includes/Rest/Proposal_Review.php:589
 msgid ""
 "Use Adapter commit-preflight only as an advanced diagnostic step and follow "
 "it immediately with Adapter execute."
-msgstr ""
-"只将适配器 commit-preflight 作为高级诊断步骤使用，并且随后立即调用适配器 "
-"execute。"
+msgstr "只将适配器 commit-preflight 作为高级诊断步骤使用，并且随后立即调用适配器 execute。"
 
 #: includes/Rest/Proposal_Review.php:594
 msgid ""
-"If the original execution response was lost, finish the flow with the echoed "
-"correlation id instead of creating a new proposal."
+"If the original execution response was lost, finish the flow with the echoed"
+" correlation id instead of creating a new proposal."
 msgstr "如果原始执行响应丢失，请使用回传的关联 ID 完成流程，而不是创建新提案。"
 
 #: includes/Rest/Proposal_Review.php:602
@@ -1692,8 +1655,8 @@ msgstr "Core 读取授权事实标记无效。"
 
 #: includes/Rest/Read_Governance.php:326
 msgid ""
-"Core read authorization context does not match the requested ability or read "
-"request."
+"Core read authorization context does not match the requested ability or read"
+" request."
 msgstr "Core 读取授权上下文与请求的能力或读取请求不匹配。"
 
 #: includes/Rest/Read_Governance.php:333
@@ -1712,10 +1675,9 @@ msgstr "Core 读取授权上下文已过期。"
 #: includes/Rest/Signing_Auth.php:87
 msgid ""
 "Adapter requires a paired signed client or a WordPress administrator "
-"session. Start key-pair device pairing, then send the signed request headers."
-msgstr ""
-"Adapter 需要已配对的签名客户端或 WordPress 管理员会话。请先完成密钥对设备配"
-"对，再发送签名请求头。"
+"session. Start key-pair device pairing, then send the signed request "
+"headers."
+msgstr "Adapter 需要已配对的签名客户端或 WordPress 管理员会话。请先完成密钥对设备配对，再发送签名请求头。"
 
 #: includes/Rest/Signing_Auth.php:265
 msgid "Ed25519 signed requests require the PHP sodium extension."
@@ -1728,16 +1690,16 @@ msgstr "签名请求缺少必需的 Npcink 签名凭据字段。"
 
 #: includes/Rest/Signing_Auth.php:284
 msgid ""
-"Send key_id, timestamp, nonce, content_sha256, alg=Ed25519, and signature on "
-"every request. See docs/keypair-device-pairing-contract.md."
+"Send key_id, timestamp, nonce, content_sha256, alg=Ed25519, and signature on"
+" every request. See docs/keypair-device-pairing-contract.md."
 msgstr ""
-"每个请求都必须发送 key_id、timestamp、nonce、content_sha256、alg=Ed25519 和 "
-"signature。参见 docs/keypair-device-pairing-contract.md。"
+"每个请求都必须发送 key_id、timestamp、nonce、content_sha256、alg=Ed25519 和 signature。参见 "
+"docs/keypair-device-pairing-contract.md。"
 
 #: includes/Rest/Signing_Auth.php:293
 msgid ""
-"The signed request timestamp is unparseable or outside the allowed freshness "
-"window."
+"The signed request timestamp is unparseable or outside the allowed freshness"
+" window."
 msgstr "签名请求时间戳无法解析或超出允许的时效窗口。"
 
 #: includes/Rest/Signing_Auth.php:295
@@ -1768,8 +1730,8 @@ msgid ""
 "canonical string exactly as documented in docs/keypair-device-pairing-"
 "contract.md and re-sign the request."
 msgstr ""
-"请通过 POST /connect/device/start 重新配对客户端，或严格按照 docs/keypair-"
-"device-pairing-contract.md 的说明重建规范化字符串并重新签名请求。"
+"请通过 POST /connect/device/start 重新配对客户端，或严格按照 docs/keypair-device-pairing-"
+"contract.md 的说明重建规范化字符串并重新签名请求。"
 
 #: includes/Rest/Signing_Auth.php:338
 msgid "The paired client key does not carry the scope required by this route."
@@ -1779,8 +1741,7 @@ msgstr "配对的客户端密钥不包含此路由所需的权限范围。"
 msgid ""
 "Re-pair the client requesting the needed scope, or ask a WordPress "
 "administrator to approve a key with it."
-msgstr ""
-"请以所需权限范围重新配对客户端，或请 WordPress 管理员批准包含该范围的密钥。"
+msgstr "请以所需权限范围重新配对客户端，或请 WordPress 管理员批准包含该范围的密钥。"
 
 #: includes/Rest/Signing_Auth.php:348
 msgid "The signed request nonce was already claimed."
@@ -1829,15 +1790,61 @@ msgstr "Core 能力响应无效。"
 msgid "The requested ability is not discoverable through Core."
 msgstr "无法通过核心发现请求的能力。"
 
+#~ msgid "Connect this WordPress site to OpenClaw or other local AI clients."
+#~ msgstr "将此 WordPress 站点连接到 OpenClaw 或其他本地 AI 客户端。"
+
+#~ msgid ""
+#~ "I understand this fallback creates a WordPress Application Password and the "
+#~ "signed key-pair connection is preferred because only a paired key is an "
+#~ "enforced boundary."
+#~ msgstr "我理解此备用方式会创建一个 WordPress 应用密码；推荐使用签名密钥对连接，因为只有已配对的密钥才处于受强制的边界内。"
+
+#~ msgid ""
+#~ "Bounded diagnostics from the Adapter channel only. Core Governance Audit "
+#~ "remains the governance log; AI Request Logs remain the provider request log."
+#~ msgstr ""
+#~ "仅包含适配器通道的有界诊断信息。Core Governance Audit 仍是治理日志；AI Request Logs 仍是提供方请求日志。"
+
+#~ msgid "Suite dependencies"
+#~ msgstr "套件依赖"
+
+#~ msgid "Npcink Governance Core and the Abilities Toolkit are active."
+#~ msgstr "Npcink 治理核心与能力工具包均已激活。"
+
+#~ msgid ""
+#~ "Install or activate the missing suite plugins listed above; Adapter routes "
+#~ "fail closed without them."
+#~ msgstr "请安装或启用上方列出的缺失套件插件；缺少它们时，适配器路由将一律拒绝执行。"
+
+#~ msgid "Pair a client key"
+#~ msgstr "配对一个客户端密钥"
+
+#~ msgid ""
+#~ "At least one approved device key is active; this is the enforced-boundary "
+#~ "connection path."
+#~ msgstr "至少有一个已批准的设备密钥处于激活状态；这是受强制边界保护的连接路径。"
+
+#~ msgid "Verify a signed request"
+#~ msgstr "验证一个签名请求"
+
+#~ msgid ""
+#~ "The connect command tests a signed health request after approval; this step "
+#~ "completes automatically once pairing finishes."
+#~ msgstr "连接命令会在批准后测试一次签名健康检查请求；配对完成后此步骤会自动完成。"
+
+#~ msgid ""
+#~ "Readiness covers the connection only. Writes still require a Core proposal, "
+#~ "human approval, and commit-preflight; approval state lives in Npcink "
+#~ "Governance Core."
+#~ msgstr "就绪状态仅覆盖连接本身。写入操作仍需要治理核心提案、人工批准和提交预检；审批状态保存在 Npcink 治理核心中。"
+
 #~ msgid "No active key-pair clients"
 #~ msgstr "没有有效的密钥配对客户端"
 
 #~ msgid ""
 #~ "No active key-pair clients are registered for this administrator. Run the "
 #~ "connect command, approve the browser prompt, then refresh this page."
-#~ msgstr ""
-#~ "此管理员尚无有效密钥配对客户端。请运行连接命令，批准浏览器提示，然后刷新此"
-#~ "页面。"
+#~ msgstr "此管理员尚无有效密钥配对客户端。请运行连接命令，批准浏览器提示，然后刷新此页面。"
 
 #~ msgid "Site"
 #~ msgstr "站点"
@@ -1853,14 +1860,12 @@ msgstr "无法通过核心发现请求的能力。"
 
 #, php-format
 #~ msgid ""
-#~ "You have %d active WordPress Application Password while paired device "
-#~ "keys are available."
+#~ "You have %d active WordPress Application Password while paired device keys "
+#~ "are available."
 #~ msgid_plural ""
-#~ "You have %d active WordPress Application Passwords while paired device "
-#~ "keys are available."
-#~ msgstr[0] ""
-#~ "在已配对设备密钥可用的情况下，您仍有 %d 个处于激活状态的 WordPress 应用密"
-#~ "码。"
+#~ "You have %d active WordPress Application Passwords while paired device keys "
+#~ "are available."
+#~ msgstr[0] "在已配对设备密钥可用的情况下，您仍有 %d 个处于激活状态的 WordPress 应用密码。"
 
 #~ msgid ""
 #~ "Application Password connections are conventional boundaries; review and "
@@ -1881,16 +1886,13 @@ msgstr "无法通过核心发现请求的能力。"
 #~ msgid ""
 #~ "Run this command on the computer or terminal where OpenClaw is running. "
 #~ "Adapter stores only the approved public key."
-#~ msgstr ""
-#~ "请在运行 OpenClaw 的电脑或终端中运行该命令。Adapter 只保存已批准的公钥。"
+#~ msgstr "请在运行 OpenClaw 的电脑或终端中运行该命令。Adapter 只保存已批准的公钥。"
 
 #~ msgid ""
 #~ "Use only when the client has a dedicated secret field. This is a "
 #~ "conventional boundary: the password can reach WordPress REST directly, so "
 #~ "the approval gate is voluntary for that client."
-#~ msgstr ""
-#~ "仅在客户端拥有专用密钥字段时使用。这是一种约定边界：该密码可以直接访问 "
-#~ "WordPress REST，因此审批门禁对该客户端属于自愿性质。"
+#~ msgstr "仅在客户端拥有专用密钥字段时使用。这是一种约定边界：该密码可以直接访问 WordPress REST，因此审批门禁对该客户端属于自愿性质。"
 
 #~ msgid "Dependency contracts need attention."
 #~ msgstr "依赖契约需要处理。"
@@ -1898,16 +1900,12 @@ msgstr "无法通过核心发现请求的能力。"
 #~ msgid ""
 #~ "No recent client errors recorded. Failed Adapter requests from connected "
 #~ "clients appear here."
-#~ msgstr ""
-#~ "暂无近期客户端错误记录。已连接客户端发送的失败适配器请求会显示在这里。"
+#~ msgstr "暂无近期客户端错误记录。已连接客户端发送的失败适配器请求会显示在这里。"
 
 #~ msgid ""
-#~ "Core has already issued the one-time execution handoff. If commit-"
-#~ "preflight was called directly against Core, Adapter cannot recover that "
-#~ "handoff."
-#~ msgstr ""
-#~ "核心已经发出一次性执行交接。如果直接对核心调用了 commit-preflight，适配器"
-#~ "无法恢复该交接。"
+#~ "Core has already issued the one-time execution handoff. If commit-preflight "
+#~ "was called directly against Core, Adapter cannot recover that handoff."
+#~ msgstr "核心已经发出一次性执行交接。如果直接对核心调用了 commit-preflight，适配器无法恢复该交接。"
 
 #~ msgid "Use only when the client has a dedicated secret field."
 #~ msgstr "仅当客户端有专用密钥字段时使用。"
@@ -1935,8 +1933,8 @@ msgstr "无法通过核心发现请求的能力。"
 #~ msgstr "治理核心"
 
 #~ msgid ""
-#~ "Review proposals, approval decisions, commit preflight, audit, and Core "
-#~ "app keys."
+#~ "Review proposals, approval decisions, commit preflight, audit, and Core app "
+#~ "keys."
 #~ msgstr "查看提案、审批决策、提交预检、审计和核心应用密钥。"
 
 #~ msgid "Abilities"
@@ -1957,8 +1955,7 @@ msgstr "无法通过核心发现请求的能力。"
 #~ msgstr "云端扩展"
 
 #~ msgid ""
-#~ "Connect this site to Npcink Cloud without moving local control-plane "
-#~ "truth."
+#~ "Connect this site to Npcink Cloud without moving local control-plane truth."
 #~ msgstr "将此站点连接到 Npcink Cloud，同时不迁移本地控制面事实。"
 
 #~ msgid "Open"

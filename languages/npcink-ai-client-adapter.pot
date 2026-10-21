@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-21T08:43:40+00:00\n"
+"POT-Creation-Date: 2026-10-21T09:07:11+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: npcink-ai-client-adapter\n"
@@ -48,17 +48,17 @@ msgstr ""
 
 #: includes/Admin/Connection_Page.php:153
 #: includes/Admin/Connection_Page.php:276
-#: includes/Admin/Connection_Page.php:878
+#: includes/Admin/Connection_Page.php:920
 msgid "Copied"
 msgstr ""
 
 #: includes/Admin/Connection_Page.php:154
-#: includes/Admin/Connection_Page.php:879
+#: includes/Admin/Connection_Page.php:921
 msgid "Copy failed"
 msgstr ""
 
 #: includes/Admin/Connection_Page.php:157
-msgid "Connect this WordPress site to OpenClaw or other local AI clients."
+msgid "Connect this site to AI clients on your computer."
 msgstr ""
 
 #: includes/Admin/Connection_Page.php:164
@@ -102,7 +102,7 @@ msgid "LocalWP TLS option. Use only for localhost or .local testing."
 msgstr ""
 
 #: includes/Admin/Connection_Page.php:216
-msgid "I understand this fallback creates a WordPress Application Password and the signed key-pair connection is preferred because only a paired key is an enforced boundary."
+msgid "I understand: an AI client connected with an application password can change the site directly, without approval."
 msgstr ""
 
 #: includes/Admin/Connection_Page.php:221
@@ -296,7 +296,7 @@ msgid "You do not have permission to create AI client handoff credentials."
 msgstr ""
 
 #: includes/Admin/Connection_Page.php:480
-#: includes/Admin/Connection_Page.php:963
+#: includes/Admin/Connection_Page.php:1005
 msgid "Application Password fallback is disabled for this environment."
 msgstr ""
 
@@ -400,171 +400,183 @@ msgstr ""
 msgid "%s:"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:704
+#: includes/Admin/Connection_Page.php:706
 msgid "Recent connection errors"
 msgstr ""
 
 #. translators: %d: number of recorded errors.
-#: includes/Admin/Connection_Page.php:710
+#: includes/Admin/Connection_Page.php:712
 #, php-format
 msgid "%d recent error."
 msgid_plural "%d recent errors."
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/Admin/Connection_Page.php:720
+#: includes/Admin/Connection_Page.php:722
 msgid "No recent errors."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:725
+#: includes/Admin/Connection_Page.php:727
+#: includes/Admin/Connection_Page.php:765
 msgid "Time"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:726
+#: includes/Admin/Connection_Page.php:728
+#: includes/Admin/Connection_Page.php:766
 msgid "Request"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:727
-#: includes/Admin/Connection_Page.php:1253
+#: includes/Admin/Connection_Page.php:729
+#: includes/Admin/Connection_Page.php:767
+#: includes/Admin/Connection_Page.php:1295
 msgid "Status"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:728
+#: includes/Admin/Connection_Page.php:730
+#: includes/Admin/Connection_Page.php:768
 msgid "Error code"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:743
-msgid "Bounded diagnostics from the Adapter channel only. Core Governance Audit remains the governance log; AI Request Logs remain the provider request log."
+#. translators: %d: number of recorded errors.
+#: includes/Admin/Connection_Page.php:753
+#, php-format
+msgid "Show %d older error"
+msgid_plural "Show %d older errors"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/Admin/Connection_Page.php:785
+msgid "Only errors from AI client connections are listed here. Site changes are in the operation log, and AI requests are in the AI request log."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:771
+#: includes/Admin/Connection_Page.php:813
 msgid "Unavailable"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:778
-#: includes/Admin/Connection_Page.php:1105
-#: includes/Admin/Connection_Page.php:1113
-#: includes/Admin/Connection_Page.php:1121
+#: includes/Admin/Connection_Page.php:820
+#: includes/Admin/Connection_Page.php:1147
+#: includes/Admin/Connection_Page.php:1155
+#: includes/Admin/Connection_Page.php:1163
 msgid "Ready"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:784
+#: includes/Admin/Connection_Page.php:826
 msgid "Needs dependencies"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:874
-#: includes/Admin/Connection_Page.php:882
+#: includes/Admin/Connection_Page.php:916
+#: includes/Admin/Connection_Page.php:924
 msgid "AI Client Connection Created"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:884
+#: includes/Admin/Connection_Page.php:926
 msgid "Copy this Application Password now. WordPress shows it only once and stores only a hash."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:885
+#: includes/Admin/Connection_Page.php:927
 msgid "Paste it only into the AI client dedicated secret field. Adapter does not grant provider credentials, prompt management, workflow runtime, or Cloud connector authority."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:888
+#: includes/Admin/Connection_Page.php:930
 msgid "One-time Application Password"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:890
+#: includes/Admin/Connection_Page.php:932
 msgid "Copy Application Password"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:894
+#: includes/Admin/Connection_Page.php:936
 msgid "Adapter URL"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:895
+#: includes/Admin/Connection_Page.php:937
 msgid "WordPress user"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:896
+#: includes/Admin/Connection_Page.php:938
 msgid "Password UUID"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:898
+#: includes/Admin/Connection_Page.php:940
 msgid "Connection manifest"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:899
+#: includes/Admin/Connection_Page.php:941
 msgid "Copy manifest"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:902
+#: includes/Admin/Connection_Page.php:944
 msgid "AI client env placeholder"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:903
+#: includes/Admin/Connection_Page.php:945
 msgid "Copy env placeholder"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:907
+#: includes/Admin/Connection_Page.php:949
 msgid "Back to Npcink AI Client Adapter"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:966
+#: includes/Admin/Connection_Page.php:1008
 msgid "Application Passwords are not available for this user or site."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1105
-#: includes/Admin/Connection_Page.php:1113
-#: includes/Admin/Connection_Page.php:1121
+#: includes/Admin/Connection_Page.php:1147
+#: includes/Admin/Connection_Page.php:1155
+#: includes/Admin/Connection_Page.php:1163
 msgid "Needs attention"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1106
-msgid "Suite dependencies"
+#: includes/Admin/Connection_Page.php:1148
+msgid "Required plugins"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1108
-msgid "Npcink Governance Core and the Abilities Toolkit are active."
+#: includes/Admin/Connection_Page.php:1150
+msgid "All required Npcink plugins are turned on."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1109
-msgid "Install or activate the missing suite plugins listed above; Adapter routes fail closed without them."
+#: includes/Admin/Connection_Page.php:1151
+msgid "Turn on the missing Npcink plugins listed above. AI clients cannot connect until they are on."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1114
-msgid "Pair a client key"
+#: includes/Admin/Connection_Page.php:1156
+msgid "Connect a device"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1116
-msgid "At least one approved device key is active; this is the enforced-boundary connection path."
+#: includes/Admin/Connection_Page.php:1158
+msgid "At least one device is connected with its own device key."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1117
-msgid "Copy the connect command below, run it on the machine where the AI client runs, then approve the pairing request."
+#: includes/Admin/Connection_Page.php:1159
+msgid "Copy the connect command above, run it on the computer where the AI client runs, then approve the request here."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1122
-msgid "Verify a signed request"
+#: includes/Admin/Connection_Page.php:1164
+msgid "First request from the device"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1124
-msgid "A paired key has completed a signed Adapter request successfully."
+#: includes/Admin/Connection_Page.php:1166
+msgid "A connected device has made a request successfully."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1125
-msgid "The connect command tests a signed health request after approval; this step completes automatically once pairing finishes."
+#: includes/Admin/Connection_Page.php:1167
+msgid "This finishes on its own after you approve the device."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1130
+#: includes/Admin/Connection_Page.php:1172
 msgid "Connection readiness"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1140
-msgid "Readiness covers the connection only. Writes still require a Core proposal, human approval, and commit-preflight; approval state lives in Npcink Governance Core."
+#: includes/Admin/Connection_Page.php:1182
+msgid "This only checks the connection. Changes the AI suggests still need your approval before they are made."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1168
+#: includes/Admin/Connection_Page.php:1210
 msgid "No devices yet"
 msgstr ""
 
 #. translators: 1: number of active clients, 2: formatted last-used timestamp.
-#: includes/Admin/Connection_Page.php:1174
+#: includes/Admin/Connection_Page.php:1216
 #, php-format
 msgid "%1$d active, last used %2$s"
 msgid_plural "%1$d active, last used %2$s"
@@ -572,58 +584,58 @@ msgstr[0] ""
 msgstr[1] ""
 
 #. translators: %d: number of active clients.
-#: includes/Admin/Connection_Page.php:1182
+#: includes/Admin/Connection_Page.php:1224
 #, php-format
 msgid "%d active, not used yet"
 msgid_plural "%d active, not used yet"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/Admin/Connection_Page.php:1208
+#: includes/Admin/Connection_Page.php:1250
 msgid "No devices are connected yet. Use the connect command above."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1219
+#: includes/Admin/Connection_Page.php:1261
 msgid "Revoked devices"
 msgstr ""
 
 #. translators: %d: number of revoked key-pair clients.
-#: includes/Admin/Connection_Page.php:1224
+#: includes/Admin/Connection_Page.php:1266
 #, php-format
 msgid "%d revoked device record"
 msgid_plural "%d revoked device records"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/Admin/Connection_Page.php:1250
+#: includes/Admin/Connection_Page.php:1292
 msgid "Device"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1251
+#: includes/Admin/Connection_Page.php:1293
 msgid "Device ID"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1252
+#: includes/Admin/Connection_Page.php:1294
 msgid "Last used"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1255
+#: includes/Admin/Connection_Page.php:1297
 msgid "Action"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1282
+#: includes/Admin/Connection_Page.php:1324
 msgid "Active"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1282
+#: includes/Admin/Connection_Page.php:1324
 msgid "Revoked"
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1287
+#: includes/Admin/Connection_Page.php:1329
 msgid "Revoke this device? It must pair again before it can connect."
 msgstr ""
 
-#: includes/Admin/Connection_Page.php:1291
+#: includes/Admin/Connection_Page.php:1333
 msgid "Revoke authorization"
 msgstr ""
 
