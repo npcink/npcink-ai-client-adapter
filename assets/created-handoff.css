@@ -119,3 +119,94 @@ details textarea {
 		width: auto;
 	}
 }
+
+/* Align with connection-page status + fold pattern. */
+.maa-status-card {
+	max-width: 900px;
+	box-sizing: border-box;
+}
+
+.maa-status-line {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 0 0 16px;
+	font-size: 15px;
+}
+
+.maa-status-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	flex: none;
+}
+
+.maa-status-dot-ok {
+	background: #00a32a;
+}
+
+.maa-status-dot-warning {
+	background: #dba617;
+}
+
+.maa-status-actions {
+	margin: 0 0 8px;
+}
+
+.description {
+	margin: 8px 0 0;
+	color: #646970;
+}
+
+.maa-more-info,
+.maa-inline-disclosure {
+	max-width: 900px;
+	margin: 0 0 24px;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	border-radius: 4px;
+	padding: 0 16px;
+}
+
+.maa-inline-disclosure > summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 14px 0;
+	cursor: pointer;
+	list-style: none;
+}
+
+.maa-inline-disclosure > summary::-webkit-details-marker {
+	display: none;
+}
+
+.maa-disclosure-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.maa-disclosure-icon::before {
+	content: "›";
+	color: #2271b1;
+	font-size: 20px;
+	line-height: 1;
+}
+
+.maa-inline-disclosure[open] > summary .maa-disclosure-icon::before {
+	content: "‹";
+	display: inline-block;
+	transform: rotate(-90deg);
+}
+
+.maa-inline-disclosure .maa-inline-disclosure {
+	margin: 16px 0 24px;
+	border: none;
+	padding: 0;
+}
+
+.secret-panel textarea {
+	min-height: 72px;
+}
