@@ -98,17 +98,30 @@ Do not put developer diagnostics on the default admin page. Keep these in
 - failure code mapping;
 - verbose handoff prompt and local AI client session text.
 
+## Device approval
+
+The pairing approval page follows the same plain-language pattern as the
+connection page:
+
+- one status sentence and one primary action for pending, approved, rejected,
+  and invalid/expired states;
+- `Reject` stays a secondary button;
+- client name, computer name, approval code, scopes, and fingerprints stay under
+  `More information (for troubleshooting)`;
+- technical IDs stay nested under `Technical details`.
+
 ## Created Handoff
 
 After creating an Application Password, the completion page must prioritize the
 one-time secret:
 
-- show the Application Password in the first focused panel;
-- provide a `Copy Application Password` action;
-- keep manifest, env placeholders, WorkBuddy setup, and full handoff text
-  behind detail disclosures;
+- one status sentence: copy the password now because it will not be shown again;
+- provide a primary `Copy password` action in the first focused panel;
+- keep connection address, username, password ID, manifest, and env placeholders
+  behind `More information (for troubleshooting)`;
 - never pass the raw password into copied manifest, env placeholder, WorkBuddy,
-  or handoff text.
+  or handoff text;
+- return to the connection page with a secondary control.
 
 ## Time Display
 

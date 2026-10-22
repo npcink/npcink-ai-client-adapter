@@ -5,7 +5,7 @@ msgstr ""
 "Project-Id-Version: Npcink AI Client Adapter 0.4.2\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/npcink-ai-client-adapter\n"
 "POT-Creation-Date: 2026-10-21T09:07:11+00:00\n"
-"PO-Revision-Date: 2026-09-04 19:05+0800\n"
+"PO-Revision-Date: 2026-10-22 09:30+0800\n"
 "Last-Translator: Npcink <dev@npcink.local>\n"
 "Language-Team: Chinese (China) <zh_CN@li.org>\n"
 "Language: zh_CN\n"
@@ -39,7 +39,6 @@ msgid "Adapter"
 msgstr "渠道适配器"
 
 #: includes/Admin/Connection_Page.php:69 includes/Admin/Connection_Page.php:70
-#: includes/Admin/Connection_Page.php:373
 msgid "Approve Npcink Client"
 msgstr "批准 Npcink 客户端"
 
@@ -48,13 +47,13 @@ msgid "You do not have permission to view this page."
 msgstr "您没有权限查看此页面。"
 
 #: includes/Admin/Connection_Page.php:153
-#: includes/Admin/Connection_Page.php:276
-#: includes/Admin/Connection_Page.php:920
+#: includes/Admin/Connection_Page.php:278
+#: includes/Admin/Connection_Page.php:959
 msgid "Copied"
 msgstr "已复制"
 
 #: includes/Admin/Connection_Page.php:154
-#: includes/Admin/Connection_Page.php:921
+#: includes/Admin/Connection_Page.php:960
 msgid "Copy failed"
 msgstr "复制失败"
 
@@ -83,6 +82,8 @@ msgid ""
 msgstr "设备不再使用或误授权时可撤销。撤销后的设备必须重新配对才能连接。"
 
 #: includes/Admin/Connection_Page.php:183
+#: includes/Admin/Connection_Page.php:333
+#: includes/Admin/Connection_Page.php:973
 msgid "More information (for troubleshooting)"
 msgstr "更多信息（排查问题时使用）"
 
@@ -210,15 +211,15 @@ msgstr "用户代码"
 msgid "Used pairing code"
 msgstr "已使用的配对代码"
 
-#: includes/Admin/Connection_Page.php:304
+#: includes/Admin/Connection_Page.php:352
 msgid "Started"
-msgstr "发起时间"
+msgstr "开始时间"
 
 #: includes/Admin/Connection_Page.php:306
 msgid "Approved"
 msgstr "批准时间"
 
-#: includes/Admin/Connection_Page.php:309
+#: includes/Admin/Connection_Page.php:357
 msgid "Expires"
 msgstr "过期时间"
 
@@ -263,9 +264,9 @@ msgstr "公钥指纹"
 msgid "Scope IDs"
 msgstr "权限范围 ID"
 
-#: includes/Admin/Connection_Page.php:333
+#: includes/Admin/Connection_Page.php:384
 msgid "Connection record ID"
-msgstr "连接记录 ID"
+msgstr "连接记录编号"
 
 #: includes/Admin/Connection_Page.php:334
 msgid "Client key record ID"
@@ -282,11 +283,11 @@ msgid ""
 "keys, or local file paths."
 msgstr "可选，仅供管理员后续管理识别。它不参与认证或授权。不要填写密码、令牌、私钥或本地文件路径。"
 
-#: includes/Admin/Connection_Page.php:349
+#: includes/Admin/Connection_Page.php:323
 msgid "Approve connection"
 msgstr "批准连接"
 
-#: includes/Admin/Connection_Page.php:350
+#: includes/Admin/Connection_Page.php:324
 msgid "Reject"
 msgstr "拒绝"
 
@@ -321,184 +322,184 @@ msgstr "在治理核心后台人工批准并完成提交预检后，执行已获
 msgid "No recognized Adapter scopes were requested."
 msgstr "未请求可识别的 Adapter 权限范围。"
 
-#: includes/Admin/Connection_Page.php:452
+#: includes/Admin/Connection_Page.php:490
 msgid "You do not have permission to revoke client keys."
 msgstr "您没有权限撤销客户端密钥。"
 
-#: includes/Admin/Connection_Page.php:474
+#: includes/Admin/Connection_Page.php:512
 msgid "You do not have permission to create AI client handoff credentials."
 msgstr "您没有权限创建 OpenClaw 交接凭据。"
 
-#: includes/Admin/Connection_Page.php:480
-#: includes/Admin/Connection_Page.php:1005
+#: includes/Admin/Connection_Page.php:518
+#: includes/Admin/Connection_Page.php:1060
 msgid "Application Password fallback is disabled for this environment."
 msgstr "当前环境已禁用应用密码备用连接。"
 
-#: includes/Admin/Connection_Page.php:486
+#: includes/Admin/Connection_Page.php:524
 msgid ""
 "Confirm that you understand this fallback creates a WordPress Application "
 "Password."
 msgstr "请确认您理解此备用方式会创建 WordPress 应用密码。"
 
-#: includes/Admin/Connection_Page.php:547
+#: includes/Admin/Connection_Page.php:585
 msgid "Some required Npcink plugins are not active yet."
 msgstr "部分必需的 Npcink 插件尚未启用。"
 
-#: includes/Admin/Connection_Page.php:548
+#: includes/Admin/Connection_Page.php:586
 msgid "Open Plugins"
 msgstr "打开插件页面"
 
 #. translators: %s: comma-separated plugin names.
-#: includes/Admin/Connection_Page.php:553
+#: includes/Admin/Connection_Page.php:591
 #, php-format
 msgid "Needed: %s"
 msgstr "需要：%s"
 
 #. translators: %s: comma-separated plugin names.
-#: includes/Admin/Connection_Page.php:553
+#: includes/Admin/Connection_Page.php:591
 msgid ", "
 msgstr "、"
 
 #. translators: %d: number of connected AI clients.
-#: includes/Admin/Connection_Page.php:561
+#: includes/Admin/Connection_Page.php:599
 #, php-format
 msgid "%d AI client is connected and can use this site."
 msgid_plural "%d AI clients are connected and can use this site."
 msgstr[0] "已连接 %d 个 AI 客户端，可以使用此站点。"
 
-#: includes/Admin/Connection_Page.php:564
-#: includes/Admin/Connection_Page.php:568
+#: includes/Admin/Connection_Page.php:602
+#: includes/Admin/Connection_Page.php:606
 msgid "Copy connect command"
 msgstr "复制连接命令"
 
-#: includes/Admin/Connection_Page.php:565
+#: includes/Admin/Connection_Page.php:603
 msgid "To add another computer, run the copied command there."
 msgstr "要添加其他电脑，请在那台电脑上运行复制的命令。"
 
-#: includes/Admin/Connection_Page.php:567
+#: includes/Admin/Connection_Page.php:605
 msgid "No AI client is connected yet."
 msgstr "还没有连接 AI 客户端。"
 
-#: includes/Admin/Connection_Page.php:569
+#: includes/Admin/Connection_Page.php:607
 msgid ""
 "Run the copied command on the computer where your AI client runs, then "
 "approve the request that opens here."
 msgstr "在运行 AI 客户端的电脑上执行复制的命令，然后在这里批准弹出的请求。"
 
-#: includes/Admin/Connection_Page.php:614
+#: includes/Admin/Connection_Page.php:652
 msgid "Some required Npcink plugins need an update."
 msgstr "部分必需的 Npcink 插件需要更新。"
 
 #. translators: %s: dependency label.
-#: includes/Admin/Connection_Page.php:637
+#: includes/Admin/Connection_Page.php:675
 #, php-format
 msgid "%s is not reachable for a contract check."
 msgstr "%s 无法访问，无法进行契约检查。"
 
 #. translators: %s: required version.
-#: includes/Admin/Connection_Page.php:645
+#: includes/Admin/Connection_Page.php:683
 #, php-format
 msgid "does not report a plugin version; the required version is %s."
 msgstr "未报告插件版本；所需版本为 %s。"
 
 #. translators: 1: detected version, 2: required version.
-#: includes/Admin/Connection_Page.php:649
+#: includes/Admin/Connection_Page.php:687
 #, php-format
 msgid "version %1$s is older than the required %2$s."
 msgstr "版本 %1$s 低于所需的 %2$s。"
 
 #. translators: %s: required contract version.
-#: includes/Admin/Connection_Page.php:659
+#: includes/Admin/Connection_Page.php:697
 #, php-format
 msgid ""
 "does not report a contract version; the required contract version is %s."
 msgstr "未报告契约版本；所需契约版本为 %s。"
 
 #. translators: 1: detected contract version, 2: required contract version.
-#: includes/Admin/Connection_Page.php:663
+#: includes/Admin/Connection_Page.php:701
 #, php-format
 msgid "contract version %1$s is older than the required %2$s."
 msgstr "契约版本 %1$s 低于所需的 %2$s。"
 
 #. translators: %s: dependency label.
-#: includes/Admin/Connection_Page.php:671
+#: includes/Admin/Connection_Page.php:709
 #, php-format
 msgid "%s exposes an unsupported schema version."
 msgstr "%s 暴露了不受支持的 schema 版本。"
 
 #. translators: %s: dependency label.
-#: includes/Admin/Connection_Page.php:675
+#: includes/Admin/Connection_Page.php:713
 #, php-format
 msgid "%s does not support the required boundary semantics."
 msgstr "%s 不支持所需的边界语义。"
 
 #. translators: %s: dependency label.
-#: includes/Admin/Connection_Page.php:683
+#: includes/Admin/Connection_Page.php:721
 #, php-format
 msgid "%s:"
 msgstr "%s："
 
-#: includes/Admin/Connection_Page.php:706
+#: includes/Admin/Connection_Page.php:744
 msgid "Recent connection errors"
 msgstr "最近的连接错误"
 
 #. translators: %d: number of recorded errors.
-#: includes/Admin/Connection_Page.php:712
+#: includes/Admin/Connection_Page.php:750
 #, php-format
 msgid "%d recent error."
 msgid_plural "%d recent errors."
 msgstr[0] "最近有 %d 个错误。"
 
-#: includes/Admin/Connection_Page.php:722
+#: includes/Admin/Connection_Page.php:760
 msgid "No recent errors."
 msgstr "最近没有错误。"
 
-#: includes/Admin/Connection_Page.php:727
 #: includes/Admin/Connection_Page.php:765
+#: includes/Admin/Connection_Page.php:803
 msgid "Time"
 msgstr "时间"
 
-#: includes/Admin/Connection_Page.php:728
 #: includes/Admin/Connection_Page.php:766
+#: includes/Admin/Connection_Page.php:804
 msgid "Request"
 msgstr "请求"
 
-#: includes/Admin/Connection_Page.php:729
 #: includes/Admin/Connection_Page.php:767
-#: includes/Admin/Connection_Page.php:1295
+#: includes/Admin/Connection_Page.php:805
+#: includes/Admin/Connection_Page.php:1350
 msgid "Status"
 msgstr "状态"
 
-#: includes/Admin/Connection_Page.php:730
 #: includes/Admin/Connection_Page.php:768
+#: includes/Admin/Connection_Page.php:806
 msgid "Error code"
 msgstr "错误码"
 
 #. translators: %d: number of recorded errors.
-#: includes/Admin/Connection_Page.php:753
+#: includes/Admin/Connection_Page.php:791
 #, php-format
 msgid "Show %d older error"
 msgid_plural "Show %d older errors"
 msgstr[0] "显示更早的 %d 条错误"
 
-#: includes/Admin/Connection_Page.php:785
+#: includes/Admin/Connection_Page.php:823
 msgid ""
 "Only errors from AI client connections are listed here. Site changes are in "
 "the operation log, and AI requests are in the AI request log."
 msgstr "这里只列出 AI 客户端连接的错误。站点修改见「操作记录」，AI 请求见「AI 请求记录」。"
 
-#: includes/Admin/Connection_Page.php:813
+#: includes/Admin/Connection_Page.php:851
 msgid "Unavailable"
 msgstr "不可用"
 
-#: includes/Admin/Connection_Page.php:820
-#: includes/Admin/Connection_Page.php:1147
-#: includes/Admin/Connection_Page.php:1155
-#: includes/Admin/Connection_Page.php:1163
+#: includes/Admin/Connection_Page.php:858
+#: includes/Admin/Connection_Page.php:1202
+#: includes/Admin/Connection_Page.php:1210
+#: includes/Admin/Connection_Page.php:1218
 msgid "Ready"
 msgstr "就绪"
 
-#: includes/Admin/Connection_Page.php:826
+#: includes/Admin/Connection_Page.php:864
 msgid "Needs dependencies"
 msgstr "需要依赖项"
 
@@ -560,128 +561,128 @@ msgstr "复制环境变量占位符"
 msgid "Back to Npcink AI Client Adapter"
 msgstr "返回 Npcink AI 客户端适配器"
 
-#: includes/Admin/Connection_Page.php:1008
+#: includes/Admin/Connection_Page.php:1063
 msgid "Application Passwords are not available for this user or site."
 msgstr "此用户或站点不可用应用密码。"
 
-#: includes/Admin/Connection_Page.php:1147
-#: includes/Admin/Connection_Page.php:1155
-#: includes/Admin/Connection_Page.php:1163
+#: includes/Admin/Connection_Page.php:1202
+#: includes/Admin/Connection_Page.php:1210
+#: includes/Admin/Connection_Page.php:1218
 msgid "Needs attention"
 msgstr "需要处理"
 
-#: includes/Admin/Connection_Page.php:1148
+#: includes/Admin/Connection_Page.php:1203
 msgid "Required plugins"
 msgstr "必需的插件"
 
-#: includes/Admin/Connection_Page.php:1150
+#: includes/Admin/Connection_Page.php:1205
 msgid "All required Npcink plugins are turned on."
 msgstr "所需的 Npcink 插件都已启用。"
 
-#: includes/Admin/Connection_Page.php:1151
+#: includes/Admin/Connection_Page.php:1206
 msgid ""
 "Turn on the missing Npcink plugins listed above. AI clients cannot connect "
 "until they are on."
 msgstr "请启用上面列出的缺少的 Npcink 插件。启用前 AI 客户端无法连接。"
 
-#: includes/Admin/Connection_Page.php:1156
+#: includes/Admin/Connection_Page.php:1211
 msgid "Connect a device"
 msgstr "连接一台设备"
 
-#: includes/Admin/Connection_Page.php:1158
+#: includes/Admin/Connection_Page.php:1213
 msgid "At least one device is connected with its own device key."
 msgstr "至少有一台设备已用自己的设备密钥连接。"
 
-#: includes/Admin/Connection_Page.php:1159
+#: includes/Admin/Connection_Page.php:1214
 msgid ""
 "Copy the connect command above, run it on the computer where the AI client "
 "runs, then approve the request here."
 msgstr "复制上方的连接命令，在运行 AI 客户端的电脑上执行，然后在这里批准请求。"
 
-#: includes/Admin/Connection_Page.php:1164
+#: includes/Admin/Connection_Page.php:1219
 msgid "First request from the device"
 msgstr "设备的首次请求"
 
-#: includes/Admin/Connection_Page.php:1166
+#: includes/Admin/Connection_Page.php:1221
 msgid "A connected device has made a request successfully."
 msgstr "已连接的设备成功发送过请求。"
 
-#: includes/Admin/Connection_Page.php:1167
+#: includes/Admin/Connection_Page.php:1222
 msgid "This finishes on its own after you approve the device."
 msgstr "批准设备后会自动完成。"
 
-#: includes/Admin/Connection_Page.php:1172
+#: includes/Admin/Connection_Page.php:1227
 msgid "Connection readiness"
 msgstr "连接就绪状态"
 
-#: includes/Admin/Connection_Page.php:1182
+#: includes/Admin/Connection_Page.php:1237
 msgid ""
 "This only checks the connection. Changes the AI suggests still need your "
 "approval before they are made."
 msgstr "这里只检查连接。AI 提出的修改仍需你批准后才会生效。"
 
-#: includes/Admin/Connection_Page.php:1210
+#: includes/Admin/Connection_Page.php:1265
 msgid "No devices yet"
 msgstr "还没有设备"
 
 #. translators: 1: number of active clients, 2: formatted last-used timestamp.
-#: includes/Admin/Connection_Page.php:1216
+#: includes/Admin/Connection_Page.php:1271
 #, php-format
 msgid "%1$d active, last used %2$s"
 msgid_plural "%1$d active, last used %2$s"
 msgstr[0] "%1$d 个有效，最近使用于 %2$s"
 
 #. translators: %d: number of active clients.
-#: includes/Admin/Connection_Page.php:1224
+#: includes/Admin/Connection_Page.php:1279
 #, php-format
 msgid "%d active, not used yet"
 msgid_plural "%d active, not used yet"
 msgstr[0] "%d 个有效，尚未使用"
 
-#: includes/Admin/Connection_Page.php:1250
+#: includes/Admin/Connection_Page.php:1305
 msgid "No devices are connected yet. Use the connect command above."
 msgstr "还没有连接设备。请使用上方的连接命令。"
 
-#: includes/Admin/Connection_Page.php:1261
+#: includes/Admin/Connection_Page.php:1316
 msgid "Revoked devices"
 msgstr "已撤销设备"
 
 #. translators: %d: number of revoked key-pair clients.
-#: includes/Admin/Connection_Page.php:1266
+#: includes/Admin/Connection_Page.php:1321
 #, php-format
 msgid "%d revoked device record"
 msgid_plural "%d revoked device records"
 msgstr[0] "%d 条已撤销设备记录"
 
-#: includes/Admin/Connection_Page.php:1292
+#: includes/Admin/Connection_Page.php:1347
 msgid "Device"
 msgstr "设备"
 
-#: includes/Admin/Connection_Page.php:1293
+#: includes/Admin/Connection_Page.php:1348
 msgid "Device ID"
 msgstr "设备标识"
 
-#: includes/Admin/Connection_Page.php:1294
+#: includes/Admin/Connection_Page.php:1349
 msgid "Last used"
 msgstr "上次使用"
 
-#: includes/Admin/Connection_Page.php:1297
+#: includes/Admin/Connection_Page.php:1352
 msgid "Action"
 msgstr "操作"
 
-#: includes/Admin/Connection_Page.php:1324
+#: includes/Admin/Connection_Page.php:1379
 msgid "Active"
 msgstr "有效"
 
-#: includes/Admin/Connection_Page.php:1324
+#: includes/Admin/Connection_Page.php:1379
 msgid "Revoked"
 msgstr "已撤销"
 
-#: includes/Admin/Connection_Page.php:1329
+#: includes/Admin/Connection_Page.php:1384
 msgid "Revoke this device? It must pair again before it can connect."
 msgstr "撤销此设备？撤销后它必须重新配对才能连接。"
 
-#: includes/Admin/Connection_Page.php:1333
+#: includes/Admin/Connection_Page.php:1388
 msgid "Revoke authorization"
 msgstr "撤销授权"
 
@@ -1789,6 +1790,237 @@ msgstr "Core 能力响应无效。"
 #: includes/Rest/Upstream_Dispatch.php:434
 msgid "The requested ability is not discoverable through Core."
 msgstr "无法通过核心发现请求的能力。"
+
+#: includes/Admin/Connection_Page.php:264
+#: includes/Admin/Connection_Page.php:450
+msgid "You do not have permission to approve this device."
+msgstr "你没有权限批准这台设备。"
+
+#: includes/Admin/Connection_Page.php:282
+msgid "This approval link is invalid or has expired."
+msgstr "这个批准链接无效或已过期。"
+
+#: includes/Admin/Connection_Page.php:283
+#: includes/Admin/Connection_Page.php:290
+#: includes/Admin/Connection_Page.php:297
+#: includes/Admin/Connection_Page.php:1004
+msgid "Back to connection page"
+msgstr "返回连接页"
+
+#: includes/Admin/Connection_Page.php:284
+msgid ""
+"Run the connect command again on your computer, then open the new approval "
+"link from there."
+msgstr "请在电脑上重新运行连接命令，然后打开新的批准链接。"
+
+#: includes/Admin/Connection_Page.php:289
+msgid "This device can now use the site."
+msgstr "这台设备现在可以使用此站点。"
+
+#: includes/Admin/Connection_Page.php:291
+msgid ""
+"You can close this page. Go back to the AI client on that computer and wait "
+"until it says it is ready."
+msgstr "可以关闭此页。回到那台电脑上的 AI 客户端，等到它显示已就绪。"
+
+#: includes/Admin/Connection_Page.php:293
+msgid ""
+"If you did not start this request, remove the device on the connection page "
+"right away."
+msgstr "如果你没有发起这个请求，请马上在连接页移除这台设备。"
+
+#: includes/Admin/Connection_Page.php:296
+msgid "This device was not approved."
+msgstr "这台设备未被批准。"
+
+#: includes/Admin/Connection_Page.php:298
+msgid ""
+"You can close this page. The AI client on that computer will stop waiting."
+msgstr "可以关闭此页。那台电脑上的 AI 客户端会停止等待。"
+
+#: includes/Admin/Connection_Page.php:302
+msgid "A computer is asking to connect to this site."
+msgstr "有一台电脑请求连接此站点。"
+
+#: includes/Admin/Connection_Page.php:308
+msgid "Request from: %s"
+msgstr "来自：%s"
+
+#: includes/Admin/Connection_Page.php:312
+msgid ""
+"Approve only if you just ran the connect command on that computer. It will "
+"not receive your WordPress password."
+msgstr "只有在你刚在那台电脑上运行了连接命令时才批准。它不会拿到你的 WordPress 密码。"
+
+#: includes/Admin/Connection_Page.php:315
+msgid "Optional note"
+msgstr "可选备注"
+
+#: includes/Admin/Connection_Page.php:316
+msgid "Example: home laptop"
+msgstr "例如：家里的笔记本"
+
+#: includes/Admin/Connection_Page.php:317
+msgid ""
+"Only you see this later when managing devices. Do not put passwords or keys "
+"here."
+msgstr "之后只有你在管理设备时能看到。不要把密码或密钥写在这里。"
+
+#: includes/Admin/Connection_Page.php:338
+msgid "Note"
+msgstr "备注"
+
+#: includes/Admin/Connection_Page.php:343
+msgid "AI client"
+msgstr "AI 客户端"
+
+#: includes/Admin/Connection_Page.php:346
+msgid "Computer name"
+msgstr "电脑名称"
+
+#: includes/Admin/Connection_Page.php:349
+msgid "Helper on that computer"
+msgstr "那台电脑上的助手"
+
+#: includes/Admin/Connection_Page.php:351
+msgid "Approval code"
+msgstr "批准码"
+
+#: includes/Admin/Connection_Page.php:351
+msgid "Approval code used"
+msgstr "已使用的批准码"
+
+#: includes/Admin/Connection_Page.php:354
+msgid "Approved at"
+msgstr "批准时间"
+
+#: includes/Admin/Connection_Page.php:362
+msgid "What this device can do"
+msgstr "这台设备可以做什么"
+
+#: includes/Admin/Connection_Page.php:362
+msgid "What it is asking to do"
+msgstr "它请求做什么"
+
+#: includes/Admin/Connection_Page.php:368
+msgid ""
+"It still cannot change the site on its own. Any write must wait for your "
+"approval first."
+msgstr "它仍不能自行修改站点。任何写入都必须先等你批准。"
+
+#: includes/Admin/Connection_Page.php:373
+msgid "Technical details"
+msgstr "技术细节"
+
+#: includes/Admin/Connection_Page.php:374
+msgid "For support only. These are not passwords."
+msgstr "仅供客服排查。这些不是密码。"
+
+#: includes/Admin/Connection_Page.php:378
+msgid "Share these only when support asks for them."
+msgstr "只有客服索要时再分享。"
+
+#: includes/Admin/Connection_Page.php:381
+msgid "Device key fingerprint"
+msgstr "设备密钥指纹"
+
+#: includes/Admin/Connection_Page.php:382
+msgid "Permission IDs"
+msgstr "权限编号"
+
+#: includes/Admin/Connection_Page.php:385
+msgid "Device key record ID"
+msgstr "设备密钥记录编号"
+
+#: includes/Admin/Connection_Page.php:404
+msgid "Device approved"
+msgstr "设备已批准"
+
+#: includes/Admin/Connection_Page.php:408
+msgid "Device rejected"
+msgstr "设备已拒绝"
+
+#: includes/Admin/Connection_Page.php:411
+msgid "Approve this device"
+msgstr "批准此设备"
+
+#: includes/Admin/Connection_Page.php:422
+msgid "Read information this site already allows."
+msgstr "读取此站点已允许的信息。"
+
+#: includes/Admin/Connection_Page.php:423
+msgid "Submit change requests that still need your approval."
+msgstr "提交仍需你批准的修改请求。"
+
+#: includes/Admin/Connection_Page.php:424
+msgid "Check connection and approval progress."
+msgstr "查看连接与审批进度。"
+
+#: includes/Admin/Connection_Page.php:425
+msgid ""
+"After you approve a change, carry it out. It cannot approve its own "
+"requests."
+msgstr "在你批准修改后执行它。它不能批准自己的请求。"
+
+#: includes/Admin/Connection_Page.php:437
+msgid "No recognized permissions were requested."
+msgstr "未请求可识别的权限。"
+
+#: includes/Admin/Connection_Page.php:954
+#: includes/Admin/Connection_Page.php:963
+msgid "Application password created"
+msgstr "应用密码已创建"
+
+#: includes/Admin/Connection_Page.php:965
+msgid "Copy this password now. You will not see it again."
+msgstr "请立即复制此密码。离开后就看不到了。"
+
+#: includes/Admin/Connection_Page.php:967
+msgid "Copy password"
+msgstr "复制密码"
+
+#: includes/Admin/Connection_Page.php:968
+msgid ""
+"Paste it only into the AI client secret field. Do not put it in chat, files,"
+" or emails."
+msgstr "只粘贴到 AI 客户端的密钥栏。不要放进聊天、文件或邮件。"
+
+#: includes/Admin/Connection_Page.php:979
+msgid "Connection address"
+msgstr "连接地址"
+
+#: includes/Admin/Connection_Page.php:980
+msgid "WordPress username"
+msgstr "WordPress 用户名"
+
+#: includes/Admin/Connection_Page.php:981
+msgid "Password ID"
+msgstr "密码编号"
+
+#: includes/Admin/Connection_Page.php:987
+msgid "Advanced setup text"
+msgstr "高级配置文本"
+
+#: includes/Admin/Connection_Page.php:988
+msgid ""
+"For clients that need a config file. These do not include the password."
+msgstr "供需要配置文件的客户端使用。其中不含密码。"
+
+#: includes/Admin/Connection_Page.php:993
+msgid "Connection details"
+msgstr "连接详情"
+
+#: includes/Admin/Connection_Page.php:995
+msgid "Copy connection details"
+msgstr "复制连接详情"
+
+#: includes/Admin/Connection_Page.php:998
+msgid "Environment variables"
+msgstr "环境变量"
+
+#: includes/Admin/Connection_Page.php:1000
+msgid "Copy environment variables"
+msgstr "复制环境变量"
 
 #~ msgid "Connect this WordPress site to OpenClaw or other local AI clients."
 #~ msgstr "将此 WordPress 站点连接到 OpenClaw 或其他本地 AI 客户端。"
