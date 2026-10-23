@@ -159,3 +159,15 @@ second control surface.
 Static contracts should preserve that Adapter is a thin OpenClaw channel:
 reads go through WordPress Abilities API, governed writes go through Core, and
 any execution remains supported after Core approval and commit-preflight.
+
+Before opening a pull request that changes the connection page, device
+approval page, or created handoff:
+
+- update `tests/run.php` static contract strings in the same change when any
+  user-visible English copy moves;
+- self-check the local wp-admin surface at about `1366×782` (main view and
+  open disclosure panels) against this document's layout rules, and fix
+  issues before asking for human review.
+
+Session closeout notes for the 2026-10 plain-copy arc live in
+`docs/archive/2026-10-22-admin-plain-copy-session-closeout.md`.
