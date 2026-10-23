@@ -108,6 +108,12 @@ Adapter, and Adapter does not own their callbacks.
   from `.github/pull_request_template.md`; do not replace it with ad hoc
   `gh pr create --body` text that omits `Scope`, `Boundary`, `Verification`, or
   `Risk`.
+- When admin-visible English copy on the connection, pairing, or created-handoff
+  surfaces changes, update matching strings in `tests/run.php` in the same
+  change set so static contracts stay green. After the PR merges, sync local
+  `master` and delete the merged topic branch locally and on `origin` (the
+  publisher never deletes branches). See
+  `docs/archive/2026-10-22-admin-plain-copy-session-closeout.md`.
 - The publisher checks the current `origin/master` baseline, creates the PR,
   and requests protected squash auto-merge. It never bypasses required checks
   and never deletes local or remote branches, because this repository commonly
