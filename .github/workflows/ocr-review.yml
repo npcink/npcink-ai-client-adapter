@@ -120,11 +120,13 @@ jobs:
       - name: Run OpenCodeReview (attempt 1 of 3)
         id: ocr_review_1
         continue-on-error: true
-        # alibaba/open-code-review v1.13.0: annotated tag object
-        # 152cdab52ebfe72034bbce7b27329330e28ffc8a peels to commit
-        # 1672852136fc87748249d22bce0819f33419ea79. Pin the commit SHA
+        # alibaba/open-code-review v1.13.3: annotated tag object
+        # dd925205e108304bd4dd6cc0f8e8b7cf8dee77ea peels to commit
+        # 375f64cd6f67a48a135da83cfcf59c52669a09cb. Pin the commit SHA
         # because the action receives the LLM auth token; bump deliberately
         # and record the new tag-to-commit pair.
+        # This pins the Action wrapper; ocr_version still defaults to latest.
+        # It does not establish CLI reproducibility or fix prior HTTP 400s.
         uses: alibaba/open-code-review@375f64cd6f67a48a135da83cfcf59c52669a09cb
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
