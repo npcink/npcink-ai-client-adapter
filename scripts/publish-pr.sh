@@ -307,10 +307,13 @@ for commit in unpushed:
 	def fmt(placeholder):
 		return git("log", "-1", f"--format={placeholder}", commit).rstrip("\n")
 
+	# Formatted logs normalize trailing LF; use the raw commit message verbatim.
+	message = git_bytes("cat-file", "commit", commit).split(b"\n\n", 1)[1].decode("utf-8")
+
 	created = gh(
 		f"repos/{repo}/git/commits",
 		{
-			"message": fmt("%B"),
+			"message": message,
 			"tree": tree["sha"],
 			"parents": [parent],
 			"author": {"name": fmt("%an"), "email": fmt("%ae"), "date": fmt("%aI")},
