@@ -97,8 +97,12 @@ Adapter, and Adapter does not own their callbacks.
   higher must be fixed or accepted with an explicit operator-visible
   rationale. If no review can be delivered, publish only with
   `-- --no-review-because "<reason>"`, which records the exception in
-  the PR body. Findings are a second opinion and never replace
-  deterministic gates.
+  the PR body. With that explicit reason, the gate inspects review delivery
+  once without waiting or re-running OCR. An undelivered round requires
+  exception write/readback and a matching PR head; read/write/verification
+  errors stop publishing. A successful round still requires delivery
+  reconciliation and finding triage, even when a reason is supplied.
+  Findings are a second opinion and never replace deterministic gates.
 - For multi-repo milestones, run the central matrix from
   `/Users/muze/gitee/npcink-workflow-toolbox` instead of copying the script into Adapter:
   `composer quality:matrix` for status and `composer quality:matrix:run` before

@@ -51,6 +51,10 @@ verifies that every delivered inline finding has a fix:/accept: triage line
 in the pull request body's "## AI Review Triage" section. --self-test runs
 the producer-contract fixtures only (composer test:ai-review-gate) and
 cannot be combined with the gate arguments.
+
+With --no-review-because, inspect delivery once without waiting or re-running
+OCR. An undelivered round records and reads back the exception for this head;
+a successful round still requires delivery reconciliation and finding triage.
 EOF
 }
 
@@ -79,8 +83,9 @@ while [ "$#" -gt 0 ]; do
 		--no-review-because)
 			[ "$#" -ge 2 ] || fail '--no-review-because requires a value'
 			case "$2" in
-				*$'\n'*) fail '--no-review-because must be a single line' ;;
+				*$'\n'*|*$'\r'*) fail '--no-review-because must be a single line' ;;
 			esac
+			[[ "$2" =~ [^[:space:]] ]] || fail '--no-review-because requires a nonblank reason'
 			review_exception="$2"
 			shift 2
 			;;
@@ -432,19 +437,20 @@ discovery_poll_max=6
 # Latest pull_request_target run of the review workflow for this head.
 # Only used for discovery; afterwards the run id is pinned so a second
 # run for the same head (re-push, re-open) cannot silently switch the
-# run under verification. A transient API error surfaces as an empty
-# result, which the polling loops treat as "not delivered yet" and
-# eventually fail closed.
+# run under verification. The normal polling path tolerates transient API
+# errors; the explicit exception snapshot must distinguish them from no run.
 latest_review_run() {
 	# The runs endpoint returns {"total_count":N,"workflow_runs":[...]}
 	# per page (an object, unlike the bare-array comment endpoints).
 	gh api --paginate "repos/${github_repo}/actions/runs?head_sha=${head_sha}&per_page=100" \
 	| jq -s '
+		if length == 0 or any(.[]; (.workflow_runs | type) != "array")
+		then error("invalid workflow runs response") else
 		[ .[] | .workflow_runs[]
 			| select(.path == ".github/workflows/ocr-review.yml")
 			| select(.event == "pull_request_target")
-		] | max_by(.run_number) | select(. != null) | {id: .id}
-	' || true
+		] | max_by(.run_number) | select(. != null) | {id: .id} end
+	'
 }
 
 run_json=''
@@ -454,8 +460,11 @@ run_field() {
 
 # Refresh run_json from the pinned run id.
 run_state() {
-	run_json="$(gh api "repos/${github_repo}/actions/runs/${run_id}" \
-		--jq '{status: .status, conclusion: .conclusion, attempt: .run_attempt, created_at: .created_at}' || true)"
+	if ! run_json="$(gh api "repos/${github_repo}/actions/runs/${run_id}" \
+		--jq '{status: .status, conclusion: .conclusion, attempt: .run_attempt, created_at: .created_at}')"; then
+		run_json=''
+		return 1
+	fi
 	[ -n "${run_json}" ]
 }
 
@@ -476,8 +485,9 @@ undelivered_exit() {
 	local cause="$1"
 	if [ -n "${review_exception}" ]; then
 		local stamp current new_body verify_body
+		verify_exception_head
 		stamp="$(date -u +%Y-%m-%d)"
-		exception_line="- ${stamp} — merged without a delivered OpenCodeReview round (${cause}): ${review_exception}"
+		exception_line="- ${stamp} — merged without a delivered OpenCodeReview round (${cause}; head ${head_sha}): ${review_exception}"
 		# Fetched immediately before the edit; the write is then verified
 		# and retried once on a fresh body, so a concurrent edit landing
 		# inside the one-round-trip window is recovered instead of lost.
@@ -493,12 +503,12 @@ undelivered_exit() {
 		if ! verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""' 2>/dev/null)"; then
 			fail "could not read PR #${pr_number} back after writing the exception; the exception state is UNVERIFIED and publishing must stop"
 		fi
-		if ! grep -Fq -- "${exception_line}" <<< "${verify_body}"; then
+		if ! grep -Fxq -- "${exception_line}" <<< "${verify_body}"; then
 			echo '[ai-review-gate] the exception line did not land (concurrent body edit); retrying once' >&2
 			if ! current="$(gh pr view "${pr_number}" --json body --jq '.body // ""' 2>/dev/null)"; then
 				fail "could not re-read PR #${pr_number} while recording the exception; the exception is NOT recorded and publishing must stop"
 			fi
-			if ! grep -Fq -- "${exception_line}" <<< "${current}"; then
+			if ! grep -Fxq -- "${exception_line}" <<< "${current}"; then
 				new_body="$(exception_body_from "${current}")"
 				if ! printf '%s' "${new_body}" | gh pr edit "${pr_number}" --body-file - >/dev/null 2>&1; then
 					fail "could not write the retried exception line to PR #${pr_number}; the exception is NOT recorded and publishing must stop"
@@ -506,10 +516,11 @@ undelivered_exit() {
 				if ! verify_body="$(gh pr view "${pr_number}" --json body --jq '.body // ""' 2>/dev/null)"; then
 					fail "could not read PR #${pr_number} back after the retried write; the exception state is UNVERIFIED and publishing must stop"
 				fi
-				grep -Fq -- "${exception_line}" <<< "${verify_body}" \
+				grep -Fxq -- "${exception_line}" <<< "${verify_body}" \
 					|| fail 'the exception line did not land after retry; the exception is NOT recorded and publishing must stop'
 			fi
 		fi
+		verify_exception_head
 		echo "[ai-review-gate] ${cause}; exception recorded in the PR body, proceeding"
 		exit 0
 	fi
@@ -521,23 +532,55 @@ undelivered_exit() {
 	exit 1
 }
 
-echo "[ai-review-gate] waiting for the OpenCodeReview run on PR #${pr_number} head ${head_sha}"
+verify_exception_head() {
+	local current_head
+	current_head="$(gh pr view "${pr_number}" --json headRefOid --jq .headRefOid)" \
+		|| fail 'could not read the pull request head; publishing must stop'
+	[ "${current_head}" = "${head_sha}" ] \
+		|| fail 'the pull request head changed; publishing must stop'
+}
+
+if [ -n "${review_exception}" ]; then
+	echo "[ai-review-gate] inspecting OpenCodeReview once for explicit exception on head ${head_sha}"
+else
+	echo "[ai-review-gate] waiting for the OpenCodeReview run on PR #${pr_number} head ${head_sha}"
+fi
 
 run_id=''
 for discovery_attempt in $(seq 1 "${discovery_poll_max}"); do
-	discovery_json="$(latest_review_run)"
+	if [ -n "${review_exception}" ]; then
+		discovery_json="$(latest_review_run)" || fail 'could not read review runs for the exception snapshot'
+	else
+		discovery_json="$(latest_review_run || true)"
+	fi
 	if [ -n "${discovery_json}" ]; then
 		run_id="$(printf '%s' "${discovery_json}" | jq -r '.id')"
 		break
 	fi
+	[ -z "${review_exception}" ] || break
 	sleep "${discovery_poll_seconds}"
 done
 [ -n "${run_id}" ] || undelivered_exit 'no OpenCodeReview run registered for this head'
 
-run_state || undelivered_exit 'the OpenCodeReview run state is unreadable'
+if ! run_state; then
+	[ -z "${review_exception}" ] || fail 'could not read the review run for the exception snapshot'
+	undelivered_exit 'the OpenCodeReview run state is unreadable'
+fi
 run_created="$(run_field created_at)"
 
-if ! wait_for_completion; then
+if [ -n "${review_exception}" ]; then
+	# API/shape failures are not evidence of an undelivered round. Do not
+	# turn an unreadable state into permission to bypass delivery checks.
+	printf '%s' "${run_json}" | jq -e '
+		(.status | type == "string" and length > 0) and
+		(.attempt | type == "number" and . >= 1) and
+		(.created_at | type == "string" and length > 0) and
+		(.status != "completed" or (.conclusion | type == "string" and length > 0))
+	' >/dev/null || fail 'invalid review run state for the exception snapshot'
+	if [ "$(run_field status)" != 'completed' ] || [ "$(run_field conclusion)" != 'success' ]; then
+		undelivered_exit "OpenCodeReview snapshot is $(run_field status)/$(run_field conclusion)"
+	fi
+elif ! wait_for_completion; then
 	undelivered_exit 'the OpenCodeReview run did not complete in time'
 fi
 
@@ -568,7 +611,7 @@ if [ "${conclusion}" != 'success' ]; then
 	# run was cancelled by a comment round, the rerun may cancel that
 	# comment round. Solo-operator usage makes comment rounds rare, and the
 	# gate's own delivery re-verification still holds the merge either way.
-	newest_id="$(latest_review_run | jq -r '.id // empty')"
+	newest_id="$(latest_review_run | jq -r '.id // empty' || true)"
 	if [ "${newest_id}" = "${run_id}" ]; then
 		:
 	elif [ -n "${newest_id}" ]; then
