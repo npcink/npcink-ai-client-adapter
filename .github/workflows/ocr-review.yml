@@ -125,7 +125,7 @@ jobs:
         # 1672852136fc87748249d22bce0819f33419ea79. Pin the commit SHA
         # because the action receives the LLM auth token; bump deliberately
         # and record the new tag-to-commit pair.
-        uses: alibaba/open-code-review@1672852136fc87748249d22bce0819f33419ea79
+        uses: alibaba/open-code-review@375f64cd6f67a48a135da83cfcf59c52669a09cb
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
@@ -144,7 +144,7 @@ jobs:
         id: ocr_review_2
         if: steps.ocr_review_1.outcome == 'failure'
         continue-on-error: true
-        uses: alibaba/open-code-review@1672852136fc87748249d22bce0819f33419ea79
+        uses: alibaba/open-code-review@375f64cd6f67a48a135da83cfcf59c52669a09cb
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
@@ -161,7 +161,7 @@ jobs:
       - name: Run OpenCodeReview (attempt 3 of 3)
         id: ocr_review_3
         if: steps.ocr_review_2.outcome == 'failure'
-        uses: alibaba/open-code-review@1672852136fc87748249d22bce0819f33419ea79
+        uses: alibaba/open-code-review@375f64cd6f67a48a135da83cfcf59c52669a09cb
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
