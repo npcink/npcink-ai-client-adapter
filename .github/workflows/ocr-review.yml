@@ -10,7 +10,7 @@
 #      never add it to required checks.
 #
 # Derived from alibaba/open-code-review examples/github_actions/ocr-review.yml,
-# with the action pinned to a release tag and an explicit review language.
+# with the action pinned to a release commit SHA and an explicit review language.
 
 name: OpenCodeReview PR Review
 
@@ -120,11 +120,12 @@ jobs:
       - name: Run OpenCodeReview (attempt 1 of 3)
         id: ocr_review_1
         continue-on-error: true
-        # alibaba/open-code-review v1.12.13: annotated tag object f33ea589
-        # resolves to commit fabbdb296b0d97e2140ada8d54ca7d6d6d1d7ad4.
-        # Pinned by commit SHA because the action receives the LLM auth token;
-        # bump deliberately and record the new tag->commit pair.
-        uses: alibaba/open-code-review@fabbdb296b0d97e2140ada8d54ca7d6d6d1d7ad4
+        # alibaba/open-code-review v1.13.0: annotated tag object
+        # 152cdab52ebfe72034bbce7b27329330e28ffc8a peels to commit
+        # 1672852136fc87748249d22bce0819f33419ea79. Pin the commit SHA
+        # because the action receives the LLM auth token; bump deliberately
+        # and record the new tag-to-commit pair.
+        uses: alibaba/open-code-review@1672852136fc87748249d22bce0819f33419ea79
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
@@ -143,7 +144,7 @@ jobs:
         id: ocr_review_2
         if: steps.ocr_review_1.outcome == 'failure'
         continue-on-error: true
-        uses: alibaba/open-code-review@fabbdb296b0d97e2140ada8d54ca7d6d6d1d7ad4
+        uses: alibaba/open-code-review@1672852136fc87748249d22bce0819f33419ea79
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
@@ -160,7 +161,7 @@ jobs:
       - name: Run OpenCodeReview (attempt 3 of 3)
         id: ocr_review_3
         if: steps.ocr_review_2.outcome == 'failure'
-        uses: alibaba/open-code-review@fabbdb296b0d97e2140ada8d54ca7d6d6d1d7ad4
+        uses: alibaba/open-code-review@1672852136fc87748249d22bce0819f33419ea79
         with:
           llm_url: ${{ secrets.OCR_LLM_URL }}
           llm_auth_token: ${{ secrets.OCR_LLM_AUTH_TOKEN }}
