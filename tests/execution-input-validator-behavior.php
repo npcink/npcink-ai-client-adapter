@@ -197,4 +197,7 @@ foreach ( array_keys( $import_input ) as $field ) {
 }
 npcink_adapter_validator_assert( true === $import_validator->validate_execute_action_input( 'import-proposal', 'npcink-abilities-toolkit/import-cloud-media-derivative', $import_input, 0 ), 'new media import accepts bounded evidence fields' );
 
+$replacement_profile = \Npcink\OpenClawAdapter\Rest\Execution_Profile_Registry::profiles()['npcink-abilities-toolkit/adopt-cloud-media-derivative'];
+npcink_adapter_validator_assert( in_array( 'expected_current_media_fingerprint', $replacement_profile['supported_input_fields'], true ), 'replacement execution preserves the reviewed source fingerprint' );
+
 fwrite( STDOUT, "Execution input validator behavior: ok\n" );
