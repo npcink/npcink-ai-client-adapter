@@ -187,5 +187,14 @@ $site_not_ready = $validator->validate_execute_action_input(
 npcink_adapter_validator_assert( is_wp_error( $site_not_ready ), 'missing host allowlist fails closed' );
 npcink_adapter_validator_assert( 'test_setting_not_ready' === $site_not_ready->get_error_code(), 'site readiness keeps profile error code' );
 npcink_adapter_validator_assert( false === ( $site_not_ready->get_error_data()['target_name_exposed'] ?? true ), 'site readiness does not expose target name' );
+require_once dirname( __DIR__ ) . '/includes/Rest/Execution_Profile_Registry.php';
+$import_validator = new Execution_Input_Validator( \Npcink\OpenClawAdapter\Rest\Execution_Profile_Registry::profiles() );
+$import_input = array( 'source_attachment_id' => 12, 'expected_source_media_fingerprint' => 'sha256:' . str_repeat( 'a', 64 ), 'derivative_artifact' => array( 'artifact_id' => 'art_' . str_repeat( '1', 32 ) ) );
+foreach ( array_keys( $import_input ) as $field ) {
+	$missing = $import_input;
+	unset( $missing[ $field ] );
+	npcink_adapter_validator_assert( is_wp_error( $import_validator->validate_execute_action_input( 'import-proposal', 'npcink-abilities-toolkit/import-cloud-media-derivative', $missing, 0 ) ), 'new media import requires ' . $field );
+}
+npcink_adapter_validator_assert( true === $import_validator->validate_execute_action_input( 'import-proposal', 'npcink-abilities-toolkit/import-cloud-media-derivative', $import_input, 0 ), 'new media import accepts bounded evidence fields' );
 
 fwrite( STDOUT, "Execution input validator behavior: ok\n" );

@@ -89,6 +89,7 @@ when every action targets the current execution allowlist
 `npcink-abilities-toolkit/optimize-media-asset`,
 `npcink-abilities-toolkit/replace-media-file`,
 `npcink-abilities-toolkit/restore-media-backup`,
+`npcink-abilities-toolkit/import-cloud-media-derivative` (new attachment only),
 `npcink-abilities-toolkit/adopt-cloud-media-derivative`,
 `npcink-abilities-toolkit/rename-media-file`,
 `npcink-abilities-toolkit/delete-media-permanently`,

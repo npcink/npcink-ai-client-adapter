@@ -2195,3 +2195,15 @@ msgstr "复制环境变量"
 
 #~ msgid "Not installed"
 #~ msgstr "未安装"
+
+#: includes/Rest/Execution_Profile_Registry.php
+msgid "import-cloud-media-derivative execution input must include source_attachment_id."
+msgstr "另存为新媒体的执行输入必须包含原图附件 ID。"
+
+#: includes/Rest/Execution_Profile_Registry.php
+msgid "import-cloud-media-derivative execution input must include expected_source_media_fingerprint."
+msgstr "另存为新媒体的执行输入必须包含原图指纹。"
+
+#: includes/Rest/Execution_Profile_Registry.php
+msgid "import-cloud-media-derivative execution input must include derivative_artifact evidence."
+msgstr "另存为新媒体的执行输入必须包含处理结果工件证据。"

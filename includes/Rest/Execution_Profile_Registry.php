@@ -384,6 +384,27 @@ final class Execution_Profile_Registry {
 				),
 				'post_id_from_result'    => false,
 			),
+			'npcink-abilities-toolkit/import-cloud-media-derivative' => array(
+				'supported_input_fields' => array( 'source_attachment_id', 'expected_source_media_fingerprint', 'derivative_artifact', 'dry_run', 'commit', 'idempotency_key' ),
+				'required_int_fields'    => array(
+					'source_attachment_id' => array(
+						'code'    => 'npcink_openclaw_adapter_source_attachment_id_required',
+						'message' => __( 'import-cloud-media-derivative execution input must include source_attachment_id.', 'npcink-ai-client-adapter' ),
+					),
+				),
+				'required_text_fields'   => array(
+					'expected_source_media_fingerprint' => array(
+						'code'    => 'npcink_openclaw_adapter_source_fingerprint_required',
+						'message' => __( 'import-cloud-media-derivative execution input must include expected_source_media_fingerprint.', 'npcink-ai-client-adapter' ),
+					),
+				),
+				'require_any_fields'     => array(
+					'fields'  => array( 'derivative_artifact' ),
+					'code'    => 'npcink_openclaw_adapter_derivative_artifact_required',
+					'message' => __( 'import-cloud-media-derivative execution input must include derivative_artifact evidence.', 'npcink-ai-client-adapter' ),
+				),
+				'post_id_from_result'    => false,
+			),
 			'npcink-abilities-toolkit/adopt-cloud-media-derivative' => array(
 				'supported_input_fields' => array( 'attachment_id', 'derivative_artifact', 'expected_current_relative_file', 'expected_current_mime_type', 'expected_derivative_mime_type', 'expected_storage_provider', 'expected_storage_adapter', 'storage_preflight', 'file_name', 'expected_content_reference_post_ids', 'expected_content_reference_post_count', 'expected_content_reference_replacement_count', 'content_reference_repairs', 'backup_suffix', 'dry_run', 'commit', 'idempotency_key' ),
 				'required_int_fields'    => array(

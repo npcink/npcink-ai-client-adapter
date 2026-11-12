@@ -1613,3 +1613,15 @@ msgstr ""
 #: includes/Rest/Upstream_Dispatch.php:434
 msgid "The requested ability is not discoverable through Core."
 msgstr ""
+
+#: includes/Rest/Execution_Profile_Registry.php
+msgid "import-cloud-media-derivative execution input must include source_attachment_id."
+msgstr ""
+
+#: includes/Rest/Execution_Profile_Registry.php
+msgid "import-cloud-media-derivative execution input must include expected_source_media_fingerprint."
+msgstr ""
+
+#: includes/Rest/Execution_Profile_Registry.php
+msgid "import-cloud-media-derivative execution input must include derivative_artifact evidence."
+msgstr ""
