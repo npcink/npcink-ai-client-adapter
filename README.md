@@ -1232,3 +1232,7 @@ This signs Adapter requests, verifies both manual-approval branches, and restore
 a deleted governed attachment through the existing restore execution profile.
 Core, Toolkit, and Adapter must load the intended checkout revisions. The fixture
 removes its own keys, records, attachments, and backups on exit.
+
+Governed Cloud media replacement also preserves the optional
+`expected_current_media_fingerprint` input through the explicit execution profile.
+Toolkit validates the reviewed source bytes; Adapter adds no writer or approval.
