@@ -1236,3 +1236,7 @@ removes its own keys, records, attachments, and backups on exit.
 Governed Cloud media replacement also preserves the optional
 `expected_current_media_fingerprint` input through the explicit execution profile.
 Toolkit validates the reviewed source bytes; Adapter adds no writer or approval.
+
+Single-image replacement may opt into Toolkit `backup_lifecycle=temporary_7_days.v1`.
+The execution profile preserves this additive field; Toolkit owns file retention,
+restore and cleanup. Legacy callers retain their existing backup policy.

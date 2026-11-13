@@ -406,7 +406,7 @@ final class Execution_Profile_Registry {
 				'post_id_from_result'    => false,
 			),
 			'npcink-abilities-toolkit/adopt-cloud-media-derivative' => array(
-				'supported_input_fields' => array( 'attachment_id', 'derivative_artifact', 'expected_current_relative_file', 'expected_current_mime_type', 'expected_current_media_fingerprint', 'expected_derivative_mime_type', 'expected_storage_provider', 'expected_storage_adapter', 'storage_preflight', 'file_name', 'expected_content_reference_post_ids', 'expected_content_reference_post_count', 'expected_content_reference_replacement_count', 'content_reference_repairs', 'backup_suffix', 'dry_run', 'commit', 'idempotency_key' ),
+				'supported_input_fields' => array( 'attachment_id', 'derivative_artifact', 'expected_current_relative_file', 'expected_current_mime_type', 'expected_current_media_fingerprint', 'expected_derivative_mime_type', 'expected_storage_provider', 'expected_storage_adapter', 'storage_preflight', 'file_name', 'expected_content_reference_post_ids', 'expected_content_reference_post_count', 'expected_content_reference_replacement_count', 'content_reference_repairs', 'backup_lifecycle', 'backup_suffix', 'dry_run', 'commit', 'idempotency_key' ),
 				'required_int_fields'    => array(
 					'attachment_id' => array(
 						'code'    => 'npcink_openclaw_adapter_attachment_id_required',

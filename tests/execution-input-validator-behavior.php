@@ -200,4 +200,6 @@ npcink_adapter_validator_assert( true === $import_validator->validate_execute_ac
 $replacement_profile = \Npcink\OpenClawAdapter\Rest\Execution_Profile_Registry::profiles()['npcink-abilities-toolkit/adopt-cloud-media-derivative'];
 npcink_adapter_validator_assert( in_array( 'expected_current_media_fingerprint', $replacement_profile['supported_input_fields'], true ), 'replacement execution preserves the reviewed source fingerprint' );
 
+npcink_adapter_validator_assert( in_array( 'backup_lifecycle', $replacement_profile['supported_input_fields'], true ), 'replacement preserves its explicit temporary backup contract' );
+
 fwrite( STDOUT, "Execution input validator behavior: ok\n" );
