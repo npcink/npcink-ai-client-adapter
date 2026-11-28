@@ -1,7 +1,12 @@
 # OpenClaw Content Discoverability Recipe
 
-Status: active
+Status: historical; do not run
 Date: 2026-06-03
+
+This page preserves a prior contract. The standalone Toolbox validation,
+specialist brief, and article writing pack are paused. Do not use the examples
+below to discover, schedule, or call them. Basic site guidance remains a
+separate read-only Toolbox ability, not a replacement for this recipe.
 
 This recipe lets OpenClaw use Toolbox SEO, AEO, and GEO context without
 turning Adapter into a prompt owner, proposal store, approval surface, or final

@@ -594,20 +594,14 @@ For the OpenClaw article batch draft planning recipe, use
 For the OpenClaw image candidate adoption recipe, use
 [`docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md`](docs/recipes/openclaw-image-candidate-adoption-plan-recipe.md).
 
-For the OpenClaw SEO/AEO/GEO suggestion recipe, use
-[`docs/recipes/openclaw-content-discoverability-recipe.md`](docs/recipes/openclaw-content-discoverability-recipe.md).
-The primary SEO/GEO/AEO entrypoint is
-`npcink-toolbox/build-content-discoverability-brief` through
-`POST /run-read-ability`.
-Use `article-writing-pack` only for broad natural-language requests such as
-"help me write an article".
-
-For broad natural-language article requests, use
-[`docs/recipes/openclaw-ai-article-writing-pack-recipe.md`](docs/recipes/openclaw-ai-article-writing-pack-recipe.md).
-Call `POST /run-read-ability` with `npcink-toolbox/build-ai-article-writing-pack`
-to return a suggestion-only writing pack for a local OpenClaw review candidate.
-This is an article assistant path, not an article generator, Cloud writer, or
-batch publishing surface.
+The standalone Toolbox content-guidance check
+(`npcink-toolbox/validate-content-discoverability-context`), specialist
+discoverability brief, and article writing pack
+(`npcink-toolbox/build-ai-article-writing-pack`) are paused. Do not call or
+retry them through Adapter. The
+[SEO/AEO/GEO suggestion recipe](docs/recipes/openclaw-content-discoverability-recipe.md)
+and [article writing-pack recipe](docs/recipes/openclaw-ai-article-writing-pack-recipe.md)
+are historical references, not active entrypoints.
 
 For productized OpenClaw acceptance, use
 [`docs/openclaw-consumer-acceptance.md`](docs/openclaw-consumer-acceptance.md).

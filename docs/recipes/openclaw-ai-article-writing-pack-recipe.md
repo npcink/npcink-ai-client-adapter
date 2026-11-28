@@ -1,7 +1,11 @@
 # OpenClaw AI Article Writing Pack Recipe
 
-Status: active
+Status: historical; do not run
 Date: 2026-06-03
+
+This page preserves a prior contract. Toolbox no longer registers the article
+writing-pack ability during the pause. Do not use the examples below to
+discover, schedule, or call it. Adapter does not own a replacement.
 
 This recipe gives OpenClaw one high-level entrypoint for broad article requests
 such as "write an AI topic article". Adapter exposes the Toolbox writing pack
