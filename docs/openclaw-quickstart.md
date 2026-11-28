@@ -360,9 +360,12 @@ curl -sS --user "1:<openclaw-secret-field-value>" \
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
   -H "Content-Type: application/json" \
-  -d '{"ability_id":"npcink-abilities-toolkit/list-terms","input":{"taxonomy":"category","include_sample_posts":true,"sample_post_limit":3}}' \
+  -d '{"ability_id":"npcink-abilities-toolkit/list-taxonomy-terms","input":{"taxonomy":"category","include_sample_posts":true,"sample_post_limit":3}}' \
   "https://npcink.local/wp-json/npcink-openclaw-adapter/v1/run-read-ability"
 ```
+
+Omit `parent` to include all levels. Pass `parent: 0` for root terms or a
+term ID for its direct children. Use `taxonomy: "post_tag"` to list post tags.
 
 ```bash
 curl -sS --user "1:<openclaw-secret-field-value>" \
