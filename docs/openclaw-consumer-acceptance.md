@@ -227,21 +227,9 @@ Run this order for a local acceptance pass:
    `read_authorization_granted=true`, `redaction_required=true`,
    `redaction_applied=true`, a non-empty `correlation_id`, and
    `commit_execution=false`.
-   For the SEO/AEO/GEO suggestion recipe, run
-   `npcink-toolbox/build-content-discoverability-brief` through
-   `POST /run-read-ability`; confirm the result has
-   `artifact_type=content_discoverability_brief`, `primary_contract=true`,
-   `write_posture=suggestion_only`, `direct_wordpress_write=false`, and
-   `final_write_path=core_proposal_required`. Confirm it also exposes `seo`,
-   `aeo`, `geo`, `exceptions`, `special_cases`, and
-   `proposal_allowed_fields`; this is the primary SEO/GEO/AEO entrypoint.
-   For broad natural-language article requests, run
-   `npcink-toolbox/build-ai-article-writing-pack` through
-   `POST /run-read-ability`;
-   confirm the result has `artifact_type=ai_article_writing_pack`,
-   `write_posture=suggestion_only`, `provider_execution=none`,
-   `direct_wordpress_write=false`, and
-   `final_write_path=core_proposal_required`.
+   Skip the paused Toolbox content-guidance check, specialist discoverability
+   brief, and article writing pack. The old recipes are historical and are not
+   success cases for `POST /run-read-ability`.
    For a sensitive read such as `site-info`, confirm the adapter returns
    `npcink_openclaw_adapter_core_read_authorization_required` until Core grants
    an approved read request.
